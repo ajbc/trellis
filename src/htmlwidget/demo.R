@@ -1,12 +1,12 @@
 library(htmltools)
 library(htmlwidgets)
 library(devtools)
-#setwd("~/Downloads/topicBubbles")
+#setwd("")
 
 devtools::install() 
 library(topicBubbles)
 
-load("~/Downloads/poliblogs2008.K100.RData")
+load("dat/poliblogs2008.K100.RData")
 beta <- exp(model$beta$logbeta[[1]])
 theta <- model$theta
 N.clusters <- 20
