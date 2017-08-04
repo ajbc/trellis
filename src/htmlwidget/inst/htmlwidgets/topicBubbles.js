@@ -16,15 +16,15 @@ HTMLWidgets.widget({
     initialize: function(el, width, height) {
         d3.select(el)
             .append("svg")
-            .attr("width", 3000)
-            .attr("height", 3000);
+            .attr("width", width)
+            .attr("height", height);
     },
 
     resize: function(el, width, height) {
         d3.select(el)
             .select("svg")
-            .attr("width", 3000)
-            .attr("height", 3000);
+            .attr("width", width)
+            .attr("height", height);
     },
 
     renderValue: function(el, x) {
@@ -42,8 +42,8 @@ HTMLWidgets.widget({
             .attr("transform", "translate(" + self.DIAMETER / 2 + "," + self.DIAMETER / 2 + ")");
 
         var color = d3.scaleLinear()
-            .domain([-1, 5])
-            .range(["hsl(152,80%,80%)", "hsl(228,30%,40%)"])
+            .domain([0, 1])
+            .range(["hsl(155,30%,82%)", "hsl(155,66%,25%)"])
             .interpolate(d3.interpolateHcl);
 
         self.pack = d3.pack()
@@ -144,7 +144,7 @@ HTMLWidgets.widget({
             });
 
         // Zoom out when the user clicks the outermost circle.
-        self.svg.style("background", color(-1))
+        self.svg.style("background", "#FFF")
             .on("click", function() {
                 self.zoom(root);
             });
