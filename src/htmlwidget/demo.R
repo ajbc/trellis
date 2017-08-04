@@ -1,9 +1,9 @@
 library(htmltools)
 library(htmlwidgets)
 library(devtools)
-#setwd("")
+setwd("/Users/gwg/topicbubbles")
 
-devtools::install() 
+devtools::install("/Users/gwg/topicbubbles/src/htmlwidget") 
 library(topicBubbles)
 
 load("dat/poliblogs2008.K100.RData")
@@ -25,13 +25,13 @@ data <- data.frame(parentID=0,
                    title="")
 data <- rbind(data,
               data.frame(parentID=kmeans.fit$cluster,
-                   nodeID=seq(N.clusters+1,N.clusters+K),
-                   weight=colSums(theta),
-                   title=titles))
+                         nodeID=seq(N.clusters+1,N.clusters+K),
+                         weight=colSums(theta),
+                         title=titles))
 
-#reinstall htmlwidget for development/debugging
-# devtools::install() 
-# library(topicBubbles)
+# Reinstall htmlwidget for development/debugging
+devtools::install("/Users/gwg/topicbubbles/src/htmlwidget") 
+library(topicBubbles)
 
 w <- topicBubbles(data)
 w
