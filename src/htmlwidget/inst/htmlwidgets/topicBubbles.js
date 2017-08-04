@@ -9,7 +9,8 @@ HTMLWidgets.widget({
     currCoords: null,
     nodeInFocus: null,
 
-    MARGIN: 300,
+    BUBBLE_PADDING: 20,
+    PAGE_MARGIN: 30,
     DIAMETER: null,
 
     initialize: function(el, width, height) {
@@ -32,14 +33,14 @@ HTMLWidgets.widget({
 
     renderValue: function(el, x) {
         var self = this,
-            svg = d3.select("svg");
-        self.data = self.getTreeFromRawData(x);
+            svg = d3.select("svg"),
+            data = self.getTreeFromRawData(x);
         self.svg = svg;
         self.DIAMETER = +svg.attr("width");
-        self.rerender();
+        self.update(data);
     },
 
-    rerender: function() {
+    update: function(data) {
         var self = this,
             g = self.svg.append("g")
             .attr("transform", "translate(" + self.DIAMETER / 2 + "," + self.DIAMETER / 2 + ")");
@@ -50,10 +51,10 @@ HTMLWidgets.widget({
             .interpolate(d3.interpolateHcl);
 
         self.pack = d3.pack()
-            .size([self.DIAMETER - self.MARGIN, self.DIAMETER - self.MARGIN])
-            .padding(2);
+            .size([self.DIAMETER - self.PAGE_MARGIN, self.DIAMETER - self.PAGE_MARGIN])
+            .padding(self.BUBBLE_PADDING);
 
-        var root = d3.hierarchy(self.data)
+        var root = d3.hierarchy(data)
             .sum(function(d) {
                 return d.weight;
             })
@@ -64,7 +65,11 @@ HTMLWidgets.widget({
         self.nodeInFocus = root;
         var descendants = self.pack(root).descendants();
 
-        g.selectAll("circle")
+        function colorNode(node) {
+            return node.children ? color(node.depth) : null;
+        }
+
+        var circles = g.selectAll("circle")
             .data(descendants)
             .enter()
             .append("circle")
@@ -75,20 +80,31 @@ HTMLWidgets.widget({
                     return "node node--root";
                 }
             })
-            .attr('data-id', function(d){
+            .attr('data-id', function(d) {
                 return d.data.id;
             })
             .style("pointer-events", "visible")
             .style("fill", function(d) {
-                return d.children ? color(d.depth) : null;
+                if (self.selectedNode && self.selectedNode.data.id === d.data.id) {
+                    return 'rgb(0, 0, 255)'
+                }
+                return colorNode(d);
             });
+
+        // Fade the highlight out.
+        circles
+            .transition()
+            .duration(5000)
+            .style("fill", colorNode);
 
         g.selectAll(".node--middle")
             .on("click", function(d) {
                 if (self.selectedNode) {
-                    self.data = self.updateData(self.data, d);
-                    self.rerender();
+                    self.newParent = d;
+                    var newData = self.updateData(data);
+                    self.update(newData);
                     self.selectedNode = null;
+                    self.newParent = null;
                 } else if (self.nodeInFocus !== d) {
                     self.zoom(d);
                     d3.event.stopPropagation();
@@ -98,19 +114,19 @@ HTMLWidgets.widget({
         g.selectAll(".node--leaf")
             .on("click", function(d) {
                 d3.event.stopPropagation();
-                if (!self.selectedNode) {
+                $('circle').removeClass('highlight');
+                if (self.selectedNode && self.selectedNode.data.id == d.data.id) {
+                    self.selectedNode = null;
+                } else {
                     $(this).addClass('highlight');
                     self.selectedNode = d;
-                    self.selectedNodeParentId = d.parent.data.id;
-                } else {
-                    self.selectedNode = null;
-                    $('circle').removeClass('highlight');
                 }
             });
 
         g.selectAll("text")
             .data(descendants)
-            .enter().append("text")
+            .enter()
+            .append("text")
             .attr("class", "label")
             .style("fill-opacity", function(d) {
                 return d.parent === root ? 1 : 0;
@@ -137,30 +153,47 @@ HTMLWidgets.widget({
             });
 
         // Set initial zoom.
-        self.zoomTo([root.x, root.y, root.r * 2 + self.MARGIN]);
+        self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN]);
+        self.rerender();
     },
 
-    updateData: function(data, newParent) {
+    rerender: function() {
+        var self = this;
+        self.svg.selectAll('circles')
+            .transition()
+            .duration(5000)
+            .attr("cx", function(d) {
+                return d.x;
+            })
+            .attr("cy", function(d) { return d.y; })
+            .attr("r", function(d) { return d.r; });
+    },
+
+    /* Update underlying tree data structure, changing the selected node's
+     * parent.
+     */
+    updateData: function(data) {
         var self = this,
-            copy,
-            prop;
-        if (!data || typeof data === 'undefined' || typeof data !== 'object') {
-            if (data === 'id') debugger;
-            return data;
-        }
+            copy;
+
+        if (data == null || typeof data !== 'object') return data;
+
         if (data instanceof Array) {
             copy = [];
-            for (var i = 0, len = data.length; i < len; i++) {
-                copy[i] = self.updateData(data[i], newParent);
+            for (var i = 0; i < data.length; i++) {
+                copy[i] = self.updateData(data[i]);
             }
             return copy;
         }
+
         if (data instanceof Object) {
             copy = {};
-            for (prop in data) {
+            for (var prop in data) {
                 if (!data.hasOwnProperty(prop)) {
                     continue;
                 }
+
+                // Remove the selected node from the old parent.
                 if (prop === 'id' && data[prop] === self.selectedNode.parent.data.id) {
                     var newChildren = [];
                     for (var j = 0; j < data.children.length; j++) {
@@ -171,13 +204,17 @@ HTMLWidgets.widget({
                     }
                     data.children = newChildren;
                 }
-                if (prop === 'id' && data[prop] === newParent.data.id) {
+                // Add the selected node to the new parent.
+                if (prop === 'id' && data[prop] === self.newParent.data.id) {
                     data.children.push(self.selectedNode.data);
                 }
-                copy[prop] = self.updateData(data[prop], newParent);
+
+                copy[prop] = self.updateData(data[prop]);
             }
-            return data;
+            return copy;
         }
+
+        throw new Error('Object type not supported.');
     },
 
     /* Zoom to node.
@@ -189,7 +226,7 @@ HTMLWidgets.widget({
         var transition = d3.transition()
             .duration(d3.event.altKey ? 7500 : 750)
             .tween("zoom", function(d) {
-                var coords = [node.x, node.y, node.r * 2 + self.MARGIN],
+                var coords = [node.x, node.y, node.r * 2 + self.PAGE_MARGIN],
                     i = d3.interpolateZoom(self.currCoords, coords);
                 return function(t) {
                     self.zoomTo(i(t));
