@@ -1,9 +1,10 @@
 library(htmltools)
 library(htmlwidgets)
 library(devtools)
-setwd("/Users/gwg/topicbubbles")
+setwd("/Users/ajbc/Projects/Academic/topic-bubbles")
+#setwd("/Users/gwg/topicbubbles")
 
-devtools::install("/Users/gwg/topicbubbles/src/htmlwidget") 
+devtools::install("src/htmlwidget") 
 library(topicBubbles)
 
 load("dat/poliblogs2008.K100.RData")
@@ -30,8 +31,7 @@ data <- rbind(data,
                          title=titles))
 
 # Reinstall htmlwidget for development/debugging
-devtools::install("/Users/gwg/topicbubbles/src/htmlwidget") 
+devtools::install("src/htmlwidget") 
 library(topicBubbles)
 
-w <- topicBubbles(data)
-w
+topicBubbles(data)
