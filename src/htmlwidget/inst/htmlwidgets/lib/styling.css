@@ -3,12 +3,17 @@
 }
 
 .node:hover {
-  stroke: #000;
-  stroke-width: 1.5px;
+    opacity: 0.8;
+    filter: alpha(opacity=80);
 }
 
 .node--leaf {
   fill: white;
+}
+
+.node--leaf:hover {
+    opacity: 0.8;
+    filter: alpha(opacity=80);
 }
 
 .label {
@@ -18,7 +23,6 @@
 }
 
 .label,
-.node--root,
-.node--leaf {
+.node--root {
   pointer-events: none;
 }

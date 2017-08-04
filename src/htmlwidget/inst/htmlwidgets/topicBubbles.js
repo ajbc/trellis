@@ -9,7 +9,7 @@ HTMLWidgets.widget({
         .attr("width", width)
         .attr("height", height);
 
-    //return d3.forceSimulation();
+    return d3.forceSimulation();
   },
   
   resize: function(el, width, height, force) {
@@ -18,8 +18,8 @@ HTMLWidgets.widget({
         .attr("width", width)
         .attr("height", height);
 
-    //force.force("center", d3.forceCenter(width / 2, height / 2))
-    //    .restart();
+    force.force("center", d3.forceCenter(width / 2, height / 2))
+        .restart();
   },
   
   renderValue: function(el, x, force) {
@@ -70,22 +70,20 @@ HTMLWidgets.widget({
         }
       }
     });
-    
-    //el.innerText = JSON.stringify(data);
-    
+
     var svg = d3.select("svg"),
         margin = 20,
         diameter = +svg.attr("width"),
         g = svg.append("g").attr("transform", "translate(" + diameter / 2 + "," + diameter / 2 + ")");
     
     var color = d3.scaleLinear()
-        .domain([-1, 5])
-        .range(["hsl(152,80%,80%)", "hsl(228,30%,40%)"])
+        .domain([0, 1])
+        .range(["hsl(155,30%,82%)", "hsl(155,66%,25%)"])
         .interpolate(d3.interpolateHcl);
     
     var pack = d3.pack()
         .size([diameter - margin, diameter - margin])
-        .padding(2);
+        .padding(10);
         
     root = d3.hierarchy(data)
       .sum(function(d) { return d.weight; })
@@ -100,7 +98,8 @@ HTMLWidgets.widget({
       .enter().append("circle")
         .attr("class", function(d) { return d.parent ? d.children ? "node" : "node node--leaf" : "node node--root"; })
         .style("fill", function(d) { return d.children ? color(d.depth) : null; })
-        .on("click", function(d) { if (focus !== d) zoom(d), d3.event.stopPropagation(); });
+        .on("click", function(d) {})
+        .on("dblclick", function(d) { if (focus !== d) zoom(d), d3.event.stopPropagation(); });
   
     /*var text = g.selectAll("text")
       .data(nodes)
@@ -128,8 +127,8 @@ HTMLWidgets.widget({
     var node = g.selectAll("circle,text");
   
     svg
-        .style("background", color(-1))
-        .on("click", function() { zoom(root); });
+        .style("background", "#FFF")
+        .on("dblclick", function() { zoom(root); });
   
     zoomTo([root.x, root.y, root.r * 2 + margin]);
   
