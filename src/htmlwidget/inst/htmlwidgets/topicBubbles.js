@@ -82,7 +82,7 @@ HTMLWidgets.widget({
             .style("pointer-events", "visible")
             .style("fill", function(d) {
                 if (self.selectedNode && self.selectedNode.data.id === d.data.id) {
-                    return 'rgb(0, 0, 255)'
+                    return 'rgb(255, 0, 0)'
                 }
                 return colorNode(d);
             });
@@ -90,7 +90,7 @@ HTMLWidgets.widget({
         // Fade the highlight out.
         circles
             .transition()
-            .duration(5000)
+            .duration(1500)
             .style("fill", colorNode);
 
         g.selectAll(".node--middle")
