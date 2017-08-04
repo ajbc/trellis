@@ -14,21 +14,17 @@ HTMLWidgets.widget({
     DIAMETER: null,
 
     initialize: function(el, width, height) {
-        width = $(document).width();
-        height = $(document).height();
         d3.select(el)
             .append("svg")
-            .attr("width", width)
-            .attr("height", height);
+            .attr("width", 3000)
+            .attr("height", 3000);
     },
 
     resize: function(el, width, height) {
-        width = $(document).width();
-        height = $(document).height();
         d3.select(el)
             .select("svg")
-            .attr("width", width)
-            .attr("height", height);
+            .attr("width", 3000)
+            .attr("height", 3000);
     },
 
     renderValue: function(el, x) {
@@ -114,11 +110,12 @@ HTMLWidgets.widget({
         g.selectAll(".node--leaf")
             .on("click", function(d) {
                 d3.event.stopPropagation();
-                $('circle').removeClass('highlight');
+                circles.style('fill', colorNode);
                 if (self.selectedNode && self.selectedNode.data.id == d.data.id) {
                     self.selectedNode = null;
                 } else {
-                    $(this).addClass('highlight');
+                    var sel = d3.select(this);
+                    sel.style('fill', 'rgb(255, 0, 0)');
                     self.selectedNode = d;
                 }
             });
