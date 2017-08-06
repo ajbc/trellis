@@ -52,7 +52,7 @@ topicBubbles <- function(data,
 #' @name topicBubbles-shiny
 #'
 #' @export
-topicBubblesOutput <- function(outputId, width = '100%', height = '400px'){
+topicBubblesOutput <- function(outputId, width = '100%', height = '800px'){
   htmlwidgets::shinyWidgetOutput(outputId, 'topicBubbles', width, height, package = 'topicBubbles')
 }
 

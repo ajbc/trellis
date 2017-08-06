@@ -3,62 +3,68 @@ library(shinyjs)
 library(stm)
 library(data.table)
 
-options(shiny.maxRequestSize=50*1024^2)
+options(shiny.maxRequestSize=100*1024^2)
 
 function(input, output) {
   
   data <- reactive({
-    if (input$upload==2) {
-      inFile <- input$topic.file
-      if (is.null(inFile))
-        return(NULL)
-      
-      load(inFile)
-      return(list("model"=model, "out"=out, "processed"=processed))
-    } else {
-      inFile <- input$csv.file
-      if (is.null(inFile))
-        return(NULL)
-      
-      max.EM <- 10
-      max.status <- max.EM + 4
-      
-      withProgress(message="Status:", value=0, {
-        incProgress(1/max.status, detail = "reading in data")
-        raw.data <- as.data.frame(fread(inFile$datapath))
-        
-        incProgress(2/max.status, detail = "processing data")
-        processed <- textProcessor(raw.data$documents,
-                                   metadata = raw.data)
-        
-        incProgress(3/max.status, detail = "processing data")
-        out <- prepDocuments(processed$documents,
-                             processed$vocab,
-                             processed$meta)
-        
-        incProgress(4/max.status, detail = "running STM")
-        
-        model <- stm(documents=out$documents,
-                     vocab=out$vocab,
-                     K=input$num.topics, max.em.its=max.EM,
-                     init.type="Spectral",
-                     verbose=FALSE)
-      })
-      
-      return(list("model"=model, "out"=out, "processed"=processed))
-    }
+    inFile <- input$topic.file
+    if (is.null(inFile))
+      return(NULL)
+    #return(data.frame())
+    load(inFile$datapath)
+    #cat("HI", "\n")
+    return(list("model"=model, "out"=out, "processed"=processed))
   })
   
+  beta <- reactive({
+    if (is.null(data()))
+      return(NULL)
+    return(exp(data()$model$beta$logbeta[[1]]))
+  })
+
   kmeans.fit <- reactive({
-    beta <- exp(data$model$beta$logbeta[[1]])
-    return(kmeans(beta, input$num.clusters))
+    if (is.null(beta()))
+      return(NULL)
+    return(kmeans(beta(), input$num.clusters))
   })
-  
-  
-  
-  #output$status <- renderText({ model() })
-  #output$d3 <- renderUI( { 
-  #    tagList()})
-  #  return('<svg width="960" height="960" font-family="sans-serif" font-size="10" text-anchor="middle"></svg>')
-  #  })
+
+  K <- reactive({ 
+    if (is.null(data()))
+      return(0)
+    return(nrow(beta()))
+  })
+
+  titles <- reactive({
+    rv <- c()
+    if (is.null(data()))
+      return(rv)
+    
+    for (k in seq(K())) {
+      title <- paste(data()$out$vocab[order(beta()[k,], decreasing=TRUE)][seq(5)], collapse=" ")
+      rv <- c(rv, title)
+    }
+    
+    return(rv)
+  })
+
+  bubbles.data <- reactive({
+    if (is.null(data()))
+      return(NULL)
+    
+    #parent.id, topic.id, weight, title
+    rv <- data.frame(parentID=0,
+                     nodeID=seq(input$num.clusters),
+                     weight=0,
+                     title="")
+
+    rv <- rbind(rv,
+                data.frame(parentID=kmeans.fit()$cluster,
+                           nodeID=seq(input$num.clusters+1,input$num.clusters+K()),
+                           weight=colSums(data()$model$theta),
+                           title=titles()))
+    return(rv)
+  })
+
+  output$bubbles <- renderTopicBubbles({ topicBubbles(bubbles.data(), height=800) })
 }

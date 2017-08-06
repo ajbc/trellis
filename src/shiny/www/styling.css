@@ -1,28 +1,7 @@
-/*h2 {
-  text-transform: uppercase;
-}*/
-
-circle {
-  stroke: #000;
-  stroke-opacity: .5;
+div#bubbles svg {
+  background-color: #fff !important;
 }
 
-.shiny-file-input-progress {
-  display: none
-}
-
-body div#shiny-notification-panel {
-  top: 40%;
-  left: 0%;
-  position: float !important;
-  margin: auto;
-  font-size: 14px;
-  /*margin-top: -100px !important;
-  margin-left: -250px !important;
-  font-size: 20px;*/
-}
-
-div#d3io svg {
-  width: 800px;
-  height: 600px;
+h2 {
+  font-size: 24px;
 }
