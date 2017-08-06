@@ -1,10 +1,9 @@
 HTMLWidgets.widget({
 
-    name: 'topicBubbles',
-    type: 'output',
+    name: "topicBubbles",
+    type: "output",
 
     svg: null,
-    data: null,
     selectedNode: null,
     currCoords: null,
     nodeInFocus: null,
@@ -13,205 +12,194 @@ HTMLWidgets.widget({
     PAGE_MARGIN: 30,
     DIAMETER: null,
 
+    nodeCoordCache: {},
+
     initialize: function(el, width, height) {
-        d3.select(el)
+        var self = this;
+        self.DIAMETER = 4000;
+        self.svg = d3.select(el)
             .append("svg")
-            .attr("width", width)
-            .attr("height", height);
-    },
-
-    resize: function(el, width, height) {
-        d3.select(el)
-            .select("svg")
-            .attr("width", width)
-            .attr("height", height);
-    },
-
-    renderValue: function(el, x) {
-        var self = this,
-            svg = d3.select("svg"),
-            data = self.getTreeFromRawData(x);
-        self.svg = svg;
-        self.DIAMETER = +svg.attr("width");
-        self.update(data);
-    },
-
-    update: function(data) {
-        var self = this,
-            g = self.svg.append("g")
+            .attr("width", self.DIAMETER)
+            .attr("height", self.DIAMETER);
+        self.rootG = self.svg.append("g")
             .attr("transform", "translate(" + self.DIAMETER / 2 + "," + self.DIAMETER / 2 + ")");
-
-        var color = d3.scaleLinear()
-            .domain([0, 1])
-            .range(["hsl(155,30%,82%)", "hsl(155,66%,25%)"])
-            .interpolate(d3.interpolateHcl);
-
         self.pack = d3.pack()
             .size([self.DIAMETER - self.PAGE_MARGIN, self.DIAMETER - self.PAGE_MARGIN])
             .padding(self.BUBBLE_PADDING);
+        self.colorMap = d3.scaleLinear()
+            .domain([0, 1])
+            .range(["hsl(155,30%,82%)", "hsl(155,66%,25%)"])
+            .interpolate(d3.interpolateHcl);
+    },
+
+    resize: function(el, width, height) {
+        this.initialize(el, width, height);
+    },
+
+    renderValue: function(el, rawData) {
+        var self = this,
+            data = self.getTreeFromRawData(rawData);
 
         var root = d3.hierarchy(data)
-            .sum(function(d) {
-                return d.weight;
-            })
-            .sort(function(a, b) {
-                return b.value - a.value;
-            });
+            .sum(function(d) { return d.weight; })
+            .sort(function(a, b) { return b.value - a.value; });
 
         self.nodeInFocus = root;
         var descendants = self.pack(root).descendants();
 
-        function colorNode(node) {
-            return node.children ? color(node.depth) : null;
-        }
+        descendants.forEach(function(node) {
+            self.nodeCoordCache[node.data.id] = {
+                x: node.x,
+                y: node.y,
+                r: node.r
+            };
+        });
 
-        var circles = g.selectAll("circle")
+        // Data binding.
+        //---------------------------------------------------------------------
+        self.nodes = self.rootG.selectAll('g')
             .data(descendants)
             .enter()
-            .append("circle")
+            .append('g')
+            .attr("data-id", function(d) { return d.data.id; })
+            .attr('class', function() { return 'node' });
+
+        self.circles = self.nodes.append("circle")
+            .style("pointer-events", "visible")
             .attr("class", function(d) {
                 if (d.parent) {
-                    return d.children ? "node node--middle" : "node node--leaf";
+                    return d.children ? "circle-middle" : "circle-leaf";
                 } else {
-                    return "node node--root";
+                    return "circle-root";
                 }
             })
-            .attr('data-id', function(d) {
-                return d.data.id;
-            })
-            .style("pointer-events", "visible")
             .style("fill", function(d) {
-                if (self.selectedNode && self.selectedNode.data.id === d.data.id) {
-                    return 'rgb(255, 0, 0)'
-                }
-                return colorNode(d);
+                return self.colorNode.call(self, d);
             });
 
-        // Fade the highlight out.
-        circles
-            .transition()
-            .duration(1500)
-            .style("fill", colorNode);
+        self.nodes.append("text")
+            .attr("class", "label")
+            //.style("fill-opacity", function(d) {
+            //    return d.parent === root ? 1 : 0;
+            //})
+            //.style("display", function(d) {
+            //    return d.parent === root ? "inline" : "none";
+            //})
+            .each(function(d) {
+                var sel = d3.select(this),
+                    len = d.data.terms.length;
+                d.data.terms.forEach(function(term, i) {
+                    sel.append("tspan")
+                        .text(function() { return term; })
+                        .attr("y", 50 * (i + 0.75 - len / 2))
+                        .attr("x", 0)
+                        .attr("text-anchor", "middle")
+                        // TODO: Should this be dynamic?
+                        .style("font-size", "34px");
+                });
+            });
 
-        g.selectAll(".node--middle")
+        // Behavior.
+        //---------------------------------------------------------------------
+        self.circles.filter(function() {
+            return d3.select(this).classed("circle-leaf");
+        })
             .on("click", function(d) {
+                d3.event.stopPropagation();
+                if (self.selectedNode && self.selectedNode.data.id == d.data.id) {
+                    self.selectedNode = null;
+                    self.newParent = null;
+                } else {
+                    self.selectedNode = d;
+                }
+                self.circles.style("fill", function(d) {
+                    return self.colorNode.call(self, d);
+                });
+            });
+
+        self.circles.filter(function() {
+            return d3.select(this).classed("circle-middle");
+        })
+            .on("click", function(d) {
+                d3.event.stopPropagation();
                 if (self.selectedNode) {
                     self.newParent = d;
                     var newData = self.updateData(data);
-                    self.update(newData);
                     self.selectedNode = null;
                     self.newParent = null;
+                    self.updateView(newData);
                 } else if (self.nodeInFocus !== d) {
                     self.zoom(d);
-                    d3.event.stopPropagation();
-                }
-            });
-
-        g.selectAll(".node--leaf")
-            .on("click", function(d) {
-                d3.event.stopPropagation();
-                circles.style('fill', colorNode);
-                if (self.selectedNode && self.selectedNode.data.id == d.data.id) {
-                    self.selectedNode = null;
-                } else {
-                    var sel = d3.select(this);
-                    sel.style('fill', 'rgb(255, 0, 0)');
-                    self.selectedNode = d;
-                }
-            });
-
-        g.selectAll("text")
-            .data(descendants)
-            .enter()
-            .append("text")
-            .attr("class", "label")
-            .style("fill-opacity", function(d) {
-                return d.parent === root ? 1 : 0;
-            })
-            .style("display", function(d) {
-                return d.parent === root ? "inline" : "none";
-            })
-            .each(function(d) {
-                for (var i = 0; i < d.data.terms.length; i++) {
-                    d3.select(this).append("tspan")
-                        .text(function() {
-                            return d.data.terms[i];
-                        })
-                        .attr("y", 12 * (i + 0.75 - d.data.terms.length / 2))
-                        .attr("x", 0)
-                        .attr("text-anchor", "middle");
+                } else if (self.nodeInFocus === d) {
+                    self.zoom(root);
                 }
             });
 
         // Zoom out when the user clicks the outermost circle.
-        self.svg.style("background", "#FFF")
-            .on("click", function() {
-                self.zoom(root);
+        self.svg.style("background", "#fff")
+            .on("click", function() { self.zoom(root); });
+
+        self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], false);
+    },
+
+    updateView: function(data) {
+        var self = this,
+            root;
+
+        root = d3.hierarchy(data)
+            .sum(function(d) { return d.weight; })
+            .sort(function(a, b) { return b.value - a.value; });
+
+        self.nodeInFocus = root;
+        var descendants = self.pack(root).descendants();
+
+        descendants.forEach(function(node) {
+            self.nodeCoordCache[node.data.id] = {
+                x: node.x,
+                y: node.y,
+                r: node.r
+            };
+        });
+
+        self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], true);
+    },
+
+    /* Zoom to center of coordinates.
+     */
+    // IMPORTANT: This function is responsible for setting circle radii and locations.
+    zoomTo: function(coords, transition) {
+        var self = this,
+            k = self.DIAMETER / coords[2];
+
+        self.currCoords = coords;
+        var nodes, circles;
+
+        if (transition) {
+            circles = self.circles.transition().duration(3000);
+            nodes = self.nodes.transition().duration(3000);
+        } else {
+            circles = self.circles;
+            nodes = self.nodes;
+        }
+
+        nodes.attr("transform", function(d) {
+            var c = self.nodeCoordCache[d.data.id];
+            return "translate(" + (c.x - coords[0]) * k + "," + (c.y - coords[1]) * k + ")";
+        });
+        self.circles
+            .transition()
+            .duration(3000)
+            .attr("r", function(d) {
+                var c = self.nodeCoordCache[d.data.id];
+                return c.r * k;
             });
 
-        // Set initial zoom.
-        self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN]);
-        self.rerender();
-    },
-
-    rerender: function() {
-        var self = this;
-        self.svg.selectAll('circles')
-            .transition()
-            .duration(5000)
-            .attr("cx", function(d) {
-                return d.x;
-            })
-            .attr("cy", function(d) { return d.y; })
-            .attr("r", function(d) { return d.r; });
-    },
-
-    /* Update underlying tree data structure, changing the selected node's
-     * parent.
-     */
-    updateData: function(data) {
-        var self = this,
-            copy;
-
-        if (data == null || typeof data !== 'object') return data;
-
-        if (data instanceof Array) {
-            copy = [];
-            for (var i = 0; i < data.length; i++) {
-                copy[i] = self.updateData(data[i]);
-            }
-            return copy;
-        }
-
-        if (data instanceof Object) {
-            copy = {};
-            for (var prop in data) {
-                if (!data.hasOwnProperty(prop)) {
-                    continue;
-                }
-
-                // Remove the selected node from the old parent.
-                if (prop === 'id' && data[prop] === self.selectedNode.parent.data.id) {
-                    var newChildren = [];
-                    for (var j = 0; j < data.children.length; j++) {
-                        var child = data.children[j];
-                        if (child.id !== self.selectedNode.data.id) {
-                            newChildren.push(child);
-                        }
-                    }
-                    data.children = newChildren;
-                }
-                // Add the selected node to the new parent.
-                if (prop === 'id' && data[prop] === self.newParent.data.id) {
-                    data.children.push(self.selectedNode.data);
-                }
-
-                copy[prop] = self.updateData(data[prop]);
-            }
-            return copy;
-        }
-
-        throw new Error('Object type not supported.');
+        //// Fade the highlight out.
+        //self.circles.transition()
+        //    .duration(3000 + 1500)
+        //    .style("fill", function(d) {
+        //        return self.colorNode.call(self, d);
+        //    });
     },
 
     /* Zoom to node.
@@ -226,39 +214,48 @@ HTMLWidgets.widget({
                 var coords = [node.x, node.y, node.r * 2 + self.PAGE_MARGIN],
                     i = d3.interpolateZoom(self.currCoords, coords);
                 return function(t) {
-                    self.zoomTo(i(t));
+                    self.zoomTo(i(t), false);
                 };
             });
 
-        transition.selectAll("text")
-            .filter(function(d) {
-                return d.parent === node || this.style.display === "inline";
-            })
-            .style("fill-opacity", function(d) {
-                return d.parent === node ? 1 : 0;
-            })
-            .on("start", function(d) {
-                if (d.parent === node) this.style.display = "inline";
-            })
-            .on("end", function(d) {
-                if (d.parent !== node) this.style.display = "none";
-            });
+        //transition.selectAll("text")
+        //    .filter(function(d) {
+        //        return d.parent === node || this.style.display === "inline";
+        //    })
+        //    .style("fill-opacity", function(d) {
+        //        return d.parent === node ? 1 : 0;
+        //    })
+        //    .on("start", function(d) {
+        //        if (d.parent === node) this.style.display = "inline";
+        //    })
+        //    .on("end", function(d) {
+        //        if (d.parent !== node) this.style.display = "none";
+        //    });
     },
 
-    /* Zoom to center of coordinates.
+    /* Update underlying tree data structure, changing the selected node"s
+     * parent.
      */
-    zoomTo: function(coords) {
-        var self = this,
-            k = self.DIAMETER / coords[2];
-        self.currCoords = coords;
-        self.svg.selectAll("circle, text")
-            .attr("transform", function(d) {
-                return "translate(" + (d.x - coords[0]) * k + "," + (d.y - coords[1]) * k + ")";
-            });
-        self.svg.selectAll("circle")
-            .attr("r", function(d) {
-                return d.r * k;
-            });
+    updateData: function(root) {
+        var self = this;
+        root.children.forEach(function(middleNode) {
+            // Remove the selected node from the old parent.
+            if (middleNode.id === self.selectedNode.parent.data.id) {
+                var newChildren = [];
+                middleNode.children.forEach(function (child) {
+                    if (child.id !== self.selectedNode.data.id) {
+                        newChildren.push(child);
+                    }
+                });
+                middleNode.children = newChildren;
+                console.log('new children set');
+            // Add selected node to new parent.
+            } else if (middleNode.id === self.newParent.data.id) {
+                middleNode.children.push(self.selectedNode.data);
+                console.log('new parent set');
+            }
+        });
+        return root;
     },
 
     /* Convert R dataframe to tree.
@@ -282,7 +279,7 @@ HTMLWidgets.widget({
                     children: []
                 });
             } else if (parent !== null) {
-                if (parent.hasOwnProperty('children')) {
+                if (parent.hasOwnProperty("children")) {
                     parent.children.push({
                         id: d.nodeID,
                         title: d.title,
@@ -317,6 +314,20 @@ HTMLWidgets.widget({
             }
         }
         return rv;
+    },
+
+    /* Helper function to color each node.
+     */
+    colorNode: function(node) {
+        var self = this,
+            isSelectedNode = self.selectedNode && self.selectedNode.data.id === node.data.id;
+        if (isSelectedNode) {
+            return "rgb(255, 0, 0)";
+        } else if (node.children) {
+            return self.colorMap(node.depth);
+        } else {
+            return "rgb(255, 255, 255)";
+        }
     }
 });
 

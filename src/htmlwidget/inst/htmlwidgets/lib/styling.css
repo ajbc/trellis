@@ -7,7 +7,7 @@
     stroke-width: 1.5px;
 }
 
-.node--leaf {
+.circle-leaf {
     fill: white;
 }
 
@@ -18,15 +18,7 @@
 }
 
 .label,
-.node--root,
-.node--leaf {
+.circle-root,
+.circle-leaf {
     pointer-events: none;
-}
-
-.highlight {
-    fill: red;
-}
-
-.highlight2 {
-    fill: yellow;
 }
