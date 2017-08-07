@@ -5,6 +5,7 @@ HTMLWidgets.widget({
 
     PAGE_MARGIN: 30,
     DIAMETER: null,
+    FONT_SIZE: 18,
 
     svg: null,
     selectedNode: null,
@@ -81,23 +82,17 @@ HTMLWidgets.widget({
         self.nodes
             .append("text")
             .attr("class", "label")
-            //.style("fill-opacity", function(d) {
-            //    return d.parent === root ? 1 : 0;
-            //})
-            //.style("display", function(d) {
-            //    return d.parent === root ? "inline" : "none";
-            //})
             .each(function(d) {
                 var sel = d3.select(this),
                     len = d.data.terms.length;
+
                 d.data.terms.forEach(function(term, i) {
                     sel.append("tspan")
                         .text(function() { return term; })
-                        .attr("y", 50 * (i + 0.75 - len / 2))
+                        .attr("y", 50 * (i + 0.75 - len / 2) - 40)
+                        .attr("dy", '1em')
                         .attr("x", 0)
-                        .attr("text-anchor", "middle")
-                        // TODO: Should this be dynamic?
-                        .style("font-size", "34px");
+                        .attr("text-anchor", "middle");
                 });
             });
 
@@ -204,6 +199,11 @@ HTMLWidgets.widget({
             var c = self.nodeCoordCache[d.data.id];
             return c.r * k;
         });
+
+        nodes.selectAll("tspan")
+            .style("font-size", function(d) {
+                return (self.FONT_SIZE * (k/3) + 20) + "px";
+            });
     },
 
     /* Zoom to node.
