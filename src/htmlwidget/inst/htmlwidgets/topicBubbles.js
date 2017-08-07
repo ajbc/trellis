@@ -127,19 +127,16 @@ HTMLWidgets.widget({
             })
             .on("click", function(d) {
                 d3.event.stopPropagation();
-                if (self.selectedNode) {
+                if (self.selectedNode && self.selectedNode.parent !== d) {
                     self.newParent = d;
-                    debugger;
                     var newData = self.updateData(self.data);
                     self.data = newData;
                     self.selectedNode = null;
                     self.newParent = null;
                     self.updateView(self.data);
                 } else if (self.nodeInFocus !== d) {
-                    debugger;
                     self.zoom(d);
                 } else if (self.nodeInFocus === d) {
-                    debugger;
                     self.zoom(root);
                 }
             });
