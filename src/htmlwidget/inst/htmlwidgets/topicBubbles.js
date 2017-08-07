@@ -3,19 +3,19 @@ HTMLWidgets.widget({
     name: "topicBubbles",
     type: "output",
 
+    PAGE_MARGIN: 30,
+    DIAMETER: null,
+
     svg: null,
     selectedNode: null,
     currCoords: null,
     nodeInFocus: null,
-
-    BUBBLE_PADDING: 20,
-    PAGE_MARGIN: 30,
-    DIAMETER: null,
-
     nodeCoordCache: {},
 
     initialize: function(el, width, height) {
-        var self = this;
+        var self = this,
+            BUBBLE_PADDING = 20;
+
         self.DIAMETER = 4000;
         self.svg = d3.select(el)
             .append("svg")
@@ -25,7 +25,7 @@ HTMLWidgets.widget({
             .attr("transform", "translate(" + self.DIAMETER / 2 + "," + self.DIAMETER / 2 + ")");
         self.pack = d3.pack()
             .size([self.DIAMETER - self.PAGE_MARGIN, self.DIAMETER - self.PAGE_MARGIN])
-            .padding(self.BUBBLE_PADDING);
+            .padding(BUBBLE_PADDING);
         self.colorMap = d3.scaleLinear()
             .domain([0, 1])
             .range(["hsl(155,30%,82%)", "hsl(155,66%,25%)"])
@@ -37,10 +37,11 @@ HTMLWidgets.widget({
     },
 
     renderValue: function(el, rawData) {
-        var self = this,
-            data = self.getTreeFromRawData(rawData);
+        var self = this;
 
-        var root = d3.hierarchy(data)
+        self.data = self.getTreeFromRawData(rawData);
+
+        var root = d3.hierarchy(self.data)
             .sum(function(d) { return d.weight; })
             .sort(function(a, b) { return b.value - a.value; });
 
@@ -57,11 +58,11 @@ HTMLWidgets.widget({
 
         // Data binding.
         //---------------------------------------------------------------------
+
         self.nodes = self.rootG.selectAll('g')
             .data(descendants)
             .enter()
             .append('g')
-            .attr("data-id", function(d) { return d.data.id; })
             .attr('class', function() { return 'node' });
 
         self.circles = self.nodes.append("circle")
@@ -77,7 +78,8 @@ HTMLWidgets.widget({
                 return self.colorNode.call(self, d);
             });
 
-        self.nodes.append("text")
+        self.nodes
+            .append("text")
             .attr("class", "label")
             //.style("fill-opacity", function(d) {
             //    return d.parent === root ? 1 : 0;
@@ -101,36 +103,43 @@ HTMLWidgets.widget({
 
         // Behavior.
         //---------------------------------------------------------------------
-        self.circles.filter(function() {
-            return d3.select(this).classed("circle-leaf");
-        })
+        self.circles
+            .filter(function() {
+                return d3.select(this).classed("circle-leaf");
+            })
             .on("click", function(d) {
                 d3.event.stopPropagation();
-                if (self.selectedNode && self.selectedNode.data.id == d.data.id) {
+                if (self.selectedNode && self.selectedNode.data.id === d.data.id) {
                     self.selectedNode = null;
                     self.newParent = null;
                 } else {
                     self.selectedNode = d;
+                    self.newParent = null;
                 }
                 self.circles.style("fill", function(d) {
                     return self.colorNode.call(self, d);
                 });
             });
 
-        self.circles.filter(function() {
-            return d3.select(this).classed("circle-middle");
-        })
+        self.circles
+            .filter(function() {
+                return d3.select(this).classed("circle-middle");
+            })
             .on("click", function(d) {
                 d3.event.stopPropagation();
                 if (self.selectedNode) {
                     self.newParent = d;
-                    var newData = self.updateData(data);
+                    debugger;
+                    var newData = self.updateData(self.data);
+                    self.data = newData;
                     self.selectedNode = null;
                     self.newParent = null;
-                    self.updateView(newData);
+                    self.updateView(self.data);
                 } else if (self.nodeInFocus !== d) {
+                    debugger;
                     self.zoom(d);
                 } else if (self.nodeInFocus === d) {
+                    debugger;
                     self.zoom(root);
                 }
             });
@@ -150,10 +159,7 @@ HTMLWidgets.widget({
             .sum(function(d) { return d.weight; })
             .sort(function(a, b) { return b.value - a.value; });
 
-        self.nodeInFocus = root;
-        var descendants = self.pack(root).descendants();
-
-        descendants.forEach(function(node) {
+        self.pack(root).descendants().forEach(function(node) {
             self.nodeCoordCache[node.data.id] = {
                 x: node.x,
                 y: node.y,
@@ -161,6 +167,7 @@ HTMLWidgets.widget({
             };
         });
 
+        self.nodeInFocus = root;
         self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], true);
     },
 
@@ -169,13 +176,23 @@ HTMLWidgets.widget({
     // IMPORTANT: This function is responsible for setting circle radii and locations.
     zoomTo: function(coords, transition) {
         var self = this,
-            k = self.DIAMETER / coords[2];
+            k = self.DIAMETER / coords[2],
+            nodes, circles;
 
         self.currCoords = coords;
-        var nodes, circles;
 
         if (transition) {
-            circles = self.circles.transition().duration(3000);
+            circles = self.circles
+                .transition()
+                .duration(3000)
+                .on("end", function() {
+                    d3.select(this)
+                        .transition()
+                        .duration(1000)
+                        .style("fill", function(d) {
+                            return self.colorNode.call(self, d);
+                        });
+                });
             nodes = self.nodes.transition().duration(3000);
         } else {
             circles = self.circles;
@@ -186,32 +203,23 @@ HTMLWidgets.widget({
             var c = self.nodeCoordCache[d.data.id];
             return "translate(" + (c.x - coords[0]) * k + "," + (c.y - coords[1]) * k + ")";
         });
-        self.circles
-            .transition()
-            .duration(3000)
-            .attr("r", function(d) {
-                var c = self.nodeCoordCache[d.data.id];
-                return c.r * k;
-            });
-
-        //// Fade the highlight out.
-        //self.circles.transition()
-        //    .duration(3000 + 1500)
-        //    .style("fill", function(d) {
-        //        return self.colorNode.call(self, d);
-        //    });
+        circles.attr("r", function(d) {
+            var c = self.nodeCoordCache[d.data.id];
+            return c.r * k;
+        });
     },
 
     /* Zoom to node.
      */
     zoom: function(node) {
-        var self = this;
+        var self = this,
+            c = self.nodeCoordCache[node.data.id];
         self.nodeInFocus = node;
 
         var transition = d3.transition()
             .duration(d3.event.altKey ? 7500 : 750)
             .tween("zoom", function(d) {
-                var coords = [node.x, node.y, node.r * 2 + self.PAGE_MARGIN],
+                var coords = [c.x, c.y, c.r * 2 + self.PAGE_MARGIN],
                     i = d3.interpolateZoom(self.currCoords, coords);
                 return function(t) {
                     self.zoomTo(i(t), false);
@@ -237,32 +245,39 @@ HTMLWidgets.widget({
      * parent.
      */
     updateData: function(root) {
-        var self = this;
-        root.children.forEach(function(middleNode) {
+        var self = this,
+            oldParentId = self.selectedNode.parent.data.id,
+            newParentId = self.newParent.data.id,
+            // TODO: Confirm true specifies deep copy.
+            newData = $.extend({}, root, true);
+
+        newData.children.forEach(function(middleNode) {
             // Remove the selected node from the old parent.
-            if (middleNode.id === self.selectedNode.parent.data.id) {
+            if (middleNode.id === oldParentId) {
                 var newChildren = [];
-                middleNode.children.forEach(function (child) {
+                middleNode.children.forEach(function(child) {
                     if (child.id !== self.selectedNode.data.id) {
                         newChildren.push(child);
                     }
                 });
                 middleNode.children = newChildren;
-                console.log('new children set');
             // Add selected node to new parent.
-            } else if (middleNode.id === self.newParent.data.id) {
+            } else if (middleNode.id === newParentId) {
                 middleNode.children.push(self.selectedNode.data);
-                console.log('new parent set');
+                // CRITICAL BUT SUBTLE: d3 has references to the parents cached
+                // when calling descendants(); we must manually update this
+                // reference.
+                self.selectedNode.parent = self.newParent;
             }
         });
-        return root;
+        return newData;
     },
 
     /* Convert R dataframe to tree.
      */
     getTreeFromRawData: function(x) {
         var self = this,
-            data = {id: "root", children: [], title: "", terms: []},
+            data = {id: "root", children: [], terms: []},
             srcData = HTMLWidgets.dataframeToD3(x.data);
 
         // For each data row add to the output tree
@@ -274,19 +289,15 @@ HTMLWidgets.widget({
             if (d.weight === 0) {
                 parent.children.push({
                     id: d.nodeID,
-                    title: "",
                     terms: [],
                     children: []
                 });
-            } else if (parent !== null) {
-                if (parent.hasOwnProperty("children")) {
-                    parent.children.push({
-                        id: d.nodeID,
-                        title: d.title,
-                        terms: d.title.split(" "),
-                        weight: d.weight
-                    });
-                }
+            } else if (parent !== null && parent.hasOwnProperty("children")) {
+                parent.children.push({
+                    id: d.nodeID,
+                    terms: d.title.split(" "),
+                    weight: d.weight
+                });
             }
         });
 
@@ -304,14 +315,12 @@ HTMLWidgets.widget({
         var rv = null;
         if (branch.id == parentID) {
             rv = branch;
-        } else if (rv === null) {
-            if (branch.children !== undefined) {
-                $.each(branch.children, function(i) {
-                    if (rv === null) {
-                        rv = self.findParent(branch.children[i], parentID, nodeID);
-                    }
-                });
-            }
+        } else if (rv === null && branch.children !== undefined) {
+            branch.children.forEach(function(child) {
+                if (rv === null) {
+                    rv = self.findParent(child, parentID, nodeID);
+                }
+            });
         }
         return rv;
     },
