@@ -60,11 +60,11 @@ HTMLWidgets.widget({
         // Data binding.
         //---------------------------------------------------------------------
 
-        self.nodes = self.rootG.selectAll('g')
+        self.nodes = self.rootG.selectAll("g")
             .data(descendants)
             .enter()
-            .append('g')
-            .attr('class', function() { return 'node' });
+            .append("g")
+            .attr("class", function() { return "node" });
 
         self.circles = self.nodes.append("circle")
             .style("pointer-events", "visible")
@@ -89,10 +89,11 @@ HTMLWidgets.widget({
                 d.data.terms.forEach(function(term, i) {
                     sel.append("tspan")
                         .text(function() { return term; })
-                        .attr("y", 50 * (i + 0.75 - len / 2) - 40)
-                        .attr("dy", '1em')
                         .attr("x", 0)
-                        .attr("text-anchor", "middle");
+                        .attr("text-anchor", "middle")
+                        // This data is used for dynamic sizing of text.
+                        .attr("data-term-index", i)
+                        .attr("data-term-len", len);
                 });
             });
 
@@ -114,6 +115,16 @@ HTMLWidgets.widget({
                 self.circles.style("fill", function(d) {
                     return self.colorNode.call(self, d);
                 });
+            })
+            .on("mouseover", function(d) {
+                d3.select(this).style("fill", function() {
+                    return self.colorNode.call(self, d, true);
+                });
+            })
+            .on("mouseout", function(d) {
+                d3.select(this).style("fill", function() {
+                    return self.colorNode.call(self, d, false);
+                });
             });
 
         self.circles
@@ -134,6 +145,16 @@ HTMLWidgets.widget({
                 } else if (self.nodeInFocus === d) {
                     self.zoom(root);
                 }
+            })
+            .on("mouseover", function(d) {
+                d3.select(this).style("fill", function() {
+                    return self.colorNode.call(self, d, true);
+                });
+            })
+            .on("mouseout", function(d) {
+                d3.select(this).style("fill", function() {
+                    return self.colorNode.call(self, d, false);
+                });
             });
 
         // Zoom out when the user clicks the outermost circle.
@@ -201,8 +222,16 @@ HTMLWidgets.widget({
         });
 
         nodes.selectAll("tspan")
+            .attr("y", function(d) {
+                var that = d3.select(this),
+                    i = +that.attr("data-term-index"),
+                    len = +that.attr("data-term-len");
+                // `- (len / 2) + 0.5` shifts the term down appropriately.
+                // `15 * k` spaces them out appropriately.
+                return ((35/1.25) * k) * (i - (len / 2) + 0.5);
+            })
             .style("font-size", function(d) {
-                return (self.FONT_SIZE * (k/3) + 20) + "px";
+                return (self.FONT_SIZE * (k/2) + 20) + "px";
             });
     },
 
@@ -324,10 +353,16 @@ HTMLWidgets.widget({
 
     /* Helper function to color each node.
      */
-    colorNode: function(node) {
+    colorNode: function(node, hover) {
         var self = this,
             isSelectedNode = self.selectedNode && self.selectedNode.data.id === node.data.id;
-        if (isSelectedNode) {
+
+        if (hover) {
+            if (node.depth === 1) {
+                return self.colorMap(1.2);
+            }
+            return "rgb(220, 220, 220)";
+        } else if (isSelectedNode) {
             return "rgb(255, 0, 0)";
         } else if (node.children) {
             return self.colorMap(node.depth);
