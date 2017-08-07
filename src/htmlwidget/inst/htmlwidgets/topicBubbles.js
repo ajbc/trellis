@@ -357,13 +357,16 @@ HTMLWidgets.widget({
         var self = this,
             isSelectedNode = self.selectedNode && self.selectedNode.data.id === node.data.id;
 
-        if (hover) {
+        if (isSelectedNode) {
+            return "rgb(255, 0, 0)";
+        } else if (hover) {
             if (node.depth === 1) {
                 return self.colorMap(1.2);
+            } else if (self.selectedNode) {
+                return "rgb(255, 255, 255)";
+            } else {
+                return "rgb(220, 220, 220)";
             }
-            return "rgb(220, 220, 220)";
-        } else if (isSelectedNode) {
-            return "rgb(255, 0, 0)";
         } else if (node.children) {
             return self.colorMap(node.depth);
         } else {
