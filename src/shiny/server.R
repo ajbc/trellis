@@ -65,6 +65,6 @@ function(input, output) {
                            title=titles()))
     return(rv)
   })
-
+  
   output$bubbles <- renderTopicBubbles({ topicBubbles(bubbles.data(), height=800) })
 }
