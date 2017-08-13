@@ -17,7 +17,7 @@ Install the dependencies in R:
 ```
 install.packages("htmlwidgets")
 install.packages("devtools")
-inatall.packages("shiny")
+install.packages("shiny")
 install.packages("shinyjs")
 ```
 
@@ -39,7 +39,7 @@ Run the following:
 library(shiny)
 runApp("src/shiny")
 ```
-Then navigate to `http://127.0.0.1:6308` in a browser if not redirected automatically.
+Then navigate to `http://127.0.0.1:<PORT>` in a browser if not redirected automatically. This should be listed in the terminal as `Listening on http://127.0.0.1:<PORT>`.
 
 ### Using the demo
 Upload an `.Rdata` file with three variables:
