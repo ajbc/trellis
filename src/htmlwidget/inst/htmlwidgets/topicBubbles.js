@@ -39,6 +39,9 @@ HTMLWidgets.widget({
 
     renderValue: function(el, rawData) {
         var self = this;
+        if (rawData.data == null) {
+            return;
+        }
 
         self.data = self.getTreeFromRawData(rawData);
 
