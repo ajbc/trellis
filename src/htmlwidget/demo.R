@@ -1,10 +1,11 @@
 library(htmltools)
 library(htmlwidgets)
 library(devtools)
-setwd("/Users/ajbc/Projects/Academic/topic-bubbles-scratch2")
-#setwd("/Users/gwg/topicbubbles")
+setwd("/Users/gwg/Academic/topic-bubbles-scratch2")
+# setwd("/Users/gwg/topicbubbles")
 
-devtools::install("/Users/ajbc/Projects/Academic/topic-bubbles-scratch2/src/htmlwidget") 
+devtools::install("/Users/ajbc/Projects/Academic/topic-bubbles-scratch2/src/htmlwidget")
+# devtools::install("src/htmlwidget")
 library(topicBubbles)
 
 load("dat/poliblogs2008.K100.RData")
