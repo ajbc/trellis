@@ -1,7 +1,7 @@
 library(htmltools)
 library(htmlwidgets)
 library(devtools)
-setwd("/Users/gwg/Academic/topic-bubbles-scratch2")
+setwd("/Users/ajbc/Projects/Academic/topic-bubbles")
 # setwd("/Users/gwg/topicbubbles")
 
 devtools::install(file.path(getwd(), "src/htmlwidget"))
