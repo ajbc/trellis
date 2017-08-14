@@ -7,7 +7,7 @@
     filter: alpha(opacity=80);
 }
 
-.node--leaf {
+.circle-leaf {
     fill: white;
 }
 
@@ -23,14 +23,8 @@
 }
 
 .label,
-.node--root {
-  pointer-events: none;
+.circle-root,
+.circle-leaf {
+    pointer-events: none;
 }
 
-.highlight {
-    fill: red;
-}
-
-.highlight2 {
-    fill: yellow;
-}
