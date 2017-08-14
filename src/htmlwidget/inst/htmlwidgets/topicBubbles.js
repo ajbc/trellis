@@ -31,6 +31,10 @@ HTMLWidgets.widget({
             .domain([0, 1])
             .range(["hsl(155,30%,82%)", "hsl(155,66%,25%)"])
             .interpolate(d3.interpolateHcl);
+        self.textColor = d3.scaleLinear()
+            .domain([0, 1])
+            .range(["hsl(0,0%,50%)", "hsl(0,0%,0%)"])
+            .interpolate(d3.interpolateHcl);
     },
 
     resize: function(el, width, height) {
@@ -164,7 +168,7 @@ HTMLWidgets.widget({
         self.svg.style("background", "#fff")
             .on("click", function() { self.zoom(root); });
 
-        self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], false);
+        self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], 0, false);
     },
 
     updateView: function(data) {
@@ -184,13 +188,13 @@ HTMLWidgets.widget({
         });
 
         self.nodeInFocus = root;
-        self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], true);
+        self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], 0, true);
     },
 
     /* Zoom to center of coordinates.
      */
     // IMPORTANT: This function is responsible for setting circle radii and locations.
-    zoomTo: function(coords, transition) {
+    zoomTo: function(coords, depth, transition) {
         var self = this,
             k = self.DIAMETER / coords[2],
             nodes, circles;
@@ -233,6 +237,9 @@ HTMLWidgets.widget({
                 // `15 * k` spaces them out appropriately.
                 return (self.FONT_SIZE * (k/2) + 3)* 1.2 * (i - (len / 2) + 0.75);
             })
+            .style("fill", function(d) {
+              return self.textColor(depth);
+            })
             .style("font-size", function(d) {
                 return (self.FONT_SIZE * (k/2) + 3) + "px";
             });
@@ -251,7 +258,7 @@ HTMLWidgets.widget({
                 var coords = [c.x, c.y, c.r * 2 + self.PAGE_MARGIN],
                     i = d3.interpolateZoom(self.currCoords, coords);
                 return function(t) {
-                    self.zoomTo(i(t), false);
+                    self.zoomTo(i(t), node.depth, false);
                 };
             });
 
