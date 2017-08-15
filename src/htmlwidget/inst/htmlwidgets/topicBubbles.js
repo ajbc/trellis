@@ -12,12 +12,15 @@ HTMLWidgets.widget({
     currCoords: null,
     nodeInFocus: null,
     nodeCoordCache: {},
+    nClusters: null,
+    el: null,
 
     initialize: function(el, width, height) {
         var self = this,
             BUBBLE_PADDING = 20;
 
         self.DIAMETER = width;
+        self.el = el;
         self.svg = d3.select(el)
             .append("svg")
             .attr("width", self.DIAMETER)
@@ -37,17 +40,34 @@ HTMLWidgets.widget({
             .interpolate(d3.interpolateHcl);
     },
 
+    reInitialize: function() {
+        var self = this;
+        d3.select(self.el).selectAll("*").remove();
+        self.initialize(self.el, self.DIAMETER, self.DIAMETER);
+        self.renderInitialClusters();
+    },
+
     resize: function(el, width, height) {
         this.initialize(el, width, height);
     },
 
     renderValue: function(el, rawData) {
         var self = this;
+        // Shiny calls this function before the user uploads any data.
         if (rawData.data == null) {
             return;
         }
-
         self.data = self.getTreeFromRawData(rawData);
+        if (self.nClusters !== null && self.nClusters !== self.data.children.length) {
+            self.reInitialize();
+        } else {
+            self.nClusters = self.data.children.length;
+            this.renderInitialClusters();
+        }
+    },
+
+    renderInitialClusters: function() {
+        var self = this;
 
         var root = d3.hierarchy(self.data)
             .sum(function(d) { return d.weight; })
@@ -63,9 +83,6 @@ HTMLWidgets.widget({
                 r: node.r
             };
         });
-
-        // Data binding.
-        //---------------------------------------------------------------------
 
         self.nodes = self.rootG.selectAll("g")
             .data(descendants)
@@ -104,8 +121,6 @@ HTMLWidgets.widget({
                 });
             });
 
-        // Behavior.
-        //---------------------------------------------------------------------
         self.circles
             .filter(function() {
                 return d3.select(this).classed("circle-leaf");
@@ -146,7 +161,7 @@ HTMLWidgets.widget({
                     self.data = newData;
                     self.selectedNode = null;
                     self.newParent = null;
-                    self.updateView(self.data);
+                    self.moveTopicBetweenClusters(self.data);
                 } else if (self.nodeInFocus !== d) {
                     self.zoom(d);
                 } else if (self.nodeInFocus === d) {
@@ -171,11 +186,11 @@ HTMLWidgets.widget({
         self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], 0, false);
     },
 
-    updateView: function(data) {
+    moveTopicBetweenClusters: function() {
         var self = this,
             root;
 
-        root = d3.hierarchy(data)
+        root = d3.hierarchy(self.data)
             .sum(function(d) { return d.weight; })
             .sort(function(a, b) { return b.value - a.value; });
 
@@ -284,7 +299,7 @@ HTMLWidgets.widget({
         var self = this,
             oldParentId = self.selectedNode.parent.data.id,
             newParentId = self.newParent.data.id,
-            // TODO: Confirm true specifies deep copy.
+        // TODO: Confirm true specifies deep copy.
             newData = $.extend({}, root, true);
 
         newData.children.forEach(function(middleNode) {
@@ -297,7 +312,7 @@ HTMLWidgets.widget({
                     }
                 });
                 middleNode.children = newChildren;
-            // Add selected node to new parent.
+                // Add selected node to new parent.
             } else if (middleNode.id === newParentId) {
                 middleNode.children.push(self.selectedNode.data);
                 // CRITICAL BUT SUBTLE: d3 has references to the parents cached
