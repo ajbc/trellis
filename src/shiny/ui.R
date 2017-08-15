@@ -46,12 +46,8 @@ fluidPage(
       #              '"')
     ),
     mainPanel(
-      topicBubblesOutput("bubbles", height=800)
-      #htmlOutput("d3")#,
-      #tags$h1("Title"),
-      #d3IO("d3io")
-      #tags$div(id="AROO", class="shiny-html-output", svg(width="300", height="200"))
-      #tags$div(id=d3, class="shiny-html-output", svg(width="300", height="200")
+      topicBubblesOutput("bubbles", height=800),
+      textInput("topics", "")
     )
   )
 )

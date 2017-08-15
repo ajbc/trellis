@@ -33,7 +33,7 @@ HTMLWidgets.widget({
             .interpolate(d3.interpolateHcl);
         self.textColor = d3.scaleLinear()
             .domain([0, 1])
-            .range(["hsl(0,0%,50%)", "hsl(0,0%,0%)"])
+            .range(["hsl(0,0%,60%)", "hsl(0,0%,0%)"])
             .interpolate(d3.interpolateHcl);
     },
 

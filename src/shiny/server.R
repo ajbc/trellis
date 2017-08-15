@@ -3,7 +3,7 @@ library(shinyjs)
 library(stm)
 library(data.table)
 
-options(shiny.maxRequestSize=100*1024^2)
+options(shiny.maxRequestSize=1000*1024^2)
 
 function(input, output) {
   
@@ -47,22 +47,74 @@ function(input, output) {
     
     return(rv)
   })
+  
+  assignments <- reactive({
+    if (is.null(data()))
+      return(c())
+    
+    if (input$topics == "")
+      return(c(rep(0, input$num.clusters), kmeans.fit()$cluster + K()))
+    
+    return(as.integer(strsplit(input$topics, ",")[[1]]))
+  })
+  
+  n.nodes <- reactive({
+    if (is.null(data()))
+      return(c())
+    
+    if (input$topics == "")
+      return(input$num.clusters)
+    
+    return(length(assignments())-K())
+  })
+  
+  cluster.titles <- reactive({
+    if (is.null(data()))
+      return(c())
+    
+    marginals <- matrix(0, nrow=n.nodes(), ncol=ncol(beta()))
+    node.ids <- c(seq(K()+1,K()+n.nodes()), seq(K()))
+    weights <- colSums(data()$model$theta)
+    for (node in seq(length(assignments()), 1)) {
+      val <- 0
+      if (assignments()[node] == 0)
+        val <- 0
+      else if (node.ids[node] <= K())
+        val <- beta()[node.ids[node],] * weights[node.ids[node]]
+      else
+        val <- marginals[node.ids[node]-K(),]
+      marginals[assignments()[node]-K(),] <- marginals[assignments()[node]-K(),] + val
+    }
+    
+    rv <- c()
+    for (cluster in seq(n.nodes())) {
+      title <- paste(data()$out$vocab[order(marginals[cluster,], 
+                                            decreasing=TRUE)][seq(5)], collapse=" ")
 
+      rv <- c(rv, title)
+      
+      title <- paste(data()$out$vocab[order(marginals[cluster,], 
+                                            decreasing=TRUE)][seq(20)], collapse=" ")
+      vals <- marginals[cluster, order(marginals[cluster,], decreasing=TRUE)[seq(20)]]
+    }
+    
+    return(rv)
+    
+    #TODO: add on reset
+    #document.getElementById("topics").value = "";
+    #write assignemnts to topics text file
+  })
+  
   bubbles.data <- reactive({
     if (is.null(data()))
       return(NULL)
     
     #parent.id, topic.id, weight, title
-    rv <- data.frame(parentID=0,
-                     nodeID=seq(input$num.clusters),
-                     weight=0,
-                     title="")
-
-    rv <- rbind(rv,
-                data.frame(parentID=kmeans.fit()$cluster,
-                           nodeID=seq(input$num.clusters+1,input$num.clusters+K()),
-                           weight=colSums(data()$model$theta),
-                           title=titles()))
+    rv <- data.frame(parentID=assignments(),
+                     nodeID=c(seq(K()+1,K()+n.nodes()), seq(K())),
+                     weight=c(rep(0, n.nodes()), colSums(data()$model$theta)),
+                     title=c(cluster.titles(), titles()))
+    
     return(rv)
   })
   
