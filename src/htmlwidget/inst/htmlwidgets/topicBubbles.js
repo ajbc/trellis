@@ -325,7 +325,7 @@ HTMLWidgets.widget({
             if (d.weight === 0) {
                 parent.children.push({
                     id: d.nodeID,
-                    terms: [],
+                    terms: d.title.split(" "),
                     children: []
                 });
             } else if (parent !== null && parent.hasOwnProperty("children")) {
