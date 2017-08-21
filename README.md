@@ -2,13 +2,10 @@
 
 ### Download
 
-_**Note:** The current commit is broken.  Please check out the commit listed below for a working demo._
-
-Clone the repo and checkout the working version:
+Clone the repo and checkout:
 ```
 git clone https://github.com/ajbc/topic-bubbles.git
 cd topic-bubbles
-git checkout 0be3a73
 ```
 
 ### Setup

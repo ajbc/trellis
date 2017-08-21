@@ -3,7 +3,7 @@ library(shinyjs)
 library(stm)
 library(data.table)
 
-options(shiny.maxRequestSize=100*1024^2)
+options(shiny.maxRequestSize=1e4*1024^2)
 
 function(input, output) {
   
