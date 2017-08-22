@@ -84,7 +84,7 @@ HTMLWidgets.widget({
             .data(descendants)
             .enter()
             .append("g")
-            .attr("class", function() { return "node" });
+            .attr("class", "node");
 
         self.circles = self.nodes.append("circle")
             .style("pointer-events", "visible")
@@ -102,10 +102,18 @@ HTMLWidgets.widget({
         self.nodes
             .append("text")
             .attr("class", "label")
+            //.style("fill-opacity", function(d) {
+            //    return d.parent === self.nodeInFocus ? 1 : 0;
+            //})
+            .style("display", function(d) {
+                return d.parent === self.nodeInFocus ? "inline" : "none";
+            })
             .each(function(d) {
+                if (d.parent === self.nodeInFocus) {
+                    console.log(d.data.terms);
+                }
                 var sel = d3.select(this),
                     len = d.data.terms.length;
-
                 d.data.terms.forEach(function(term, i) {
                     sel.append("tspan")
                         .text(function() { return term; })
@@ -270,19 +278,19 @@ HTMLWidgets.widget({
                 };
             });
 
-        //transition.selectAll("text")
-        //    .filter(function(d) {
-        //        return d.parent === node || this.style.display === "inline";
-        //    })
-        //    .style("fill-opacity", function(d) {
-        //        return d.parent === node ? 1 : 0;
-        //    })
-        //    .on("start", function(d) {
-        //        if (d.parent === node) this.style.display = "inline";
-        //    })
-        //    .on("end", function(d) {
-        //        if (d.parent !== node) this.style.display = "none";
-        //    });
+        transition.selectAll("text")
+            .filter(function(d) {
+                return d.parent === node || this.style.display === "inline";
+            })
+            .style("fill-opacity", function(d) {
+                return d.parent === node ? 1 : 0;
+            })
+            .on("start", function(d) {
+                if (d.parent === node) this.style.display = "inline";
+            })
+            .on("end", function(d) {
+                if (d.parent !== node) this.style.display = "none";
+            });
     },
 
     /* Update underlying tree data structure, changing the selected node"s
