@@ -106,15 +106,16 @@ HTMLWidgets.widget({
                 var sel = d3.select(this),
                     len = d.data.terms.length;
 
-                d.data.terms.forEach(function(term, i) {
-                    sel.append("tspan")
-                        .text(function() { return term; })
-                        .attr("x", 0)
-                        .attr("text-anchor", "middle")
-                        // This data is used for dynamic sizing of text.
-                        .attr("data-term-index", i)
-                        .attr("data-term-len", len);
-                });
+                //d.data.terms.forEach(function(term, i) {
+                //    sel.append("tspan")
+                //        .text(function() { return term; })
+                //        .attr("x", 0)
+                //        .attr("text-anchor", "middle")
+                //        // This data is used for dynamic sizing of text.
+                //        .attr("data-term-index", i)
+                //        .attr("data-term-len", len);
+                //});
+                sel.text(d.data.id);
             });
 
         self.circles
@@ -153,8 +154,13 @@ HTMLWidgets.widget({
                 d3.event.stopPropagation();
                 if (self.selectedNode && self.selectedNode.parent !== d) {
                     self.newParent = d;
-                    var newData = self.updateData(self.data);
-                    self.data = newData;
+                    var oldParentId = self.selectedNode.parent.data.id,
+                        newParentId = self.newParent.data.id;
+
+                    self.traverseTree(self.data, function(node) {
+                        self.processNode(node, oldParentId, newParentId);
+                    });
+
                     self.selectedNode = null;
                     self.newParent = null;
                     self.moveTopicBetweenClusters(self.data);
@@ -165,14 +171,10 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function(d) {
-                d3.select(this).style("fill", function() {
-                    return self.colorNode.call(self, d, true);
-                });
+                d3.select(this).style("fill", self.colorNode.call(self, d, true));
             })
             .on("mouseout", function(d) {
-                d3.select(this).style("fill", function() {
-                    return self.colorNode.call(self, d, false);
-                });
+                d3.select(this).style("fill", self.colorNode.call(self, d, false));
             });
 
         // Zoom out when the user clicks the outermost circle.
@@ -269,52 +271,41 @@ HTMLWidgets.widget({
                     self.zoomTo(i(t), false);
                 };
             });
-
-        //transition.selectAll("text")
-        //    .filter(function(d) {
-        //        return d.parent === node || this.style.display === "inline";
-        //    })
-        //    .style("fill-opacity", function(d) {
-        //        return d.parent === node ? 1 : 0;
-        //    })
-        //    .on("start", function(d) {
-        //        if (d.parent === node) this.style.display = "inline";
-        //    })
-        //    .on("end", function(d) {
-        //        if (d.parent !== node) this.style.display = "none";
-        //    });
     },
 
-    /* Update underlying tree data structure, changing the selected node"s
+    /* Update underlying tree data structure, changing the selected node's
      * parent.
      */
-    updateData: function(root) {
-        var self = this,
-            oldParentId = self.selectedNode.parent.data.id,
-            newParentId = self.newParent.data.id,
-        // TODO: Confirm true specifies deep copy.
-            newData = $.extend({}, root, true);
+    traverseTree: function(node, processNode) {
+        var self = this;
+        processNode(node);
+        // We never update leaf nodes. We update the children of parent/middle
+        // nodes.
+        if (typeof node.children !== 'undefined') {
+            node.children.forEach(function(childNode) {
+                self.traverseTree(childNode, processNode)
+            });
+        }
+    },
 
-        newData.children.forEach(function(middleNode) {
-            // Remove the selected node from the old parent.
-            if (middleNode.id === oldParentId) {
-                var newChildren = [];
-                middleNode.children.forEach(function(child) {
-                    if (child.id !== self.selectedNode.data.id) {
-                        newChildren.push(child);
-                    }
-                });
-                middleNode.children = newChildren;
-                // Add selected node to new parent.
-            } else if (middleNode.id === newParentId) {
-                middleNode.children.push(self.selectedNode.data);
-                // CRITICAL BUT SUBTLE: d3 has references to the parents cached
-                // when calling descendants(); we must manually update this
-                // reference.
-                self.selectedNode.parent = self.newParent;
-            }
-        });
-        return newData;
+    processNode: function(node, oldParentId, newParentId) {
+        var self = this;
+        if (node.id === oldParentId) {
+            var newChildren = [];
+            node.children.forEach(function(child) {
+                if (child.id !== self.selectedNode.data.id) {
+                    newChildren.push(child);
+                }
+            });
+            node.children = newChildren;
+            // Add selected node to new parent.
+        } else if (node.id === newParentId) {
+            node.children.push(self.selectedNode.data);
+            // CRITICAL BUT SUBTLE: d3 has references to the parents cached
+            // when calling descendants(); we must manually update this
+            // reference.
+            self.selectedNode.parent = self.newParent;
+        }
     },
 
     /* Convert R dataframe to tree.
