@@ -105,17 +105,16 @@ HTMLWidgets.widget({
             .each(function(d) {
                 var sel = d3.select(this),
                     len = d.data.terms.length;
-
-                //d.data.terms.forEach(function(term, i) {
-                //    sel.append("tspan")
-                //        .text(function() { return term; })
-                //        .attr("x", 0)
-                //        .attr("text-anchor", "middle")
-                //        // This data is used for dynamic sizing of text.
-                //        .attr("data-term-index", i)
-                //        .attr("data-term-len", len);
-                //});
-                sel.text(d.data.id);
+                d.data.terms.forEach(function(term, i) {
+                    sel.append("tspan")
+                        .text(function() { return term; })
+                        .attr("x", 0)
+                        .attr("text-anchor", "middle")
+                        // This data is used for dynamic sizing of text.
+                        .attr("data-term-index", i)
+                        .attr("data-term-len", len);
+                });
+                //sel.text(d.data.id);
             });
 
         self.circles
