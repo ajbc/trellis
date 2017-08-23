@@ -102,15 +102,19 @@ HTMLWidgets.widget({
         self.nodes
             .append("text")
             .attr("class", "label")
-            //.style("fill-opacity", function(d) {
-            //    return d.parent === self.nodeInFocus ? 1 : 0;
-            //})
+            .attr("id", function(d) {
+                // D3 has no equivalent to jQuery.children so we must keep
+                // track of which text is associated with which node even
+                // though the text nodes are nested in the circle nodes in
+                // the DOM. ¯\_(ツ)_/¯
+                return "label-" + d.data.id;
+            })
             .style("display", function(d) {
                 return d.parent === self.nodeInFocus ? "inline" : "none";
             })
             .each(function(d) {
                 if (d.parent === self.nodeInFocus) {
-                    console.log(d.data.terms);
+                    //console.log(d.data.terms);
                 }
                 var sel = d3.select(this),
                     len = d.data.terms.length;
@@ -173,14 +177,11 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function(d) {
-                d3.select(this).style("fill", function() {
-                    return self.colorNode.call(self, d, true);
-                });
+                d3.select('#label-' + d.data.id).style("display", "inline");
+                d3.select(this).style("fill", self.colorNode.call(self, d, true));
             })
             .on("mouseout", function(d) {
-                d3.select(this).style("fill", function() {
-                    return self.colorNode.call(self, d, false);
-                });
+                d3.select(this).style("fill", self.colorNode.call(self, d, false));
             });
 
         // Zoom out when the user clicks the outermost circle.
