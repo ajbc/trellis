@@ -34,10 +34,6 @@ HTMLWidgets.widget({
             .domain([0, 1])
             .range(["hsl(155,30%,82%)", "hsl(155,66%,25%)"])
             .interpolate(d3.interpolateHcl);
-        self.textColor = d3.scaleLinear()
-            .domain([0, 1])
-            .range(["hsl(0,0%,60%)", "hsl(0,0%,0%)"])
-            .interpolate(d3.interpolateHcl);
     },
 
     reInitialize: function() {
@@ -106,6 +102,7 @@ HTMLWidgets.widget({
         self.nodes
             .append("text")
             .attr("class", "label")
+            .attr("level", function(d) { return d.depth; })
             .each(function(d) {
                 var sel = d3.select(this),
                     len = d.data.terms.length;
@@ -139,11 +136,13 @@ HTMLWidgets.widget({
                 });
             })
             .on("mouseover", function(d) {
+                Shiny.onInputChange("hover", d.data.id);
                 d3.select(this).style("fill", function() {
                     return self.colorNode.call(self, d, true);
                 });
             })
             .on("mouseout", function(d) {
+                Shiny.onInputChange("hover", "");
                 d3.select(this).style("fill", function() {
                     return self.colorNode.call(self, d, false);
                 });
@@ -159,6 +158,7 @@ HTMLWidgets.widget({
                     self.newParent = d;
                     var newData = self.updateData(self.data);
                     self.data = newData;
+                    self.updateAssignments();
                     self.selectedNode = null;
                     self.newParent = null;
                     self.moveTopicBetweenClusters(self.data);
@@ -169,11 +169,13 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function(d) {
+                Shiny.onInputChange("hover", d.data.id);
                 d3.select(this).style("fill", function() {
                     return self.colorNode.call(self, d, true);
                 });
             })
             .on("mouseout", function(d) {
+                Shiny.onInputChange("hover", "");
                 d3.select(this).style("fill", function() {
                     return self.colorNode.call(self, d, false);
                 });
@@ -182,6 +184,10 @@ HTMLWidgets.widget({
         // Zoom out when the user clicks the outermost circle.
         self.svg.style("background", "#fff")
             .on("click", function() { self.zoom(root); });
+
+        /*svg.selectAll("text").sort(function (a, b) {
+            return (a.level > b.level);
+        });*/
 
         self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], 0, false);
     },
@@ -252,9 +258,6 @@ HTMLWidgets.widget({
                 // `15 * k` spaces them out appropriately.
                 return (self.FONT_SIZE * (k/2) + 3)* 1.2 * (i - (len / 2) + 0.75);
             })
-            .style("fill", function(d) {
-              return self.textColor(depth);
-            })
             .style("font-size", function(d) {
                 return (self.FONT_SIZE * (k/2) + 3) + "px";
             });
@@ -321,6 +324,7 @@ HTMLWidgets.widget({
                 self.selectedNode.parent = self.newParent;
             }
         });
+
         return newData;
     },
 
@@ -353,6 +357,35 @@ HTMLWidgets.widget({
         });
 
         return data;
+    },
+
+    /* Helper function for updateAssignments
+     */
+    findAssignments: function(node) {
+        var self = this,
+            assignments = "";
+
+        node.children.forEach(function(d) {
+            assignment = "".concat(d.data.id, ":", (node.data.id=="root") ? 0 : node.data.id);
+            assignments = assignments.concat(assignment, ",");
+
+            //TODO: check that this works for hierarchy
+            if (d.hasOwnProperty("children"))
+                assignments = assignments.concat(self.findAssignments(d));
+        });
+
+        return assignments;
+    },
+
+    /* Update the string that informs the Shiny server about the hierarchy of
+     * topic assignemnts
+     */
+    updateAssignments: function() {
+        var self = this;
+
+        var root = d3.hierarchy(self.data);
+
+        Shiny.onInputChange("topics", self.findAssignments(root));
     },
 
     /* Helper function to add hierarchical structure to data.

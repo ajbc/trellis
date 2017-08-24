@@ -3,7 +3,7 @@ library(shinyjs)
 
 #library(htmlwidgets)
 #library(devtools)
-#devtools::install("/Users/ajbc/Projects/Academic/topic-bubbles/src/htmlwidget") 
+#devtools::install("/Users/ajbc/Projects/Academic/topic-bubbles/src/htmlwidget")
 library(topicBubbles)
 
 #https://cran.r-project.org/web/packages/shinyjs/vignettes/shinyjs-extend.html
@@ -31,7 +31,8 @@ fluidPage(
                   buttonLabel = "Select"#,
                   #accept=c('.RData')
       ),
-      numericInput('num.clusters', "Number of clusters", value=10)
+      numericInput('num.clusters', "Number of clusters", value=10),
+      htmlOutput('topic.summary', class="summary")
       # tags$hr(),
       # checkboxInput('header', 'Header', TRUE),
       # radioButtons('sep', 'Separator',
@@ -47,7 +48,8 @@ fluidPage(
     ),
     mainPanel(
       topicBubblesOutput("bubbles", height=800),
-      textInput("topics", "")
+      textInput("topics", ""),
+      textInput("hover", "")
     )
   )
 )
