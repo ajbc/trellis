@@ -2,10 +2,9 @@
 
 ### Download
 
-Clone the repo and checkout:
+Clone the repo and checkout the working version:
 ```
 git clone https://github.com/ajbc/topic-bubbles.git
-cd topic-bubbles
 ```
 
 ### Setup
@@ -40,9 +39,13 @@ Then navigate to `http://127.0.0.1:<PORT>` in a browser if not redirected automa
 
 ### Using the demo
 Upload an `.Rdata` file with three variables:
+-
 - `processed`: output of the `textProcessor` function
 - `out`: output of the `prepDocuments` function
 - `model`: an STM model object
+- `doc.summaries`: a list of summaries for each document; will be used to display documents
+
+See `dat/process.R` or the abbreviated example below.
 
 #### Example
 ```
@@ -53,7 +56,8 @@ data <- as.data.frame(fread("dat/poliblogs2008.csv"))
 processed <- textProcessor(data$documents, metadata = data)
 out <- prepDocuments(processed$documents, processed$vocab, processed$meta)
 model <- stm(documents=out$documents, vocab=out$vocab, K=100, init.type="Spectral")
+doc.summaries <- lapply(data$documents, substr, start=1, stop=300)
 
-save(processed, out, model, file="dat/poliblogs2008.K100.RData")
+save(processed, out, model, doc.summaries, file="dat/poliblogs2008.K100.RData")
 ```
 Both `dat/poliblogs2008.csv` and `dat/poliblogs2008.K100.RData` are included as examples.

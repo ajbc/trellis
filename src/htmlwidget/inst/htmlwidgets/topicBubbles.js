@@ -102,6 +102,7 @@ HTMLWidgets.widget({
         self.nodes
             .append("text")
             .attr("class", "label")
+            .attr("level", function(d) { return d.depth; })
             .each(function(d) {
                 var sel = d3.select(this),
                     len = d.data.terms.length;
@@ -135,11 +136,13 @@ HTMLWidgets.widget({
                 });
             })
             .on("mouseover", function(d) {
+                Shiny.onInputChange("hover", d.data.id);
                 d3.select(this).style("fill", function() {
                     return self.colorNode.call(self, d, true);
                 });
             })
             .on("mouseout", function(d) {
+                Shiny.onInputChange("hover", "");
                 d3.select(this).style("fill", function() {
                     return self.colorNode.call(self, d, false);
                 });
@@ -155,6 +158,7 @@ HTMLWidgets.widget({
                     self.newParent = d;
                     var newData = self.updateData(self.data);
                     self.data = newData;
+                    self.updateAssignments();
                     self.selectedNode = null;
                     self.newParent = null;
                     self.moveTopicBetweenClusters(self.data);
@@ -165,11 +169,13 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function(d) {
+                Shiny.onInputChange("hover", d.data.id);
                 d3.select(this).style("fill", function() {
                     return self.colorNode.call(self, d, true);
                 });
             })
             .on("mouseout", function(d) {
+                Shiny.onInputChange("hover", "");
                 d3.select(this).style("fill", function() {
                     return self.colorNode.call(self, d, false);
                 });
@@ -179,7 +185,11 @@ HTMLWidgets.widget({
         self.svg.style("background", "#fff")
             .on("click", function() { self.zoom(root); });
 
-        self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], false);
+        /*svg.selectAll("text").sort(function (a, b) {
+            return (a.level > b.level);
+        });*/
+
+        self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], 0, false);
     },
 
     moveTopicBetweenClusters: function() {
@@ -199,13 +209,13 @@ HTMLWidgets.widget({
         });
 
         self.nodeInFocus = root;
-        self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], true);
+        self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], 0, true);
     },
 
     /* Zoom to center of coordinates.
      */
     // IMPORTANT: This function is responsible for setting circle radii and locations.
-    zoomTo: function(coords, transition) {
+    zoomTo: function(coords, depth, transition) {
         var self = this,
             k = self.DIAMETER / coords[2],
             nodes, circles;
@@ -266,7 +276,7 @@ HTMLWidgets.widget({
                 var coords = [c.x, c.y, c.r * 2 + self.PAGE_MARGIN],
                     i = d3.interpolateZoom(self.currCoords, coords);
                 return function(t) {
-                    self.zoomTo(i(t), false);
+                    self.zoomTo(i(t), node.depth, false);
                 };
             });
 
@@ -314,6 +324,7 @@ HTMLWidgets.widget({
                 self.selectedNode.parent = self.newParent;
             }
         });
+
         return newData;
     },
 
@@ -333,7 +344,7 @@ HTMLWidgets.widget({
             if (d.weight === 0) {
                 parent.children.push({
                     id: d.nodeID,
-                    terms: [],
+                    terms: d.title.split(" "),
                     children: []
                 });
             } else if (parent !== null && parent.hasOwnProperty("children")) {
@@ -346,6 +357,35 @@ HTMLWidgets.widget({
         });
 
         return data;
+    },
+
+    /* Helper function for updateAssignments
+     */
+    findAssignments: function(node) {
+        var self = this,
+            assignments = "";
+
+        node.children.forEach(function(d) {
+            assignment = "".concat(d.data.id, ":", (node.data.id=="root") ? 0 : node.data.id);
+            assignments = assignments.concat(assignment, ",");
+
+            //TODO: check that this works for hierarchy
+            if (d.hasOwnProperty("children"))
+                assignments = assignments.concat(self.findAssignments(d));
+        });
+
+        return assignments;
+    },
+
+    /* Update the string that informs the Shiny server about the hierarchy of
+     * topic assignemnts
+     */
+    updateAssignments: function() {
+        var self = this;
+
+        var root = d3.hierarchy(self.data);
+
+        Shiny.onInputChange("topics", self.findAssignments(root));
     },
 
     /* Helper function to add hierarchical structure to data.
