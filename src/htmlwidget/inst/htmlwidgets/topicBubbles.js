@@ -1,5 +1,9 @@
 HTMLWidgets.widget({
 
+
+// Variables global to the `HTMLWidgets` instance.
+//------------------------------------------------------------------------------
+
     name: "topicBubbles",
     type: "output",
 
@@ -7,35 +11,71 @@ HTMLWidgets.widget({
     DIAMETER: null,
     FONT_SIZE: 11,
 
-    svg: null,
-    selectedNode: null,
+    // `selNode` is the one the user clicks on first.
+    selNode: null,
+
+    // `nodesToMove` is an array of nodes the user intends to move. If `selNode`
+    // is a leaf node, then `nodesToMove` is an array with just `selNode`.
+    // Otherwise, `nodesToMove` is an array with `selNode`'s children.
+    nodeToMove: null,
+
+    // This data structure tracks the (x, y, r) data for each node. We call
+    // `d3.pack(root).descendants()` to get the new (x, y, r) data with which
+    // to update the cache, but the circles are resized and repositioned using
+    // the cache only. This prevents having to re-render the circles and
+    // re-bind the data.
+    nodeXYRCache: {},
     currCoords: null,
     nodeInFocus: null,
-    nodeCoordCache: {},
-    nClusters: null,
-    el: null,
 
+    // Used to know when the user has changed the number of clusters. In this
+    // scenario, we just completely re-initialize the widget.
+    nClusters: null,
+
+    el: null,
+    svg: null,
+
+
+// Main functions.
+//------------------------------------------------------------------------------
+
+    /* Creates the `svg` element, a `d3.pack` instance with the correct size
+     * parameters, and the depth-to-color mapping function.
+     */
     initialize: function(el, width, height) {
         var self = this,
-            BUBBLE_PADDING = 20;
+            NODE_PADDING = 20,
+            SVG_R,
+            D3PACK_R;
 
-        self.DIAMETER = width;
         self.el = el;
+        self.DIAMETER = width;
+        SVG_R = self.DIAMETER / 2;
+        D3PACK_R = self.DIAMETER - self.PAGE_MARGIN;
+
+        // Create `svg` and root `g` elements.
         self.svg = d3.select(el)
             .append("svg")
             .attr("width", self.DIAMETER)
             .attr("height", self.DIAMETER);
         self.rootG = self.svg.append("g")
-            .attr("transform", "translate(" + self.DIAMETER / 2 + "," + self.DIAMETER / 2 + ")");
+            .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
+
+        // Create persistent `d3.pack` instance with radii accounting for
+        // padding.
         self.pack = d3.pack()
-            .size([self.DIAMETER - self.PAGE_MARGIN, self.DIAMETER - self.PAGE_MARGIN])
-            .padding(BUBBLE_PADDING);
+            .size([D3PACK_R, D3PACK_R])
+            .padding(NODE_PADDING);
+
+        // Set depth-to-color mapping function.
         self.colorMap = d3.scaleLinear()
             .domain([0, 1])
             .range(["hsl(155,30%,82%)", "hsl(155,66%,25%)"])
             .interpolate(d3.interpolateHcl);
     },
 
+    /* Removes all svg elements and then re-renders everything from scratch.
+     */
     reInitialize: function() {
         var self = this;
         d3.select(self.el).selectAll("*").remove();
@@ -44,17 +84,19 @@ HTMLWidgets.widget({
     },
 
     resize: function(el, width, height) {
-        this.initialize(el, width, height);
+        var self = this;
+        self.initialize(el, width, height);
     },
 
     renderValue: function(el, rawData) {
-        var self = this;
-        // Shiny calls this function before the user uploads any data.
-        if (rawData.data == null) {
-            return;
-        }
+        var self = this,
+            nClustersHasChanged = self.nClusters !== null
+                && self.nClusters !== self.data.children.length;
+        // Shiny calls this function before the user uploads any data. We want
+        // to just early-return in this case.
+        if (rawData.data == null) { return; }
         self.data = self.getTreeFromRawData(rawData);
-        if (self.nClusters !== null && self.nClusters !== self.data.children.length) {
+        if (nClustersHasChanged) {
             self.reInitialize();
         } else {
             self.nClusters = self.data.children.length;
@@ -63,17 +105,23 @@ HTMLWidgets.widget({
     },
 
     renderInitialClusters: function() {
-        var self = this;
+        var self = this,
+            root,
+            descendants,
+            // Used for managing single- vs. double-clicks.
+            DELAY = 250,
+            clicks = 0,
+            timer = null;
 
-        var root = d3.hierarchy(self.data)
+        root = d3.hierarchy(self.data)
             .sum(function(d) { return d.weight; })
             .sort(function(a, b) { return b.value - a.value; });
 
         self.nodeInFocus = root;
-        var descendants = self.pack(root).descendants();
+        descendants = self.pack(root).descendants();
 
         descendants.forEach(function(node) {
-            self.nodeCoordCache[node.data.id] = {
+            self.nodeXYRCache[node.data.id] = {
                 x: node.x,
                 y: node.y,
                 r: node.r
@@ -105,16 +153,16 @@ HTMLWidgets.widget({
             .each(function(d) {
                 var sel = d3.select(this),
                     len = d.data.terms.length;
-                d.data.terms.forEach(function(term, i) {
-                    sel.append("tspan")
-                        .text(function() { return term; })
-                        .attr("x", 0)
-                        .attr("text-anchor", "middle")
-                        // This data is used for dynamic sizing of text.
-                        .attr("data-term-index", i)
-                        .attr("data-term-len", len);
-                });
-                //sel.text(d.data.id);
+                //d.data.terms.forEach(function(term, i) {
+                //    sel.append("tspan")
+                //        .text(function() { return term; })
+                //        .attr("x", 0)
+                //        .attr("text-anchor", "middle")
+                //        // This data is used for dynamic sizing of text.
+                //        .attr("data-term-index", i)
+                //        .attr("data-term-len", len);
+                //});
+                sel.text(d.data.id);
             });
 
         self.circles
@@ -123,50 +171,43 @@ HTMLWidgets.widget({
             })
             .on("click", function(d) {
                 d3.event.stopPropagation();
-                if (self.selectedNode && self.selectedNode.data.id === d.data.id) {
-                    self.selectedNode = null;
-                    self.newParent = null;
-                } else {
-                    self.selectedNode = d;
-                    self.newParent = null;
-                }
-                self.circles.style("fill", function(d) {
-                    return self.colorNode.call(self, d);
-                });
+                self.selectCluster(d);
             })
             .on("mouseover", function(d) {
-                d3.select(this).style("fill", function() {
-                    return self.colorNode.call(self, d, true);
-                });
+                d3.select(this)
+                    .style("fill", self.colorNode.call(self, d, true));
             })
             .on("mouseout", function(d) {
-                d3.select(this).style("fill", function() {
-                    return self.colorNode.call(self, d, false);
-                });
+                d3.select(this)
+                    .style("fill", self.colorNode.call(self, d, false));
             });
 
         self.circles
             .filter(function() {
                 return d3.select(this).classed("circle-middle");
             })
+            .on("dblclick", function() {
+                // Prevent double-click in deference to single-click handler.
+                d3.event.stopPropagation();
+            })
             .on("click", function(d) {
                 d3.event.stopPropagation();
-                if (self.selectedNode && self.selectedNode.parent !== d) {
-                    self.newParent = d;
-                    var oldParentId = self.selectedNode.parent.data.id,
-                        newParentId = self.newParent.data.id;
-
-                    self.traverseTree(self.data, function(node) {
-                        self.processNode(node, oldParentId, newParentId);
-                    });
-
-                    self.selectedNode = null;
-                    self.newParent = null;
-                    self.moveTopicBetweenClusters(self.data);
-                } else if (self.nodeInFocus !== d) {
-                    self.zoom(d);
-                } else if (self.nodeInFocus === d) {
-                    self.zoom(root);
+                clicks++;
+                if (clicks === 1) {
+                    timer = setTimeout(function() {
+                        // Single click: select cluster for move.
+                        self.selectCluster(d);
+                        clicks = 0;
+                    }, DELAY);
+                } else {
+                    // Double click: zoom.
+                    clearTimeout(timer);
+                    clicks = 0;
+                    if (self.nodeInFocus !== d) {
+                        self.zoom(d);
+                    } else if (self.nodeInFocus === d) {
+                        self.zoom(root);
+                    }
                 }
             })
             .on("mouseover", function(d) {
@@ -183,6 +224,57 @@ HTMLWidgets.widget({
         self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], false);
     },
 
+    selectCluster: function(node) {
+        var self = this;
+        if (!self.selNode) {
+           self.selectNewNode(node);
+        } else {
+            self.selectNodeToMove(node);
+        }
+        self.circles.style("fill", function(d) {
+            return self.colorNode.call(self, d);
+        });
+    },
+
+    selectNewNode: function(node) {
+        var self = this;
+        self.selNode = node;
+        self.nodesToMove = null;
+        self.newParent = null;
+    },
+
+    selectNodeToMove: function(node) {
+        var self = this,
+            newParentNodeSelected = self.selNode.parent !== node,
+            sameNodeSelected = self.selNode.data.id === node.data.id,
+            nodeToMoveIsLeafNode = typeof self.selNode.children === 'undefined';
+
+        if (sameNodeSelected) {
+            self.selNode = null;
+            self.newParent = null;
+        } else if (newParentNodeSelected) {
+            self.newParent = node;
+            var newParentID = self.newParent.data.id,
+                oldParentID;
+
+            if (nodeToMoveIsLeafNode) {
+                oldParentID = self.selNode.parent.data.id;
+                self.nodesToMove = [self.selNode];
+            } else {
+                oldParentID = self.selNode.data.id;
+                self.nodesToMove = self.selNode.children;
+            }
+            self.traverseTree(self.data, function (node) {
+                self.processNode(node, oldParentID, newParentID);
+            });
+
+            self.selNode = null;
+            self.nodesToMove = null;
+            self.newParent = null;
+            self.moveTopicBetweenClusters(self.data);
+        }
+    },
+
     moveTopicBetweenClusters: function() {
         var self = this,
             root;
@@ -192,7 +284,7 @@ HTMLWidgets.widget({
             .sort(function(a, b) { return b.value - a.value; });
 
         self.pack(root).descendants().forEach(function(node) {
-            self.nodeCoordCache[node.data.id] = {
+            self.nodeXYRCache[node.data.id] = {
                 x: node.x,
                 y: node.y,
                 r: node.r
@@ -200,6 +292,9 @@ HTMLWidgets.widget({
         });
 
         self.nodeInFocus = root;
+        // `zoomTo` performs the actual move. It uses the data stored in
+        // `nodeXYRCache` for a smooth transition of existing `circle`
+        // elements.
         self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], true);
     },
 
@@ -232,11 +327,11 @@ HTMLWidgets.widget({
         }
 
         nodes.attr("transform", function(d) {
-            var c = self.nodeCoordCache[d.data.id];
+            var c = self.nodeXYRCache[d.data.id];
             return "translate(" + (c.x - coords[0]) * k + "," + (c.y - coords[1]) * k + ")";
         });
         circles.attr("r", function(d) {
-            var c = self.nodeCoordCache[d.data.id];
+            var c = self.nodeXYRCache[d.data.id];
             return c.r * k;
         });
 
@@ -247,7 +342,7 @@ HTMLWidgets.widget({
                     len = +that.attr("data-term-len");
                 // `- (len / 2) + 0.75` shifts the term down appropriately.
                 // `15 * k` spaces them out appropriately.
-                return (self.FONT_SIZE * (k/2) + 3)* 1.2 * (i - (len / 2) + 0.75);
+                return (self.FONT_SIZE * (k/2) + 3) * 1.2 * (i - (len / 2) + 0.75);
             })
             .style("font-size", function(d) {
                 return (self.FONT_SIZE * (k/2) + 3) + "px";
@@ -258,11 +353,10 @@ HTMLWidgets.widget({
      */
     zoom: function(node) {
         var self = this,
-            c = self.nodeCoordCache[node.data.id];
+            c = self.nodeXYRCache[node.data.id];
         self.nodeInFocus = node;
-
-        var transition = d3.transition()
-            .duration(d3.event.altKey ? 7500 : 750)
+        d3.transition()
+            .duration(1000)
             .tween("zoom", function(d) {
                 var coords = [c.x, c.y, c.r * 2 + self.PAGE_MARGIN],
                     i = d3.interpolateZoom(self.currCoords, coords);
@@ -275,35 +369,52 @@ HTMLWidgets.widget({
     /* Update underlying tree data structure, changing the selected node's
      * parent.
      */
-    traverseTree: function(node, processNode) {
+    traverseTree: function(node, processNodeCb) {
         var self = this;
-        processNode(node);
+        processNodeCb(node);
         // We never update leaf nodes. We update the children of parent/middle
         // nodes.
         if (typeof node.children !== 'undefined') {
             node.children.forEach(function(childNode) {
-                self.traverseTree(childNode, processNode)
+                self.traverseTree(childNode, processNodeCb)
             });
         }
     },
 
-    processNode: function(node, oldParentId, newParentId) {
+    processNode: function(node, oldParentID, newParentID) {
         var self = this;
-        if (node.id === oldParentId) {
-            var newChildren = [];
-            node.children.forEach(function(child) {
-                if (child.id !== self.selectedNode.data.id) {
-                    newChildren.push(child);
-                }
+
+        // Remove nodes from old parent.
+        if (node.id === oldParentID) {
+            // Remove just one node.
+            if (self.nodesToMove.length === 1) {
+                var newChildren = [];
+                node.children.forEach(function(child) {
+                    if (child.id !== self.nodesToMove[0].data.id) {
+                        newChildren.push(child);
+                    }
+                });
+                node.children = newChildren;
+            }
+            // Remove all children. In this scenario, the user selected a group
+            // of topics, `oldParentID` refers to the selected node, and we're
+            // moving all of that node's children.
+            else {
+                delete node.children;
+            }
+        }
+
+        // Add nodes to move to new parent.
+        else if (node.id === newParentID) {
+            self.nodesToMove.forEach(function(nodeToMove) {
+                node.children.push(nodeToMove.data);
+                // SUBTLE BUT CRITICAL
+                // ===================
+                // When we call `descendants()`, D3 adds new `parent` fields
+                // that do not exist on the original data. We must manually
+                // update these references.
+                nodeToMove.parent = self.newParent;
             });
-            node.children = newChildren;
-            // Add selected node to new parent.
-        } else if (node.id === newParentId) {
-            node.children.push(self.selectedNode.data);
-            // CRITICAL BUT SUBTLE: d3 has references to the parents cached
-            // when calling descendants(); we must manually update this
-            // reference.
-            self.selectedNode.parent = self.newParent;
         }
     },
 
@@ -314,12 +425,11 @@ HTMLWidgets.widget({
             data = {id: "root", children: [], terms: []},
             srcData = HTMLWidgets.dataframeToD3(x.data);
 
-        // For each data row add to the output tree
+        // For each data row add to the output tree.
         srcData.forEach(function(d) {
-            // find parent
             var parent = self.findParent(data, d.parentID, d.nodeID);
 
-            // leaf node
+            // Leaf node.
             if (d.weight === 0) {
                 parent.children.push({
                     id: d.nodeID,
@@ -338,6 +448,10 @@ HTMLWidgets.widget({
         return data;
     },
 
+
+// Helper functions.
+//------------------------------------------------------------------------------
+
     /* Helper function to add hierarchical structure to data.
      */
     findParent: function(branch, parentID, nodeID) {
@@ -345,7 +459,6 @@ HTMLWidgets.widget({
         if (parentID === 0) {
             parentID = "root";
         }
-
         var rv = null;
         if (branch.id == parentID) {
             rv = branch;
@@ -359,18 +472,19 @@ HTMLWidgets.widget({
         return rv;
     },
 
-    /* Helper function to color each node.
+    /* Helper function to correctly color any node.
      */
     colorNode: function(node, hover) {
         var self = this,
-            isSelectedNode = self.selectedNode && self.selectedNode.data.id === node.data.id;
+            isSelNode = self.selNode
+                && self.selNode.data.id === node.data.id;
 
-        if (isSelectedNode) {
+        if (isSelNode) {
             return "rgb(255, 0, 0)";
         } else if (hover) {
             if (node.depth === 1) {
                 return self.colorMap(1.2);
-            } else if (self.selectedNode) {
+            } else if (self.selNode) {
                 return "rgb(255, 255, 255)";
             } else {
                 return "rgb(220, 220, 220)";
