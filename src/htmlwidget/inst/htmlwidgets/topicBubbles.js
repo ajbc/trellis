@@ -13,11 +13,15 @@ HTMLWidgets.widget({
 
     // `selNode` is the one the user clicks on first.
     selNode: null,
-
     // `nodesToMove` is an array of nodes the user intends to move. If `selNode`
     // is a leaf node, then `nodesToMove` is an array with just `selNode`.
     // Otherwise, `nodesToMove` is an array with `selNode`'s children.
     nodeToMove: null,
+    // `newParent` is the group the user selects after selecting a node to move.
+    newParent: null,
+    // `nodeInFocus` is used to check whether to zoom in or out, depending on
+    // whether or not the user has already zoomed in.
+    nodeInFocus: null,
 
     // This data structure tracks the (x, y, r) data for each node. We call
     // `d3.pack(root).descendants()` to get the new (x, y, r) data with which
@@ -26,7 +30,6 @@ HTMLWidgets.widget({
     // re-bind the data.
     nodeXYRCache: {},
     currCoords: null,
-    nodeInFocus: null,
 
     // Used to know when the user has changed the number of clusters. In this
     // scenario, we just completely re-initialize the widget.
@@ -46,12 +49,12 @@ HTMLWidgets.widget({
         var self = this,
             NODE_PADDING = 20,
             SVG_R,
-            D3PACK_R;
+            D3PACK_W;
 
         self.el = el;
         self.DIAMETER = width;
         SVG_R = self.DIAMETER / 2;
-        D3PACK_R = self.DIAMETER - self.PAGE_MARGIN;
+        D3PACK_W = self.DIAMETER - self.PAGE_MARGIN;
 
         // Create `svg` and root `g` elements.
         self.svg = d3.select(el)
@@ -64,7 +67,7 @@ HTMLWidgets.widget({
         // Create persistent `d3.pack` instance with radii accounting for
         // padding.
         self.pack = d3.pack()
-            .size([D3PACK_R, D3PACK_R])
+            .size([D3PACK_W, D3PACK_W])
             .padding(NODE_PADDING);
 
         // Set depth-to-color mapping function.
@@ -84,8 +87,7 @@ HTMLWidgets.widget({
     },
 
     resize: function(el, width, height) {
-        var self = this;
-        self.initialize(el, width, height);
+        this.initialize(el, width, height);
     },
 
     renderValue: function(el, rawData) {
@@ -109,8 +111,8 @@ HTMLWidgets.widget({
             root,
             descendants,
             // Used for managing single- vs. double-clicks.
-            DELAY = 250,
-            clicks = 0,
+            DBLCLICK_DELAY = 250,
+            nClicks = 0,
             timer = null;
 
         root = d3.hierarchy(self.data)
@@ -192,17 +194,17 @@ HTMLWidgets.widget({
             })
             .on("click", function(d) {
                 d3.event.stopPropagation();
-                clicks++;
-                if (clicks === 1) {
+                nClicks++;
+                if (nClicks === 1) {
                     timer = setTimeout(function() {
-                        // Single click: select cluster for move.
+                        // Single click: user selected a cluster.
                         self.selectCluster(d);
-                        clicks = 0;
-                    }, DELAY);
+                        nClicks = 0;
+                    }, DBLCLICK_DELAY);
                 } else {
                     // Double click: zoom.
                     clearTimeout(timer);
-                    clicks = 0;
+                    nClicks = 0;
                     if (self.nodeInFocus !== d) {
                         self.zoom(d);
                     } else if (self.nodeInFocus === d) {
@@ -211,10 +213,12 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function(d) {
-                d3.select(this).style("fill", self.colorNode.call(self, d, true));
+                d3.select(this)
+                    .style("fill", self.colorNode.call(self, d, true));
             })
             .on("mouseout", function(d) {
-                d3.select(this).style("fill", self.colorNode.call(self, d, false));
+                d3.select(this)
+                    .style("fill", self.colorNode.call(self, d, false));
             });
 
         // Zoom out when the user clicks the outermost circle.
@@ -229,7 +233,7 @@ HTMLWidgets.widget({
         if (!self.selNode) {
            self.selectNewNode(node);
         } else {
-            self.selectNodeToMove(node);
+            self.selectAndMoveNode(node);
         }
         self.circles.style("fill", function(d) {
             return self.colorNode.call(self, d);
@@ -243,20 +247,19 @@ HTMLWidgets.widget({
         self.newParent = null;
     },
 
-    selectNodeToMove: function(node) {
+    selectAndMoveNode: function(node) {
         var self = this,
-            newParentNodeSelected = self.selNode.parent !== node,
             sameNodeSelected = self.selNode.data.id === node.data.id,
-            nodeToMoveIsLeafNode = typeof self.selNode.children === 'undefined';
+            newParentNodeSelected = self.selNode.parent !== node,
+            nodeToMoveIsLeafNode = typeof self.selNode.children === 'undefined',
+            newParentID,
+            oldParentID;
 
         if (sameNodeSelected) {
             self.selNode = null;
-            self.newParent = null;
         } else if (newParentNodeSelected) {
             self.newParent = node;
-            var newParentID = self.newParent.data.id,
-                oldParentID;
-
+            newParentID = self.newParent.data.id;
             if (nodeToMoveIsLeafNode) {
                 oldParentID = self.selNode.parent.data.id;
                 self.nodesToMove = [self.selNode];
@@ -264,8 +267,26 @@ HTMLWidgets.widget({
                 oldParentID = self.selNode.data.id;
                 self.nodesToMove = self.selNode.children;
             }
-            self.traverseTree(self.data, function (node) {
-                self.processNode(node, oldParentID, newParentID);
+            console.log(self.nodesToMove);
+
+            self.traverseTree(self.data, function(n) {
+                self.updateNodeChildren(n, oldParentID, newParentID);
+            });
+
+            // SUBTLE BUT CRITICAL
+            // ===================
+            // When we call `descendants()`, D3 adds new `parent` fields
+            // that do not exist in the original data. We must manually
+            // update these references.
+            var nodeToMoveIDs = [];
+            self.nodesToMove.forEach(function(node) {
+                nodeToMoveIDs.push(node.data.id);
+            });
+
+            self.traverseTree(self.data, function(x) {
+                if (nodeToMoveIDs.indexOf(x.id) >= 0) {
+                    debugger;
+                }
             });
 
             self.selNode = null;
@@ -298,9 +319,10 @@ HTMLWidgets.widget({
         self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], true);
     },
 
-    /* Zoom to center of coordinates.
+    /* This function "zooms" to center of coordinates. It is important to
+     * realize that "zoom" in this context actually means setting the (x, y, r)
+     * data for the circles.
      */
-    // IMPORTANT: This function is responsible for setting circle radii and locations.
     zoomTo: function(coords, transition) {
         var self = this,
             k = self.DIAMETER / coords[2],
@@ -366,29 +388,33 @@ HTMLWidgets.widget({
             });
     },
 
-    /* Update underlying tree data structure, changing the selected node's
-     * parent.
+    /* Traverse the underlying tree data structure and apply a callback
+     * function to every node.
      */
-    traverseTree: function(node, processNodeCb) {
+    traverseTree: function(node, processNode) {
         var self = this;
-        processNodeCb(node);
+        processNode(node);
         // We never update leaf nodes. We update the children of parent/middle
         // nodes.
         if (typeof node.children !== 'undefined') {
             node.children.forEach(function(childNode) {
-                self.traverseTree(childNode, processNodeCb)
+                self.traverseTree(childNode, processNode)
             });
         }
     },
 
-    processNode: function(node, oldParentID, newParentID) {
-        var self = this;
+    /* Update node's children depending on whether it is the new or old parent.
+     */
+    updateNodeChildren: function(node, oldParentID, newParentID) {
+        var self = this,
+            newChildren;
 
-        // Remove nodes from old parent.
+        // Remove nodes-to-move from old parent.
         if (node.id === oldParentID) {
-            // Remove just one node.
+            // In this scenario, the user selected a leaf node
+            // Remove `nodesToMove` from old parent.
             if (self.nodesToMove.length === 1) {
-                var newChildren = [];
+                newChildren = [];
                 node.children.forEach(function(child) {
                     if (child.id !== self.nodesToMove[0].data.id) {
                         newChildren.push(child);
@@ -396,24 +422,19 @@ HTMLWidgets.widget({
                 });
                 node.children = newChildren;
             }
-            // Remove all children. In this scenario, the user selected a group
-            // of topics, `oldParentID` refers to the selected node, and we're
-            // moving all of that node's children.
+            // In this scenario, the user selected a group of topics;
+            // `oldParentID` refers to the selected group; and we're moving all
+            // of that group's children.
             else {
-                delete node.children;
+                node.children = [];
             }
         }
 
-        // Add nodes to move to new parent.
+        // Add nodes-to-move to new parent.
         else if (node.id === newParentID) {
             self.nodesToMove.forEach(function(nodeToMove) {
-                node.children.push(nodeToMove.data);
-                // SUBTLE BUT CRITICAL
-                // ===================
-                // When we call `descendants()`, D3 adds new `parent` fields
-                // that do not exist on the original data. We must manually
-                // update these references.
                 nodeToMove.parent = self.newParent;
+                node.children.push(nodeToMove.data);
             });
         }
     },
