@@ -22,13 +22,6 @@ HTMLWidgets.widget({
     // `nodeInFocus` is used to check whether to zoom in or out, depending on
     // whether or not the user has already zoomed in.
     nodeInFocus: null,
-
-    // This data structure tracks the (x, y, r) data for each node. We call
-    // `d3.pack(root).descendants()` to get the new (x, y, r) data with which
-    // to update the cache, but the circles are resized and repositioned using
-    // the cache only. This prevents having to re-render the circles and
-    // re-bind the data.
-    nodeXYRCache: {},
     currCoords: null,
 
     // Used to know when the user has changed the number of clusters. In this
@@ -45,24 +38,21 @@ HTMLWidgets.widget({
     /* Creates the `svg` element, a `d3.pack` instance with the correct size
      * parameters, and the depth-to-color mapping function.
      */
-    initialize: function(el, width, height) {
+    initialize: function (el, width, height) {
         var self = this,
             NODE_PADDING = 20,
-            SVG_R,
-            D3PACK_W;
+            SVG_R = width / 2,
+            D3PACK_W = width - self.PAGE_MARGIN;
 
         self.el = el;
         self.DIAMETER = width;
-        SVG_R = self.DIAMETER / 2;
-        D3PACK_W = self.DIAMETER - self.PAGE_MARGIN;
 
         // Create `svg` and root `g` elements.
-        self.svg = d3.select(el)
+        self.g = d3.select(el)
             .append("svg")
             .attr("width", self.DIAMETER)
-            .attr("height", self.DIAMETER);
-        self.rootG = self.svg.append("g")
-            .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
+            .attr("height", self.DIAMETER)
+            .append("g");
 
         // Create persistent `d3.pack` instance with radii accounting for
         // padding.
@@ -79,124 +69,83 @@ HTMLWidgets.widget({
 
     /* Removes all svg elements and then re-renders everything from scratch.
      */
-    reInitialize: function() {
+    reInitialize: function () {
         var self = this;
         d3.select(self.el).selectAll("*").remove();
         self.initialize(self.el, self.DIAMETER, self.DIAMETER);
-        self.renderInitialClusters();
+        self.update(false);
     },
 
-    resize: function(el, width, height) {
+    resize: function (el, width, height) {
         this.initialize(el, width, height);
     },
 
-    renderValue: function(el, rawData) {
-        var self = this,
-            nClustersHasChanged = self.nClusters !== null
-                && self.nClusters !== self.data.children.length;
+    renderValue: function (el, rawData) {
         // Shiny calls this function before the user uploads any data. We want
         // to just early-return in this case.
-        if (rawData.data == null) { return; }
+        if (rawData.data == null) {
+            return;
+        }
+
+        var self = this,
+            nClustersChanged;
+
         self.data = self.getTreeFromRawData(rawData);
-        if (nClustersHasChanged) {
+        nClustersChanged = self.nClusters !== null
+            && self.nClusters !== self.data.children.length;
+        if (nClustersChanged) {
             self.reInitialize();
         } else {
             self.nClusters = self.data.children.length;
-            this.renderInitialClusters();
+            this.update(false);
         }
     },
 
-    renderInitialClusters: function() {
+    update: function (useTransition) {
         var self = this,
-            root,
-            descendants,
-            // Used for managing single- vs. double-clicks.
             DBLCLICK_DELAY = 250,
             nClicks = 0,
-            timer = null;
+            root,
+            nodes,
+            circles,
+            constancyFn,
+            text,
+            timer;
 
         root = d3.hierarchy(self.data)
-            .sum(function(d) { return d.weight; })
-            .sort(function(a, b) { return b.value - a.value; });
-
-        self.nodeInFocus = root;
-        descendants = self.pack(root).descendants();
-
-        descendants.forEach(function(node) {
-            self.nodeXYRCache[node.data.id] = {
-                x: node.x,
-                y: node.y,
-                r: node.r
-            };
-        });
-
-        self.nodes = self.rootG.selectAll("g")
-            .data(descendants)
-            .enter()
-            .append("g")
-            .attr("class", function() { return "node" });
-
-        self.circles = self.nodes.append("circle")
-            .style("pointer-events", "visible")
-            .attr("class", function(d) {
-                if (d.parent) {
-                    return d.children ? "circle-middle" : "circle-leaf";
-                } else {
-                    return "circle-root";
-                }
+            .sum(function (d) {
+                return d.weight;
             })
-            .style("fill", function(d) {
-                return self.colorNode.call(self, d);
+            .sort(function (a, b) {
+                return b.value - a.value;
             });
+        nodes = self.pack(root).descendants();
 
-        self.nodes
-            .append("text")
-            .attr("class", "label")
-            .each(function(d) {
-                var sel = d3.select(this),
-                    len = d.data.terms.length;
-                //d.data.terms.forEach(function(term, i) {
-                //    sel.append("tspan")
-                //        .text(function() { return term; })
-                //        .attr("x", 0)
-                //        .attr("text-anchor", "middle")
-                //        // This data is used for dynamic sizing of text.
-                //        .attr("data-term-index", i)
-                //        .attr("data-term-len", len);
-                //});
-                sel.text(d.data.id);
-            });
+        // This is a critical function. We need to give D3 permanent IDs for
+        // each node so that it knows which data goes with which bubble. See:
+        // https://bost.ocks.org/mike/constancy/
+        constancyFn = function (node) {
+            return node.data.id;
+        };
 
-        self.circles
-            .filter(function() {
-                return d3.select(this).classed("circle-leaf");
-            })
-            .on("click", function(d) {
-                d3.event.stopPropagation();
-                self.selectCluster(d);
-            })
-            .on("mouseover", function(d) {
-                d3.select(this)
-                    .style("fill", self.colorNode.call(self, d, true));
-            })
-            .on("mouseout", function(d) {
-                d3.select(this)
-                    .style("fill", self.colorNode.call(self, d, false));
-            });
+        circles = self.g.selectAll('circle')
+            .data(nodes, constancyFn);
 
-        self.circles
-            .filter(function() {
-                return d3.select(this).classed("circle-middle");
+        circles.enter()
+            .append('circle')
+            .attr('class', function (d) {
+                return d.data.id;
             })
-            .on("dblclick", function() {
+            .on("dblclick", function () {
                 // Prevent double-click in deference to single-click handler.
                 d3.event.stopPropagation();
             })
-            .on("click", function(d) {
+            .on("click", function (d) {
+                debugger;
                 d3.event.stopPropagation();
                 nClicks++;
                 if (nClicks === 1) {
-                    timer = setTimeout(function() {
+                    timer = setTimeout(function () {
                         // Single click: user selected a cluster.
                         self.selectCluster(d);
                         nClicks = 0;
@@ -212,48 +161,61 @@ HTMLWidgets.widget({
                     }
                 }
             })
-            .on("mouseover", function(d) {
-                d3.select(this)
-                    .style("fill", self.colorNode.call(self, d, true));
+            .on("mouseover", function (d) {
+                d3.select(this).style("fill", self.colorNode.call(self, d, true));
             })
-            .on("mouseout", function(d) {
-                d3.select(this)
-                    .style("fill", self.colorNode.call(self, d, false));
+            .on("mouseout", function (d) {
+                d3.select(this).style("fill", self.colorNode.call(self, d, false));
+            })
+            .style("fill", function (d) {
+                return self.colorNode.call(self, d);
             });
 
-        // Zoom out when the user clicks the outermost circle.
-        self.svg.style("background", "#fff")
-            .on("click", function() { self.zoom(root); });
+        text = self.g.selectAll('text')
+            .data(nodes, constancyFn);
 
-        self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], false);
+        text.enter()
+            .append('text')
+            .style('fill', 'blue')
+            .text(function (d) {
+                return d.data.id
+            })
+            .style("font-size", "12px");
+
+        circles.raise();
+        text.raise();
+
+        circles.exit().remove();
+
+        //// Zoom out when the user clicks the outermost circle.
+        self.g.on("click", function() { self.zoom(root); });
+
+        self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], useTransition);
     },
 
-    selectCluster: function(node) {
+    selectCluster: function (node) {
         var self = this;
         if (!self.selNode) {
-           self.selectNewNode(node);
+            self.selNode = node;
+            self.nodesToMove = null;
+            self.newParent = null;
         } else {
-            self.selectAndMoveNode(node);
+            self.moveNode(node);
         }
-        self.circles.style("fill", function(d) {
+        d3.selectAll("circle").style("fill", function (d) {
             return self.colorNode.call(self, d);
         });
     },
 
-    selectNewNode: function(node) {
-        var self = this;
-        self.selNode = node;
-        self.nodesToMove = null;
-        self.newParent = null;
-    },
-
-    selectAndMoveNode: function(node) {
+    moveNode: function (node) {
         var self = this,
             sameNodeSelected = self.selNode.data.id === node.data.id,
-            newParentNodeSelected = self.selNode.parent !== node,
+            newParentNodeSelected = self.selNode.parent !== node
+                || self.selNode.children.length > 1,
             nodeToMoveIsLeafNode = typeof self.selNode.children === 'undefined',
             newParentID,
-            oldParentID;
+            oldParentID,
+            removeSelNode;
 
         if (sameNodeSelected) {
             self.selNode = null;
@@ -262,128 +224,77 @@ HTMLWidgets.widget({
             newParentID = self.newParent.data.id;
             if (nodeToMoveIsLeafNode) {
                 oldParentID = self.selNode.parent.data.id;
-                self.nodesToMove = [self.selNode];
+                self.nodesToMove = [self.selNode.data];
+                removeSelNode = false;
             } else {
                 oldParentID = self.selNode.data.id;
-                self.nodesToMove = self.selNode.children;
+                var nodesToMove = [];
+                self.selNode.children.forEach(function (node) {
+                    nodesToMove.push(node.data);
+                });
+                self.nodesToMove = nodesToMove;
+                removeSelNode = true;
             }
-            console.log(self.nodesToMove);
 
-            self.traverseTree(self.data, function(n) {
+            self.traverseTree(self.data, function (n) {
                 self.updateNodeChildren(n, oldParentID, newParentID);
             });
 
-            // SUBTLE BUT CRITICAL
-            // ===================
-            // When we call `descendants()`, D3 adds new `parent` fields
-            // that do not exist in the original data. We must manually
-            // update these references.
-            var nodeToMoveIDs = [];
-            self.nodesToMove.forEach(function(node) {
-                nodeToMoveIDs.push(node.data.id);
-            });
-
-            self.traverseTree(self.data, function(x) {
-                if (nodeToMoveIDs.indexOf(x.id) >= 0) {
-                    debugger;
-                }
-            });
+            if (removeSelNode) {
+                self.traverseTree(self.data, function (n) {
+                    self.removeNode(n, self.selNode.data.id, self.selNode.parent.data.id);
+                });
+            }
 
             self.selNode = null;
             self.nodesToMove = null;
             self.newParent = null;
-            self.moveTopicBetweenClusters(self.data);
+            self.update(true);
         }
-    },
-
-    moveTopicBetweenClusters: function() {
-        var self = this,
-            root;
-
-        root = d3.hierarchy(self.data)
-            .sum(function(d) { return d.weight; })
-            .sort(function(a, b) { return b.value - a.value; });
-
-        self.pack(root).descendants().forEach(function(node) {
-            self.nodeXYRCache[node.data.id] = {
-                x: node.x,
-                y: node.y,
-                r: node.r
-            };
-        });
-
-        self.nodeInFocus = root;
-        // `zoomTo` performs the actual move. It uses the data stored in
-        // `nodeXYRCache` for a smooth transition of existing `circle`
-        // elements.
-        self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], true);
     },
 
     /* This function "zooms" to center of coordinates. It is important to
      * realize that "zoom" in this context actually means setting the (x, y, r)
      * data for the circles.
      */
-    zoomTo: function(coords, transition) {
+    zoomTo: function (coords, transition) {
         var self = this,
             k = self.DIAMETER / coords[2],
-            nodes, circles;
-
+            circles = d3.selectAll("circle"),
+            text = d3.selectAll('text');
         self.currCoords = coords;
 
         if (transition) {
-            circles = self.circles
-                .transition()
-                .duration(3000)
-                .on("end", function() {
-                    d3.select(this)
-                        .transition()
-                        .duration(1000)
-                        .style("fill", function(d) {
-                            return self.colorNode.call(self, d);
-                        });
-                });
-            nodes = self.nodes.transition().duration(3000);
-        } else {
-            circles = self.circles;
-            nodes = self.nodes;
+            circles = circles.transition().duration(3000);
+            text = text.transition().duration(3000);
         }
 
-        nodes.attr("transform", function(d) {
-            var c = self.nodeXYRCache[d.data.id];
-            return "translate(" + (c.x - coords[0]) * k + "," + (c.y - coords[1]) * k + ")";
+        circles.attr("transform", function (d) {
+            return "translate(" + d.x + "," + d.y + ")";
         });
-        circles.attr("r", function(d) {
-            var c = self.nodeXYRCache[d.data.id];
-            return c.r * k;
+        circles.attr("r", function (d) {
+            return d.r * k;
         });
-
-        nodes.selectAll("tspan")
-            .attr("y", function(d) {
-                var that = d3.select(this),
-                    i = +that.attr("data-term-index"),
-                    len = +that.attr("data-term-len");
-                // `- (len / 2) + 0.75` shifts the term down appropriately.
-                // `15 * k` spaces them out appropriately.
-                return (self.FONT_SIZE * (k/2) + 3) * 1.2 * (i - (len / 2) + 0.75);
-            })
-            .style("font-size", function(d) {
-                return (self.FONT_SIZE * (k/2) + 3) + "px";
-            });
+        text.attr("transform", function (d) {
+            var x = d.x - d.r + 30,
+                y = d.y - d.r + 30;
+            return "translate(" + x + "," + y + ")";
+        });
     },
 
     /* Zoom to node.
      */
-    zoom: function(node) {
+    zoom: function (node) {
         var self = this,
-            c = self.nodeXYRCache[node.data.id];
+            c = node;
         self.nodeInFocus = node;
         d3.transition()
             .duration(1000)
-            .tween("zoom", function(d) {
+            .tween("zoom", function (d) {
                 var coords = [c.x, c.y, c.r * 2 + self.PAGE_MARGIN],
                     i = d3.interpolateZoom(self.currCoords, coords);
-                return function(t) {
-                    self.zoomTo(i(t), false);
+                return function (t) {
+                    self.zoomTo(i(t), true);
                 };
             });
     },
@@ -391,13 +302,11 @@ HTMLWidgets.widget({
     /* Traverse the underlying tree data structure and apply a callback
      * function to every node.
      */
-    traverseTree: function(node, processNode) {
+    traverseTree: function (node, processNode) {
         var self = this;
         processNode(node);
-        // We never update leaf nodes. We update the children of parent/middle
-        // nodes.
         if (typeof node.children !== 'undefined') {
-            node.children.forEach(function(childNode) {
+            node.children.forEach(function (childNode) {
                 self.traverseTree(childNode, processNode)
             });
         }
@@ -405,7 +314,7 @@ HTMLWidgets.widget({
 
     /* Update node's children depending on whether it is the new or old parent.
      */
-    updateNodeChildren: function(node, oldParentID, newParentID) {
+    updateNodeChildren: function (node, oldParentID, newParentID) {
         var self = this,
             newChildren;
 
@@ -415,8 +324,8 @@ HTMLWidgets.widget({
             // Remove `nodesToMove` from old parent.
             if (self.nodesToMove.length === 1) {
                 newChildren = [];
-                node.children.forEach(function(child) {
-                    if (child.id !== self.nodesToMove[0].data.id) {
+                node.children.forEach(function (child) {
+                    if (child.id !== self.nodesToMove[0].id) {
                         newChildren.push(child);
                     }
                 });
@@ -432,22 +341,33 @@ HTMLWidgets.widget({
 
         // Add nodes-to-move to new parent.
         else if (node.id === newParentID) {
-            self.nodesToMove.forEach(function(nodeToMove) {
-                nodeToMove.parent = self.newParent;
-                node.children.push(nodeToMove.data);
+            self.nodesToMove.forEach(function (nodeToMove) {
+                node.children.push(nodeToMove);
             });
+        }
+    },
+
+    removeNode: function (node, nodeToRemoveID, nodeToRemoveParentID) {
+        var newChildren = [];
+        if (node.id === nodeToRemoveParentID) {
+            node.children.forEach(function (child) {
+                if (child.id !== nodeToRemoveID) {
+                    newChildren.push(child);
+                }
+            });
+            node.children = newChildren;
         }
     },
 
     /* Convert R dataframe to tree.
      */
-    getTreeFromRawData: function(x) {
+    getTreeFromRawData: function (x) {
         var self = this,
             data = {id: "root", children: [], terms: []},
             srcData = HTMLWidgets.dataframeToD3(x.data);
 
         // For each data row add to the output tree.
-        srcData.forEach(function(d) {
+        srcData.forEach(function (d) {
             var parent = self.findParent(data, d.parentID, d.nodeID);
 
             // Leaf node.
@@ -475,7 +395,7 @@ HTMLWidgets.widget({
 
     /* Helper function to add hierarchical structure to data.
      */
-    findParent: function(branch, parentID, nodeID) {
+    findParent: function (branch, parentID, nodeID) {
         var self = this;
         if (parentID === 0) {
             parentID = "root";
@@ -484,7 +404,7 @@ HTMLWidgets.widget({
         if (branch.id == parentID) {
             rv = branch;
         } else if (rv === null && branch.children !== undefined) {
-            branch.children.forEach(function(child) {
+            branch.children.forEach(function (child) {
                 if (rv === null) {
                     rv = self.findParent(child, parentID, nodeID);
                 }
@@ -495,7 +415,7 @@ HTMLWidgets.widget({
 
     /* Helper function to correctly color any node.
      */
-    colorNode: function(node, hover) {
+    colorNode: function (node, hover) {
         var self = this,
             isSelNode = self.selNode
                 && self.selNode.data.id === node.data.id;
@@ -517,4 +437,3 @@ HTMLWidgets.widget({
         }
     }
 });
-
