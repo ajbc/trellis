@@ -53,6 +53,7 @@ HTMLWidgets.widget({
             .attr("width", self.DIAMETER)
             .attr("height", self.DIAMETER)
             .append("g")
+            .attr("id", "root-node")
             .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
 
         // Create persistent `d3.pack` instance with radii accounting for
@@ -63,7 +64,7 @@ HTMLWidgets.widget({
 
         // Set depth-to-color mapping function.
         self.colorMap = d3.scaleLinear()
-            .domain([0, 1])
+            .domain([-1, 1])
             .range(["hsl(155,30%,82%)", "hsl(155,66%,25%)"])
             .interpolate(d3.interpolateHcl);
     },
@@ -102,7 +103,7 @@ HTMLWidgets.widget({
 
     update: function (useTransition) {
         var self = this,
-            DBLCLICK_DELAY = 250,
+            DBLCLICK_DELAY = 200,
             nClicks = 0,
             root,
             nodes,
@@ -137,9 +138,6 @@ HTMLWidgets.widget({
             })
             .on("click", function (d) {
                 d3.event.stopPropagation();
-                if (d.data.id === 'root') {
-                    return;
-                }
                 nClicks++;
                 if (nClicks === 1) {
                     timer = setTimeout(function () {
@@ -151,10 +149,13 @@ HTMLWidgets.widget({
                     // Double click: zoom.
                     clearTimeout(timer);
                     nClicks = 0;
-                    if (self.nodeInFocus !== d) {
-                        self.zoom(d);
-                    } else if (self.nodeInFocus === d) {
+                    var isRoot = d.data.id === 'root',
+                        userClickedSameNodeTwice = self.nodeInFocus === d,
+                        userClickedDiffNode = self.nodeInFocus !== d;
+                    if (isRoot || userClickedSameNodeTwice) {
                         self.zoom(root);
+                    } else if (userClickedDiffNode) {
+                        self.zoom(d);
                     }
                 }
             })
@@ -173,7 +174,9 @@ HTMLWidgets.widget({
 
         text.enter()
             .append('text')
-            .style('fill', 'blue')
+            .attr("class", "label")
+            .attr("level", function(d) { return d.depth; })
+            .style('fill', 'black')
             .each(function (d) {
                 var sel = d3.select(this),
                     len = d.data.terms.length;
@@ -186,18 +189,12 @@ HTMLWidgets.widget({
                         .attr("data-term-index", i)
                         .attr("data-term-len", len);
                 });
-            })
-            .style("font-size", "12px");
+            });
 
         circles.raise();
         text.raise();
 
         circles.exit().remove();
-
-        // Zoom out when the user clicks the outermost circle.
-        self.g.on("click", function() {
-            self.zoom(root);
-        });
 
         self.positionAndResizeNodes(
             [root.x, root.y, root.r * 2 + self.PAGE_MARGIN],
@@ -206,8 +203,13 @@ HTMLWidgets.widget({
     },
 
     selectCluster: function (node) {
-        var self = this;
-        if (!self.selNode) {
+        var self = this,
+            noNodeSelected = !self.selNode,
+            isLeafNode = typeof node.children === 'undefined',
+            isRoot = node.data.id === 'root';
+        if (isRoot) {
+            return;
+        } else if (noNodeSelected || isLeafNode) {
             self.selNode = node;
             self.nodesToMove = null;
             self.newParent = null;
@@ -271,24 +273,29 @@ HTMLWidgets.widget({
      */
     positionAndResizeNodes: function (coords, transition) {
         var self = this,
+            MOVE_DURATION = 1000,
             k = self.DIAMETER / coords[2],
             circles = d3.selectAll("circle"),
             text = d3.selectAll('text');
         self.currCoords = coords;
 
         if (transition) {
-            circles = circles.transition().duration(3000);
-            text = text.transition().duration(3000);
+            circles = circles.transition().duration(MOVE_DURATION);
+            text = text.transition().duration(MOVE_DURATION);
         }
 
         circles.attr("transform", function (d) {
-            return "translate(" + (d.x - coords[0]) * k + "," + (d.y - coords[1]) * k + ")";
+            var x = (d.x - coords[0]) * k,
+                y =  (d.y - coords[1]) * k;
+            return "translate(" + x + "," + y + ")";
         });
         circles.attr("r", function (d) {
             return d.r * k;
         });
         text.attr("transform", function (d) {
-            return "translate(" + (d.x - coords[0]) * k + "," + (d.y - coords[1]) * k + ")";
+            var x = (d.x - coords[0]) * k,
+                y = (d.y - coords[1]) * k;
+            return "translate(" + x + "," + y + ")";
         });
 
         text.selectAll("tspan")
@@ -309,14 +316,17 @@ HTMLWidgets.widget({
      */
     zoom: function (node) {
         var self = this,
+            ZOOM_DURATION = 500,
             coords = [node.x, node.y, node.r * 2 + self.PAGE_MARGIN];
         self.nodeInFocus = node;
         d3.transition()
-            .duration(1000)
+            .duration(ZOOM_DURATION)
             .tween("zoom", function () {
                 var interp = d3.interpolateZoom(self.currCoords, coords);
                 return function (t) {
-                    self.positionAndResizeNodes(interp(t), true);
+                    // `tween()` will handle the transition for us, so we can
+                    // pass `useTransition = false`.
+                    self.positionAndResizeNodes(interp(t), false);
                 };
             });
     },
@@ -377,17 +387,12 @@ HTMLWidgets.widget({
         var self = this,
             isSelNode = self.selNode
                 && self.selNode.data.id === node.data.id;
-
         if (isSelNode) {
-            return "rgb(255, 0, 0)";
-        } else if (hover) {
-            if (node.depth === 1) {
-                return self.colorMap(1.2);
-            } else if (self.selNode) {
-                return "rgb(255, 255, 255)";
-            } else {
-                return "rgb(220, 220, 220)";
-            }
+            return "rgb(25, 101, 255)";  // Red.
+        } else if (hover && node.depth !== 0) {
+            return d3.color(self.colorMap(node.depth))
+                .darker()
+                .toString();
         } else if (node.children) {
             return self.colorMap(node.depth);
         } else {
