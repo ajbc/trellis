@@ -16,7 +16,7 @@ HTMLWidgets.widget({
     // `nodesToMove` is an array of nodes the user intends to move. If `selNode`
     // is a leaf node, then `nodesToMove` is an array with just `selNode`.
     // Otherwise, `nodesToMove` is an array with `selNode`'s children.
-    nodeToMove: null,
+    nodesToMove: null,
     // `newParent` is the group the user selects after selecting a node to move.
     newParent: null,
     // `nodeInFocus` is used to check whether to zoom in or out, depending on
@@ -52,7 +52,8 @@ HTMLWidgets.widget({
             .append("svg")
             .attr("width", self.DIAMETER)
             .attr("height", self.DIAMETER)
-            .append("g");
+            .append("g")
+            .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
 
         // Create persistent `d3.pack` instance with radii accounting for
         // padding.
@@ -83,9 +84,7 @@ HTMLWidgets.widget({
     renderValue: function (el, rawData) {
         // Shiny calls this function before the user uploads any data. We want
         // to just early-return in this case.
-        if (rawData.data == null) {
-            return;
-        }
+        if (rawData.data == null) { return; }
 
         var self = this,
             nClustersChanged;
@@ -113,12 +112,8 @@ HTMLWidgets.widget({
             timer;
 
         root = d3.hierarchy(self.data)
-            .sum(function (d) {
-                return d.weight;
-            })
-            .sort(function (a, b) {
-                return b.value - a.value;
-            });
+            .sum(function (d) { return d.weight; })
+            .sort(function (a, b) { return b.value - a.value; });
         nodes = self.pack(root).descendants();
 
         // This is a critical function. We need to give D3 permanent IDs for
@@ -141,8 +136,10 @@ HTMLWidgets.widget({
                 d3.event.stopPropagation();
             })
             .on("click", function (d) {
-                debugger;
                 d3.event.stopPropagation();
+                if (d.data.id === 'root') {
+                    return;
+                }
                 nClicks++;
                 if (nClicks === 1) {
                     timer = setTimeout(function () {
@@ -177,8 +174,18 @@ HTMLWidgets.widget({
         text.enter()
             .append('text')
             .style('fill', 'blue')
-            .text(function (d) {
-                return d.data.id
+            .each(function (d) {
+                var sel = d3.select(this),
+                    len = d.data.terms.length;
+                d.data.terms.forEach(function(term, i) {
+                    sel.append("tspan")
+                        .text(function() { return term; })
+                        .attr("x", 0)
+                        .attr("text-anchor", "middle")
+                        // This data is used for dynamic sizing of text.
+                        .attr("data-term-index", i)
+                        .attr("data-term-len", len);
+                });
             })
             .style("font-size", "12px");
 
@@ -187,10 +194,15 @@ HTMLWidgets.widget({
 
         circles.exit().remove();
 
-        //// Zoom out when the user clicks the outermost circle.
-        self.g.on("click", function() { self.zoom(root); });
+        // Zoom out when the user clicks the outermost circle.
+        self.g.on("click", function() {
+            self.zoom(root);
+        });
 
-        self.zoomTo([root.x, root.y, root.r * 2 + self.PAGE_MARGIN], useTransition);
+        self.positionAndResizeNodes(
+            [root.x, root.y, root.r * 2 + self.PAGE_MARGIN],
+            useTransition
+        );
     },
 
     selectCluster: function (node) {
@@ -211,7 +223,7 @@ HTMLWidgets.widget({
         var self = this,
             sameNodeSelected = self.selNode.data.id === node.data.id,
             newParentNodeSelected = self.selNode.parent !== node
-                || self.selNode.children.length > 1,
+                || (self.selNode.children.length > 1),
             nodeToMoveIsLeafNode = typeof self.selNode.children === 'undefined',
             newParentID,
             oldParentID,
@@ -257,7 +269,7 @@ HTMLWidgets.widget({
      * realize that "zoom" in this context actually means setting the (x, y, r)
      * data for the circles.
      */
-    zoomTo: function (coords, transition) {
+    positionAndResizeNodes: function (coords, transition) {
         var self = this,
             k = self.DIAMETER / coords[2],
             circles = d3.selectAll("circle"),
@@ -270,46 +282,43 @@ HTMLWidgets.widget({
         }
 
         circles.attr("transform", function (d) {
-            return "translate(" + d.x + "," + d.y + ")";
+            return "translate(" + (d.x - coords[0]) * k + "," + (d.y - coords[1]) * k + ")";
         });
         circles.attr("r", function (d) {
             return d.r * k;
         });
         text.attr("transform", function (d) {
-            var x = d.x - d.r + 30,
-                y = d.y - d.r + 30;
-            return "translate(" + x + "," + y + ")";
+            return "translate(" + (d.x - coords[0]) * k + "," + (d.y - coords[1]) * k + ")";
         });
+
+        text.selectAll("tspan")
+            .attr("y", function() {
+                var that = d3.select(this),
+                    i = +that.attr("data-term-index"),
+                    len = +that.attr("data-term-len");
+                // `- (len / 2) + 0.75` shifts the term down appropriately.
+                // `15 * k` spaces them out appropriately.
+                return (self.FONT_SIZE * (k/2) + 3)* 1.2 * (i - (len / 2) + 0.75);
+            })
+            .style("font-size", function() {
+                return (self.FONT_SIZE * (k/2) + 3) + "px";
+            });
     },
 
     /* Zoom to node.
      */
     zoom: function (node) {
         var self = this,
-            c = node;
+            coords = [node.x, node.y, node.r * 2 + self.PAGE_MARGIN];
         self.nodeInFocus = node;
         d3.transition()
             .duration(1000)
-            .tween("zoom", function (d) {
-                var coords = [c.x, c.y, c.r * 2 + self.PAGE_MARGIN],
-                    i = d3.interpolateZoom(self.currCoords, coords);
+            .tween("zoom", function () {
+                var interp = d3.interpolateZoom(self.currCoords, coords);
                 return function (t) {
-                    self.zoomTo(i(t), true);
+                    self.positionAndResizeNodes(interp(t), true);
                 };
             });
-    },
-
-    /* Traverse the underlying tree data structure and apply a callback
-     * function to every node.
-     */
-    traverseTree: function (node, processNode) {
-        var self = this;
-        processNode(node);
-        if (typeof node.children !== 'undefined') {
-            node.children.forEach(function (childNode) {
-                self.traverseTree(childNode, processNode)
-            });
-        }
     },
 
     /* Update node's children depending on whether it is the new or old parent.
@@ -359,6 +368,46 @@ HTMLWidgets.widget({
         }
     },
 
+// Helper functions.
+//------------------------------------------------------------------------------
+
+    /* Helper function to correctly color any node.
+     */
+    colorNode: function (node, hover) {
+        var self = this,
+            isSelNode = self.selNode
+                && self.selNode.data.id === node.data.id;
+
+        if (isSelNode) {
+            return "rgb(255, 0, 0)";
+        } else if (hover) {
+            if (node.depth === 1) {
+                return self.colorMap(1.2);
+            } else if (self.selNode) {
+                return "rgb(255, 255, 255)";
+            } else {
+                return "rgb(220, 220, 220)";
+            }
+        } else if (node.children) {
+            return self.colorMap(node.depth);
+        } else {
+            return "rgb(255, 255, 255)";
+        }
+    },
+
+    /* Traverse the underlying tree data structure and apply a callback
+     * function to every node.
+     */
+    traverseTree: function (node, processNode) {
+        var self = this;
+        processNode(node);
+        if (typeof node.children !== 'undefined') {
+            node.children.forEach(function (childNode) {
+                self.traverseTree(childNode, processNode)
+            });
+        }
+    },
+
     /* Convert R dataframe to tree.
      */
     getTreeFromRawData: function (x) {
@@ -389,10 +438,6 @@ HTMLWidgets.widget({
         return data;
     },
 
-
-// Helper functions.
-//------------------------------------------------------------------------------
-
     /* Helper function to add hierarchical structure to data.
      */
     findParent: function (branch, parentID, nodeID) {
@@ -411,29 +456,5 @@ HTMLWidgets.widget({
             });
         }
         return rv;
-    },
-
-    /* Helper function to correctly color any node.
-     */
-    colorNode: function (node, hover) {
-        var self = this,
-            isSelNode = self.selNode
-                && self.selNode.data.id === node.data.id;
-
-        if (isSelNode) {
-            return "rgb(255, 0, 0)";
-        } else if (hover) {
-            if (node.depth === 1) {
-                return self.colorMap(1.2);
-            } else if (self.selNode) {
-                return "rgb(255, 255, 255)";
-            } else {
-                return "rgb(220, 220, 220)";
-            }
-        } else if (node.children) {
-            return self.colorMap(node.depth);
-        } else {
-            return "rgb(255, 255, 255)";
-        }
     }
 });
