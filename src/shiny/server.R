@@ -160,6 +160,9 @@ function(input, output) {
   })
 
   topic.title <- reactive({
+    if (input$active == "")
+      return()
+
     topic <- as.integer(input$active)
     if (topic <= K())
       return(titles()[topic])

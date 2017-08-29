@@ -160,11 +160,13 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function (d) {
-                Shiny.onInputChange("active", d.data.id);
+                var displayid = !self.selNode ? "" : self.selNode.data.id;
+                Shiny.onInputChange("active", d.data.id === 'root' ? displayid : d.data.id);
                 d3.select(this).style("fill", self.colorNode.call(self, d, true));
             })
             .on("mouseout", function (d) {
-                Shiny.onInputChange("active", "");
+                Shiny.onInputChange("active",
+                  !self.selNode ? "" : self.selNode.data.id);
                 d3.select(this).style("fill", self.colorNode.call(self, d, false));
             })
             .style("fill", function (d) {
