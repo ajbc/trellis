@@ -5,15 +5,8 @@
 .node:hover {
     opacity: 0.8;
     filter: alpha(opacity=80);
-}
-
-.circle-leaf {
-    fill: white;
-}
-
-.node--leaf:hover {
-    opacity: 0.8;
-    filter: alpha(opacity=80);
+    stroke: #000;
+    stroke-width: 2px;
 }
 
 .label {

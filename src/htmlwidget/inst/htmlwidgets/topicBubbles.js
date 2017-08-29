@@ -73,7 +73,7 @@ HTMLWidgets.widget({
 
         // Set depth-to-color mapping function.
         self.colorMap = d3.scaleLinear()
-            .domain([-1, 1])
+            .domain([-1, 1.5])
             .range(["hsl(155,30%,82%)", "hsl(155,66%,25%)"])
             .interpolate(d3.interpolateHcl);
     },
@@ -115,7 +115,7 @@ HTMLWidgets.widget({
 
     update: function (useTransition) {
         var self = this,
-            DBLCLICK_DELAY = 200,
+            DBLCLICK_DELAY = 300,
             nClicks = 0,
             root,
             nodes,
@@ -146,6 +146,7 @@ HTMLWidgets.widget({
 
         circles.enter()
             .append('circle')
+            .attr("class", "node")
             .attr("id", function (d) {
                 return 'node-' + d.data.id;
             })
@@ -159,37 +160,32 @@ HTMLWidgets.widget({
                 if (nClicks === 1) {
                     timer = setTimeout(function () {
                         // Single click: user selected a cluster.
-                        self.selectCluster(d);
+                        var userClickedSameNodeTwice = self.nodeInFocus === d,
+                            userClickedDiffNode = self.nodeInFocus !== d;
+                        if (self.isRoot(d) || userClickedSameNodeTwice) {
+                            self.zoom(root);
+                        } else if (userClickedDiffNode) {
+                            self.zoom(d);
+                        }
                         nClicks = 0;
                     }, DBLCLICK_DELAY);
                 } else {
                     // Double click: zoom.
                     clearTimeout(timer);
                     nClicks = 0;
-                    var userClickedSameNodeTwice = self.nodeInFocus === d,
-                        userClickedDiffNode = self.nodeInFocus !== d;
-                    if (self.isRoot(d) || userClickedSameNodeTwice) {
-                        self.zoom(root);
-                    } else if (userClickedDiffNode) {
-                        self.zoom(d);
-                    }
+                    self.selectCluster(d);
                 }
             })
             .on("mouseover", function (d) {
-                Shiny.onInputChange("hover", d.data.id);
-                var isLeaf = typeof d.children === "undefined"
-                    || d.children.length === 0;
-                if (self.isRoot(d)) {
-                    return;
-                }  else if (isLeaf) {
-                    self.emphHoveredNode(d.parent);
-                } else {
-                    self.emphHoveredNode(d);
-                }
+                //Shiny.onInputChange("hover", d.data.id);
+                if (self.isRoot(d)) { return; }
+                self.showAllChildLabels(d);
             })
             .on("mouseout", function (d) {
                 if (self.isRoot(d)) { return; }
-                d3.selectAll('circle').style('opacity', 1);
+                d3.selectAll('.label').style("display", function (d) {
+                    return self.getLabelVisibility.call(self, d);
+                });
             })
             .style("fill", function (d) {
                 return self.colorNode.call(self, d);
@@ -204,7 +200,7 @@ HTMLWidgets.widget({
                 return 'label-' + d.data.id;
             })
             .attr("class", "label")
-            .attr("level", function(d) {
+            .attr("level", function (d) {
                 return d.depth;
             })
             .style('fill', 'black')
@@ -425,32 +421,19 @@ HTMLWidgets.widget({
 
     /* Helper function to correctly color any node.
      */
-    colorNode: function (node, brighten) {
+    colorNode: function (node) {
         var self = this,
             isfirstSelNode = self.firstSelNode
                 && self.firstSelNode.data.id === node.data.id,
             color;
         if (isfirstSelNode) {
-            color = "rgb(25, 101, 255)";  // Red.
+            return "rgb(25, 101, 255)";  // Red.
         } else if (node.children) {
-            color = self.colorMap(node.depth);
+            return self.colorMap(node.depth);
         } else {
-            color = "rgb(255, 255, 255)";
+            return "rgb(255, 255, 255)";
         }
 
-        if (brighten) {
-            return d3.color(color).opacity(0.4).toString();
-        } else {
-            return color;
-        }
-    },
-
-    emphHoveredNode: function (node) {
-        var self = this;
-        d3.selectAll('circle').style('opacity', 0.25);
-        self.traverseTree(node, function (d) {
-            d3.select('#node-' + d.data.id).style('opacity', 1);
-        });
     },
 
     /* Traverse the underlying tree data structure and apply a callback
@@ -523,7 +506,7 @@ HTMLWidgets.widget({
 
         var root = d3.hierarchy(self.data);
 
-        Shiny.onInputChange("topics", self.findAssignments(root));
+        //Shiny.onInputChange("topics", self.findAssignments(root));
     },
 
     /* Helper function to add hierarchical structure to data.
@@ -559,6 +542,17 @@ HTMLWidgets.widget({
             })
         }
         return 1 + depth;
+    },
+
+    showAllChildLabels: function (node) {
+        var self = this,
+            idsToHighlight = [node.data.id];
+        self.traverseTree(node.data, function (n) {
+            idsToHighlight.push(n.id);
+        });
+        idsToHighlight.forEach(function (id) {
+            d3.select('#label-' + id).style('display', 'inline');
+        });
     },
 
     getLabelVisibility: function (node) {
