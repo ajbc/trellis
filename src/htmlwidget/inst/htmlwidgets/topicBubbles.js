@@ -459,7 +459,8 @@ HTMLWidgets.widget({
      */
     findAssignments: function(node) {
         var self = this,
-            assignments = "";
+            assignments = "",
+            assignment;
 
         node.children.forEach(function(d) {
             assignment = "".concat(d.data.id, ":", (node.data.id=="root") ? 0 : node.data.id);
