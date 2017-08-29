@@ -11,16 +11,20 @@ HTMLWidgets.widget({
     DIAMETER: null,
     FONT_SIZE: 11,
 
-    // `selNode` is the one the user clicks on first.
-    selNode: null,
-    // `nodesToMove` is an array of nodes the user intends to move. If `selNode`
-    // is a leaf node, then `nodesToMove` is an array with just `selNode`.
-    // Otherwise, `nodesToMove` is an array with `selNode`'s children.
+    // The first node the user clicks in the move process.
+    firstSelNode: null,
+
+    // An array of the nodes that the user intends to move. If `firstSelNode` is
+    // is a leaf, then `nodesToMove` is an array with just `firstSelNode`.
+    // Otherwise, `nodesToMove` is an array with `firstSelNode`'s children.
     nodesToMove: null,
-    // `newParent` is the group the user selects after selecting a node to move.
+
+    // The second node the user clicks in the move process. This node will be
+    // the new parent node for either `firstSelNode` or its children.
     newParent: null,
-    // `nodeInFocus` is used to check whether to zoom in or out, depending on
-    // whether or not the user has already zoomed in.
+
+    // Used to decide whether to zoom in or out, depending on if the user has
+    // already zoomed in.
     nodeInFocus: null,
     currCoords: null,
 
@@ -195,6 +199,7 @@ HTMLWidgets.widget({
         text.raise();
 
         circles.exit().remove();
+        text.exit().remove();
 
         self.positionAndResizeNodes(
             [root.x, root.y, root.r * 2 + self.PAGE_MARGIN],
@@ -204,13 +209,18 @@ HTMLWidgets.widget({
 
     selectCluster: function (node) {
         var self = this,
-            noNodeSelected = !self.selNode,
+            noNodeSelected = !self.firstSelNode,
+            userSelSameNodeTwice = node === self.firstSelNode,
             isLeafNode = typeof node.children === 'undefined',
             isRoot = node.data.id === 'root';
         if (isRoot) {
             return;
+        } else if (userSelSameNodeTwice) {
+            self.firstSelNode = null;
+            self.nodesToMove = null;
+            self.newParent = null;
         } else if (noNodeSelected || isLeafNode) {
-            self.selNode = node;
+            self.firstSelNode = node;
             self.nodesToMove = null;
             self.newParent = null;
         } else {
@@ -223,44 +233,44 @@ HTMLWidgets.widget({
 
     moveNode: function (node) {
         var self = this,
-            sameNodeSelected = self.selNode.data.id === node.data.id,
-            newParentNodeSelected = self.selNode.parent !== node
-                || (self.selNode.children.length > 1),
-            nodeToMoveIsLeafNode = typeof self.selNode.children === 'undefined',
+            sameNodeSelected = self.firstSelNode.data.id === node.data.id,
+            newParentNodeSelected = self.firstSelNode.parent !== node
+                || (self.firstSelNode.children.length > 1),
+            nodeToMoveIsLeafNode = typeof self.firstSelNode.children === 'undefined',
             newParentID,
             oldParentID,
-            removeSelNode;
+            removefirstSelNode;
 
         if (sameNodeSelected) {
-            self.selNode = null;
+            self.firstSelNode = null;
         } else if (newParentNodeSelected) {
             self.newParent = node;
             newParentID = self.newParent.data.id;
             if (nodeToMoveIsLeafNode) {
-                oldParentID = self.selNode.parent.data.id;
-                self.nodesToMove = [self.selNode.data];
-                removeSelNode = false;
+                oldParentID = self.firstSelNode.parent.data.id;
+                self.nodesToMove = [self.firstSelNode.data];
+                removefirstSelNode = false;
             } else {
-                oldParentID = self.selNode.data.id;
+                oldParentID = self.firstSelNode.data.id;
                 var nodesToMove = [];
-                self.selNode.children.forEach(function (node) {
+                self.firstSelNode.children.forEach(function (node) {
                     nodesToMove.push(node.data);
                 });
                 self.nodesToMove = nodesToMove;
-                removeSelNode = true;
+                removefirstSelNode = true;
             }
 
             self.traverseTree(self.data, function (n) {
                 self.updateNodeChildren(n, oldParentID, newParentID);
             });
 
-            if (removeSelNode) {
+            if (removefirstSelNode) {
                 self.traverseTree(self.data, function (n) {
-                    self.removeNode(n, self.selNode.data.id, self.selNode.parent.data.id);
+                    self.removeNode(n, self.firstSelNode.data.id, self.firstSelNode.parent.data.id);
                 });
             }
 
-            self.selNode = null;
+            self.firstSelNode = null;
             self.nodesToMove = null;
             self.newParent = null;
             self.update(true);
@@ -387,9 +397,9 @@ HTMLWidgets.widget({
      */
     colorNode: function (node, hover) {
         var self = this,
-            isSelNode = self.selNode
-                && self.selNode.data.id === node.data.id;
-        if (isSelNode) {
+            isfirstSelNode = self.firstSelNode
+                && self.firstSelNode.data.id === node.data.id;
+        if (isfirstSelNode) {
             return "rgb(25, 101, 255)";  // Red.
         } else if (hover && node.depth !== 0) {
             return d3.color(self.colorMap(node.depth))
