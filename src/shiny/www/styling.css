@@ -5,3 +5,11 @@ div#bubbles svg {
 h2 {
   font-size: 24px;
 }
+
+#topics {
+  display: none;
+}
+
+#hover {
+  display: none;
+}
