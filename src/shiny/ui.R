@@ -32,6 +32,7 @@ fluidPage(
                   #accept=c('.RData')
       ),
       numericInput('num.clusters', "Number of clusters", value=10),
+      downloadButton('download', 'Download'),
       htmlOutput('topic.summary', class="summary")
       # tags$hr(),
       # checkboxInput('header', 'Header', TRUE),

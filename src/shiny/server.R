@@ -174,4 +174,14 @@ function(input, output) {
                         "<h4>", topic.title(), "</h4>\n", documents())
     return(HTML(out.string))
   })
+
+  output$download <- downloadHandler(
+    filename = "topics.csv",
+    content = function(file) {
+
+      out <- data.frame(topic.id=seq(length(assignments())), parent.id=assignments(),
+                        title=c(titles(), cluster.titles()))
+      write.csv(out, file, row.names = FALSE, quote=FALSE)
+    }
+  )
 }
