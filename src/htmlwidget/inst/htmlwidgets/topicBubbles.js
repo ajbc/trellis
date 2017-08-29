@@ -176,6 +176,7 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function (d) {
+                Shiny.onInputChange("hover", d.data.id);
                 var isLeaf = typeof d.children === "undefined"
                     || d.children.length === 0;
                 if (self.isRoot(d)) {
@@ -203,7 +204,7 @@ HTMLWidgets.widget({
                 return 'label-' + d.data.id;
             })
             .attr("class", "label")
-            .attr("level", function (d) {
+            .attr("level", function(d) {
                 return d.depth;
             })
             .style('fill', 'black')
@@ -252,6 +253,7 @@ HTMLWidgets.widget({
             self.newParent = null;
         } else {
             self.moveNode(node);
+            self.updateAssignments();
         }
         d3.selectAll("circle").style("fill", function (d) {
             return self.colorNode.call(self, d);
@@ -359,7 +361,6 @@ HTMLWidgets.widget({
             ZOOM_DURATION = 500,
             coords = [node.x, node.y, node.r * 2 + self.PAGE_MARGIN];
         self.nodeInFocus = node;
-
         d3.transition()
             .duration(ZOOM_DURATION)
             .tween("zoom", function () {
@@ -391,7 +392,6 @@ HTMLWidgets.widget({
                 });
                 node.children = newChildren;
             }
-
             // In this scenario, the user selected a group of topics;
             // `oldParentID` refers to the selected group; and we're moving all
             // of that group's children.
