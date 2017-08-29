@@ -105,6 +105,7 @@ HTMLWidgets.widget({
         var self = this,
             DBLCLICK_DELAY = 200,
             nClicks = 0,
+            shiftPressed = false,
             root,
             nodes,
             circles,
@@ -138,11 +139,12 @@ HTMLWidgets.widget({
             })
             .on("click", function (d) {
                 d3.event.stopPropagation();
+                shiftPressed = d3.event.shiftKey;
                 nClicks++;
                 if (nClicks === 1) {
                     timer = setTimeout(function () {
                         // Single click: user selected a cluster.
-                        self.selectCluster(d);
+                        self.selectCluster(d, shiftPressed);
                         nClicks = 0;
                     }, DBLCLICK_DELAY);
                 } else {
@@ -160,11 +162,11 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function (d) {
-                Shiny.onInputChange("hover", d.data.id);
+                //Shiny.onInputChange("hover", d.data.id);
                 d3.select(this).style("fill", self.colorNode.call(self, d, true));
             })
             .on("mouseout", function (d) {
-                Shiny.onInputChange("hover", d.data.id);
+                //Shiny.onInputChange("hover", d.data.id);
                 d3.select(this).style("fill", self.colorNode.call(self, d, false));
             })
             .style("fill", function (d) {
@@ -204,7 +206,7 @@ HTMLWidgets.widget({
         );
     },
 
-    selectCluster: function (node) {
+    selectCluster: function (node, shiftPressed) {
         var self = this,
             noSelection = !self.selNode,
             isLeafNode = typeof node.children === 'undefined',
@@ -217,7 +219,7 @@ HTMLWidgets.widget({
             self.nodesToMove = null;
             self.newParent = null;
         } else {
-            self.moveNode(node);
+            self.moveOrMerge(node, shiftPressed);
             self.updateAssignments();
         }
         d3.selectAll("circle").style("fill", function (d) {
@@ -225,22 +227,46 @@ HTMLWidgets.widget({
         });
     },
 
-    moveNode: function (node) {
+    moveOrMerge: function (node, shiftPressed) {
         var self = this,
             sameNodeSelected = self.selNode.data.id === node.data.id,
-            newParentNodeSelected = self.selNode.parent !== node
-                || (self.selNode.children.length > 1),
-            nodeToMoveIsLeafNode = typeof self.selNode.children === 'undefined',
+            movingLeaf = typeof self.selNode.children === 'undefined',
+            mergingNodes = !movingLeaf && self.selNode.children.length > 1,
+            createNewCluster = shiftPressed && movingLeaf,
+            sameParentSelected = self.selNode.parent === node,
             newParentID,
             oldParentID,
             removeSelNode;
 
-        if (sameNodeSelected) {
+        if (sameNodeSelected || (sameParentSelected && !mergingNodes)) {
             self.selNode = null;
-        } else if (newParentNodeSelected) {
+        } else if (createNewCluster) {
+            self.traverseTree(self.data, function (n) {
+                if (n.id === node.data.id) {
+                    n.children.push({
+                        id: 20000,
+                        children: [self.selNode.data],
+                        terms: []
+                    });
+                } else if (n.id === self.selNode.parent.data.id) {
+                    var newChildren = [];
+                    self.selNode.parent.children.forEach(function (child) {
+                        if (child.data.id !== self.selNode.data.id) {
+                            newChildren.push(child.data);
+                        }
+                    });
+                    self.selNode.parent.data.children = newChildren;
+                }
+            });
+            self.selNode = null;
+            self.nodesToMove = null;
+            self.newParent = null;
+            self.update(true);
+            self.update(true);
+        } else if (!shiftPressed) {
             self.newParent = node;
             newParentID = self.newParent.data.id;
-            if (nodeToMoveIsLeafNode) {
+            if (movingLeaf) {
                 oldParentID = self.selNode.parent.data.id;
                 self.nodesToMove = [self.selNode.data];
                 removeSelNode = false;
@@ -295,6 +321,9 @@ HTMLWidgets.widget({
         });
         circles.attr("r", function (d) {
             return d.r * k;
+        });
+        circles.style("fill", function(d) {
+           return self.colorNode.call(self, d);
         });
         text.attr("transform", function (d) {
             var x = (d.x - coords[0]) * k,
@@ -473,7 +502,7 @@ HTMLWidgets.widget({
 
         var root = d3.hierarchy(self.data);
 
-        Shiny.onInputChange("topics", self.findAssignments(root));
+        //Shiny.onInputChange("topics", self.findAssignments(root));
     },
 
     /* Helper function to add hierarchical structure to data.
