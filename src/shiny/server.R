@@ -6,17 +6,17 @@ library(data.table)
 options(shiny.maxRequestSize=1e4*1024^2)
 
 function(input, output) {
-  
+
   data <- reactive({
     inFile <- input$topic.file
     if (is.null(inFile))
       return(NULL)
-    #return(data.frame())
+
     load(inFile$datapath)
-    #cat("HI", "\n")
-    return(list("model"=model, "out"=out, "processed"=processed))
+
+    return(list("model"=model, "out"=out, "processed"=processed, "doc.summaries"=doc.summaries))
   })
-  
+
   beta <- reactive({
     if (is.null(data()))
       return(NULL)
@@ -29,7 +29,7 @@ function(input, output) {
     return(kmeans(beta(), input$num.clusters))
   })
 
-  K <- reactive({ 
+  K <- reactive({
     if (is.null(data()))
       return(0)
     return(nrow(beta()))
@@ -39,32 +39,139 @@ function(input, output) {
     rv <- c()
     if (is.null(data()))
       return(rv)
-    
+
     for (k in seq(K())) {
       title <- paste(data()$out$vocab[order(beta()[k,], decreasing=TRUE)][seq(5)], collapse=" ")
       rv <- c(rv, title)
     }
-    
+
     return(rv)
+  })
+
+  assignments <- reactive({
+    if (is.null(data()))
+      return(c())
+
+    if (input$topics == "")
+      return(c(kmeans.fit()$cluster + K(), rep(0, input$num.clusters)))
+
+    node.ids <- c()
+    parent.ids <- c()
+    for (pair in strsplit(input$topics, ',')[[1]]) {
+      ids <- strsplit(pair, ":")[[1]]
+      node.ids <- c(node.ids, as.integer(ids[[1]]))
+      parent.ids <- c(parent.ids, as.integer(ids[[2]]))
+    }
+
+    return(parent.ids[order(node.ids)])
+  })
+
+  n.nodes <- reactive({
+    if (is.null(data()))
+      return(0)
+
+    if (input$topics == "")
+      return(input$num.clusters)
+
+    return(length(assignments())-K())
+  })
+
+  # TODO: this may not work for deeper hierarchy; needs to be checked once implemented
+  cluster.titles <- reactive({
+    if (is.null(data()))
+      return(c())
+
+    marginals <- matrix(0, nrow=n.nodes(), ncol=ncol(beta()))
+    weights <- colSums(data()$model$theta)
+    for (node in seq(length(assignments()), 1)) {
+      val <- 0
+      if (assignments()[node] == 0)
+        val <- 0
+      else if (node <= K())
+        val <- beta()[node,] * weights[node]
+      else
+        val <- marginals[node - K(),]
+      marginals[assignments()[node]-K(),] <- marginals[assignments()[node]-K(),] + val
+    }
+
+    rv <- c()
+    for (cluster in seq(n.nodes())) {
+      title <- paste(data()$out$vocab[order(marginals[cluster,],
+                                            decreasing=TRUE)][seq(5)], collapse=" ")
+
+      rv <- c(rv, title)
+
+      title <- paste(data()$out$vocab[order(marginals[cluster,],
+                                            decreasing=TRUE)][seq(20)], collapse=" ")
+      vals <- marginals[cluster, order(marginals[cluster,], decreasing=TRUE)[seq(20)]]
+    }
+
+    return(rv)
+
+    #TODO: add on reset
+    #document.getElementById("topics").value = "";
+    #write assignemnts to topics text file
   })
 
   bubbles.data <- reactive({
     if (is.null(data()))
       return(NULL)
-    
-    #parent.id, topic.id, weight, title
-    rv <- data.frame(parentID=0,
-                     nodeID=seq(input$num.clusters),
-                     weight=0,
-                     title="")
 
-    rv <- rbind(rv,
-                data.frame(parentID=kmeans.fit()$cluster,
-                           nodeID=seq(input$num.clusters+1,input$num.clusters+K()),
-                           weight=colSums(data()$model$theta),
-                           title=titles()))
+    #parent.id, topic.id, weight, title
+    rv <- data.frame(parentID=c(rep(0, input$num.clusters), kmeans.fit()$cluster + K()),
+                     nodeID=c(seq(K()+1,K()+input$num.clusters), seq(K())),
+                     weight=c(rep(0, input$num.clusters), colSums(data()$model$theta)),
+                     title=c(rep("", input$num.clusters), titles()))
+
     return(rv)
   })
-  
+
   output$bubbles <- renderTopicBubbles({ topicBubbles(bubbles.data(), height=800) })
+
+  top.documents <- reactive({
+    # TODO: this will need to be updated for hierarchy
+    rv <- list()
+    theta <- data()$model$theta
+    meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
+    for (topic in seq(K())) {
+      rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:10]]
+
+      meta.theta[,assignments()[topic] - K()] <-
+        meta.theta[,assignments()[topic] - K()] + theta[,topic]
+    }
+
+    for (meta.topic in seq(length(assignments()) - K())) {
+      rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta[,meta.topic],
+                                                decreasing=TRUE)[1:10]]
+    }
+
+    return(rv)
+  })
+
+  documents <- reactive({
+    topic <- as.integer(input$hover)
+    rv <- ""
+    for (doc in top.documents()[[topic]]) {
+      rv <- paste(rv, "<p>",
+                  substr(doc, start=1, stop=100),
+                  "...</p>")
+    }
+    return(rv)
+  })
+
+  topic.title <- reactive({
+    topic <- as.integer(input$hover)
+    if (topic <= K())
+      return(titles()[topic])
+    return(cluster.titles()[topic-K()])
+  })
+
+  output$topic.summary <- renderUI({
+    if (input$hover == "")
+      return()
+
+    out.string <- paste("<hr/>\n<h3>Topic Summary</h3>\n",
+                        "<h4>", topic.title(), "</h4>\n", documents())
+    return(HTML(out.string))
+  })
 }

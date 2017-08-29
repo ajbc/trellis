@@ -160,9 +160,11 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function (d) {
+                Shiny.onInputChange("hover", d.data.id);
                 d3.select(this).style("fill", self.colorNode.call(self, d, true));
             })
             .on("mouseout", function (d) {
+                Shiny.onInputChange("hover", d.data.id);
                 d3.select(this).style("fill", self.colorNode.call(self, d, false));
             })
             .style("fill", function (d) {
@@ -215,6 +217,7 @@ HTMLWidgets.widget({
             self.newParent = null;
         } else {
             self.moveNode(node);
+            self.updateAssignments();
         }
         d3.selectAll("circle").style("fill", function (d) {
             return self.colorNode.call(self, d);
@@ -428,7 +431,7 @@ HTMLWidgets.widget({
             if (d.weight === 0) {
                 parent.children.push({
                     id: d.nodeID,
-                    terms: [],
+                    terms: d.title.split(" "),
                     children: []
                 });
             } else if (parent !== null && parent.hasOwnProperty("children")) {
@@ -441,6 +444,35 @@ HTMLWidgets.widget({
         });
 
         return data;
+    },
+
+    /* Helper function for updateAssignments
+     */
+    findAssignments: function(node) {
+        var self = this,
+            assignments = "";
+
+        node.children.forEach(function(d) {
+            assignment = "".concat(d.data.id, ":", (node.data.id=="root") ? 0 : node.data.id);
+            assignments = assignments.concat(assignment, ",");
+
+            //TODO: check that this works for hierarchy
+            if (d.hasOwnProperty("children"))
+                assignments = assignments.concat(self.findAssignments(d));
+        });
+
+        return assignments;
+    },
+
+    /* Update the string that informs the Shiny server about the hierarchy of
+     * topic assignemnts
+     */
+    updateAssignments: function() {
+        var self = this;
+
+        var root = d3.hierarchy(self.data);
+
+        Shiny.onInputChange("topics", self.findAssignments(root));
     },
 
     /* Helper function to add hierarchical structure to data.
