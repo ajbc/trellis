@@ -149,7 +149,7 @@ function(input, output) {
   })
 
   documents <- reactive({
-    topic <- as.integer(input$hover)
+    topic <- as.integer(input$active)
     rv <- ""
     for (doc in top.documents()[[topic]]) {
       rv <- paste(rv, "<p>",
@@ -160,14 +160,14 @@ function(input, output) {
   })
 
   topic.title <- reactive({
-    topic <- as.integer(input$hover)
+    topic <- as.integer(input$active)
     if (topic <= K())
       return(titles()[topic])
     return(cluster.titles()[topic-K()])
   })
 
   output$topic.summary <- renderUI({
-    if (input$hover == "")
+    if (input$active == "")
       return()
 
     out.string <- paste("<hr/>\n<h3>Topic Summary</h3>\n",

@@ -50,7 +50,7 @@ fluidPage(
     mainPanel(
       topicBubblesOutput("bubbles", height=800),
       textInput("topics", ""),
-      textInput("hover", "")
+      textInput("active", "")
     )
   )
 )
