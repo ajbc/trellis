@@ -35,6 +35,11 @@ HTMLWidgets.widget({
     el: null,
     svg: null,
 
+    // The raw tree data and final arbiter of node relationships. It is
+    // converted to hierarchical data using `d3.hierarchy` and this resulting
+    // data structure is what backs the visualization.
+    data: null,
+
 
 // Main functions.
 //------------------------------------------------------------------------------
@@ -89,7 +94,9 @@ HTMLWidgets.widget({
     renderValue: function (el, rawData) {
         // Shiny calls this function before the user uploads any data. We want
         // to just early-return in this case.
-        if (rawData.data == null) { return; }
+        if (rawData.data == null) {
+            return;
+        }
 
         var self = this,
             nClustersChanged;
@@ -101,6 +108,7 @@ HTMLWidgets.widget({
             self.reInitialize();
         } else {
             self.nClusters = self.data.children.length;
+            self.maxDepth = self.getDepth(self.data);
             this.update(false);
         }
     },
@@ -117,9 +125,14 @@ HTMLWidgets.widget({
             timer;
 
         root = d3.hierarchy(self.data)
-            .sum(function (d) { return d.weight; })
-            .sort(function (a, b) { return b.value - a.value; });
+            .sum(function (d) {
+                return d.weight;
+            })
+            .sort(function (a, b) {
+                return b.value - a.value;
+            });
         nodes = self.pack(root).descendants();
+        self.nodeInFocus = nodes[0];
 
         // This is a critical function. We need to give D3 permanent IDs for
         // each node so that it knows which data goes with which bubble. See:
@@ -133,8 +146,8 @@ HTMLWidgets.widget({
 
         circles.enter()
             .append('circle')
-            .attr('class', function (d) {
-                return d.data.id;
+            .attr("id", function (d) {
+                return 'node-' + d.data.id;
             })
             .on("dblclick", function () {
                 // Prevent double-click in deference to single-click handler.
@@ -153,10 +166,9 @@ HTMLWidgets.widget({
                     // Double click: zoom.
                     clearTimeout(timer);
                     nClicks = 0;
-                    var isRoot = d.data.id === 'root',
-                        userClickedSameNodeTwice = self.nodeInFocus === d,
+                    var userClickedSameNodeTwice = self.nodeInFocus === d,
                         userClickedDiffNode = self.nodeInFocus !== d;
-                    if (isRoot || userClickedSameNodeTwice) {
+                    if (self.isRoot(d) || userClickedSameNodeTwice) {
                         self.zoom(root);
                     } else if (userClickedDiffNode) {
                         self.zoom(d);
@@ -164,10 +176,19 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function (d) {
-                d3.select(this).style("fill", self.colorNode.call(self, d, true));
+                var isLeaf = typeof d.children === "undefined"
+                    || d.children.length === 0;
+                if (self.isRoot(d)) {
+                    return;
+                }  else if (isLeaf) {
+                    self.emphHoveredNode(d.parent);
+                } else {
+                    self.emphHoveredNode(d);
+                }
             })
             .on("mouseout", function (d) {
-                d3.select(this).style("fill", self.colorNode.call(self, d, false));
+                if (self.isRoot(d)) { return; }
+                d3.selectAll('circle').style('opacity', 1);
             })
             .style("fill", function (d) {
                 return self.colorNode.call(self, d);
@@ -178,15 +199,22 @@ HTMLWidgets.widget({
 
         text.enter()
             .append('text')
+            .attr("id", function (d) {
+                return 'label-' + d.data.id;
+            })
             .attr("class", "label")
-            .attr("level", function(d) { return d.depth; })
+            .attr("level", function (d) {
+                return d.depth;
+            })
             .style('fill', 'black')
             .each(function (d) {
                 var sel = d3.select(this),
                     len = d.data.terms.length;
-                d.data.terms.forEach(function(term, i) {
+                d.data.terms.forEach(function (term, i) {
                     sel.append("tspan")
-                        .text(function() { return term; })
+                        .text(function () {
+                            return term;
+                        })
                         .attr("x", 0)
                         .attr("text-anchor", "middle")
                         // This data is used for dynamic sizing of text.
@@ -211,9 +239,8 @@ HTMLWidgets.widget({
         var self = this,
             noNodeSelected = !self.firstSelNode,
             userSelSameNodeTwice = node === self.firstSelNode,
-            isLeafNode = typeof node.children === 'undefined',
-            isRoot = node.data.id === 'root';
-        if (isRoot) {
+            isLeafNode = typeof node.children === 'undefined';
+        if (self.isRoot(node)) {
             return;
         } else if (userSelSameNodeTwice) {
             self.firstSelNode = null;
@@ -296,7 +323,7 @@ HTMLWidgets.widget({
 
         circles.attr("transform", function (d) {
             var x = (d.x - coords[0]) * k,
-                y =  (d.y - coords[1]) * k;
+                y = (d.y - coords[1]) * k;
             return "translate(" + x + "," + y + ")";
         });
         circles.attr("r", function (d) {
@@ -307,18 +334,21 @@ HTMLWidgets.widget({
                 y = (d.y - coords[1]) * k;
             return "translate(" + x + "," + y + ")";
         });
+        text.attr("display", function (d) {
+            return self.getLabelVisibility.call(self, d);
+        });
 
         text.selectAll("tspan")
-            .attr("y", function() {
+            .attr("y", function () {
                 var that = d3.select(this),
                     i = +that.attr("data-term-index"),
                     len = +that.attr("data-term-len");
                 // `- (len / 2) + 0.75` shifts the term down appropriately.
                 // `15 * k` spaces them out appropriately.
-                return (self.FONT_SIZE * (k/2) + 3)* 1.2 * (i - (len / 2) + 0.75);
+                return (self.FONT_SIZE * (k / 2) + 3) * 1.2 * (i - (len / 2) + 0.75);
             })
-            .style("font-size", function() {
-                return (self.FONT_SIZE * (k/2) + 3) + "px";
+            .style("font-size", function () {
+                return (self.FONT_SIZE * (k / 2) + 3) + "px";
             });
     },
 
@@ -395,21 +425,32 @@ HTMLWidgets.widget({
 
     /* Helper function to correctly color any node.
      */
-    colorNode: function (node, hover) {
+    colorNode: function (node, brighten) {
         var self = this,
             isfirstSelNode = self.firstSelNode
-                && self.firstSelNode.data.id === node.data.id;
+                && self.firstSelNode.data.id === node.data.id,
+            color;
         if (isfirstSelNode) {
-            return "rgb(25, 101, 255)";  // Red.
-        } else if (hover && node.depth !== 0) {
-            return d3.color(self.colorMap(node.depth))
-                .darker()
-                .toString();
+            color = "rgb(25, 101, 255)";  // Red.
         } else if (node.children) {
-            return self.colorMap(node.depth);
+            color = self.colorMap(node.depth);
         } else {
-            return "rgb(255, 255, 255)";
+            color = "rgb(255, 255, 255)";
         }
+
+        if (brighten) {
+            return d3.color(color).opacity(0.4).toString();
+        } else {
+            return color;
+        }
+    },
+
+    emphHoveredNode: function (node) {
+        var self = this;
+        d3.selectAll('circle').style('opacity', 0.25);
+        self.traverseTree(node, function (d) {
+            d3.select('#node-' + d.data.id).style('opacity', 1);
+        });
     },
 
     /* Traverse the underlying tree data structure and apply a callback
@@ -418,7 +459,7 @@ HTMLWidgets.widget({
     traverseTree: function (node, processNode) {
         var self = this;
         processNode(node);
-        if (typeof node.children !== 'undefined') {
+        if (typeof node.children !== "undefined") {
             node.children.forEach(function (childNode) {
                 self.traverseTree(childNode, processNode)
             });
@@ -457,13 +498,13 @@ HTMLWidgets.widget({
 
     /* Helper function for updateAssignments
      */
-    findAssignments: function(node) {
+    findAssignments: function (node) {
         var self = this,
             assignments = "",
             assignment;
 
-        node.children.forEach(function(d) {
-            assignment = "".concat(d.data.id, ":", (node.data.id=="root") ? 0 : node.data.id);
+        node.children.forEach(function (d) {
+            assignment = "".concat(d.data.id, ":", (self.isRoot(node)) ? 0 : node.data.id);
             assignments = assignments.concat(assignment, ",");
 
             //TODO: check that this works for hierarchy
@@ -477,7 +518,7 @@ HTMLWidgets.widget({
     /* Update the string that informs the Shiny server about the hierarchy of
      * topic assignemnts
      */
-    updateAssignments: function() {
+    updateAssignments: function () {
         var self = this;
 
         var root = d3.hierarchy(self.data);
@@ -503,5 +544,34 @@ HTMLWidgets.widget({
             });
         }
         return rv;
+    },
+
+    getDepth: function (obj) {
+        var self = this,
+            depth = 0,
+            tmpDepth;
+        if (obj.children) {
+            obj.children.forEach(function (d) {
+                tmpDepth = self.getDepth(d);
+                if (tmpDepth > depth) {
+                    depth = tmpDepth;
+                }
+            })
+        }
+        return 1 + depth;
+    },
+
+    getLabelVisibility: function (node) {
+        var self = this,
+            parentInFocus = node.depth === self.nodeInFocus.depth + 1;
+        if (parentInFocus) {
+            return "inline";
+        } else {
+            return "none";
+        }
+    },
+
+    isRoot: function (node) {
+        return node.data.id === "root";
     }
 });
