@@ -206,12 +206,13 @@ HTMLWidgets.widget({
 
     selectCluster: function (node) {
         var self = this,
-            noNodeSelected = !self.selNode,
+            noSelection = !self.selNode,
             isLeafNode = typeof node.children === 'undefined',
+            isIllegalMove = !noSelection && self.selNode.depth < node.depth,
             isRoot = node.data.id === 'root';
         if (isRoot) {
             return;
-        } else if (noNodeSelected || isLeafNode) {
+        } else if (noSelection || isLeafNode || isIllegalMove) {
             self.selNode = node;
             self.nodesToMove = null;
             self.newParent = null;
