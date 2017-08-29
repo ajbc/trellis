@@ -550,9 +550,10 @@ HTMLWidgets.widget({
         self.traverseTree(node.data, function (n) {
             idsToHighlight.push(n.id);
         });
-        idsToHighlight.forEach(function (id) {
-            d3.select('#label-' + id).style('display', 'inline');
-        });
+        //idsToHighlight.forEach(function (id) {
+        //    d3.select('#label-' + id).style('display', 'inline');
+        //});
+        d3.select('#label-' + node.data.id).style('display', 'inline');
     },
 
     getLabelVisibility: function (node) {
