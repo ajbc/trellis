@@ -12,15 +12,15 @@ HTMLWidgets.widget({
     FONT_SIZE: 11,
 
     // The first node the user clicks in the move process.
-    firstSelNode: null,
+    source: null,
 
-    // An array of the nodes that the user intends to move. If `firstSelNode` is
-    // is a leaf, then `nodesToMove` is an array with just `firstSelNode`.
-    // Otherwise, `nodesToMove` is an array with `firstSelNode`'s children.
+    // An array of the nodes that the user intends to move. If `source` is
+    // is a leaf, then `nodesToMove` is an array with just `source`.
+    // Otherwise, `nodesToMove` is an array with `source`'s children.
     nodesToMove: null,
 
     // The second node the user clicks in the move process. This node will be
-    // the new parent node for either `firstSelNode` or its children.
+    // the new parent node for either `source` or its children.
     newParent: null,
 
     // Used to decide whether to zoom in or out, depending on if the user has
@@ -232,23 +232,19 @@ HTMLWidgets.widget({
         );
     },
 
-    selectCluster: function (node) {
+    selectCluster: function (target) {
         var self = this,
-            noNodeSelected = !self.firstSelNode,
-            userSelSameNodeTwice = node === self.firstSelNode,
-            isLeafNode = typeof node.children === 'undefined';
-        if (self.isRoot(node)) {
+            isSource = !!self.source,
+            targetIsSource = target === self.source,
+            isLeafNode = typeof target.children === 'undefined';
+        if (self.isRoot(target)) {
             return;
-        } else if (userSelSameNodeTwice) {
-            self.firstSelNode = null;
-            self.nodesToMove = null;
-            self.newParent = null;
-        } else if (noNodeSelected || isLeafNode) {
-            self.firstSelNode = node;
-            self.nodesToMove = null;
-            self.newParent = null;
+        } else if (targetIsSource) {
+            self.source = null;
+        } else if (isSource || isLeafNode) {
+            self.source = target;
         } else {
-            self.moveNode(node);
+            self.moveNode(target);
             self.updateAssignments();
         }
         d3.selectAll("circle").style("fill", function (d) {
@@ -256,46 +252,43 @@ HTMLWidgets.widget({
         });
     },
 
-    moveNode: function (node) {
+    moveNode: function (target) {
         var self = this,
-            sameNodeSelected = self.firstSelNode.data.id === node.data.id,
-            newParentNodeSelected = self.firstSelNode.parent !== node
-                || (self.firstSelNode.children.length > 1),
-            nodeToMoveIsLeafNode = typeof self.firstSelNode.children === 'undefined',
+            newParentNodeSelected = self.source.parent !== target
+                || (self.source.children.length > 1),
+            targetIsLeaf = typeof self.source.children === 'undefined',
             newParentID,
             oldParentID,
-            removefirstSelNode;
+            removeSource;
 
-        if (sameNodeSelected) {
-            self.firstSelNode = null;
-        } else if (newParentNodeSelected) {
-            self.newParent = node;
+        if (newParentNodeSelected) {
+            self.newParent = target;
             newParentID = self.newParent.data.id;
-            if (nodeToMoveIsLeafNode) {
-                oldParentID = self.firstSelNode.parent.data.id;
-                self.nodesToMove = [self.firstSelNode.data];
-                removefirstSelNode = false;
+            if (targetIsLeaf) {
+                oldParentID = self.source.parent.data.id;
+                self.nodesToMove = [self.source.data];
+                removeSource = false;
             } else {
-                oldParentID = self.firstSelNode.data.id;
+                oldParentID = self.source.data.id;
                 var nodesToMove = [];
-                self.firstSelNode.children.forEach(function (node) {
+                self.source.children.forEach(function (node) {
                     nodesToMove.push(node.data);
                 });
                 self.nodesToMove = nodesToMove;
-                removefirstSelNode = true;
+                removeSource = true;
             }
 
             self.traverseTree(self.data, function (n) {
                 self.updateNodeChildren(n, oldParentID, newParentID);
             });
 
-            if (removefirstSelNode) {
+            if (removeSource) {
                 self.traverseTree(self.data, function (n) {
-                    self.removeNode(n, self.firstSelNode.data.id, self.firstSelNode.parent.data.id);
+                    self.removeNode(n, self.source.data.id, self.source.parent.data.id);
                 });
             }
 
-            self.firstSelNode = null;
+            self.source = null;
             self.nodesToMove = null;
             self.newParent = null;
             self.update(true);
@@ -423,8 +416,8 @@ HTMLWidgets.widget({
      */
     colorNode: function (node) {
         var self = this,
-            isfirstSelNode = self.firstSelNode
-                && self.firstSelNode.data.id === node.data.id,
+            isfirstSelNode = self.source
+                && self.source.data.id === node.data.id,
             color;
         if (isfirstSelNode) {
             return "rgb(25, 101, 255)";  // Red.
