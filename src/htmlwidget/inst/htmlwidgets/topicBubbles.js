@@ -167,7 +167,6 @@ HTMLWidgets.widget({
                 if (nClicks === 1) {
                     timer = setTimeout(function () {
                         self.selectNode(d, makeNewGroup);
-                        self.selectCluster(d);
                         nClicks = 0;
                     }, DBLCLICK_DELAY);
                 } else {
@@ -177,14 +176,14 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function (d) {
-                Shiny.onInputChange("hover", d.data.id);
+                //Shiny.onInputChange("hover", d.data.id);
                 if (self.isRoot(d) || self.isGroupInFocus(d)) {
                     return;
                 }
                 self.setLabelVisibility(d, true);
             })
             .on("mouseout", function (d) {
-                Shiny.onInputChange("hover", d.data.id);
+                //Shiny.onInputChange("hover", d.data.id);
                 if (self.isRoot(d)) {
                     return;
                 }
@@ -379,9 +378,6 @@ HTMLWidgets.widget({
         });
         circles.attr("r", function (d) {
             return d.r * k;
-        });
-        circles.style("fill", function (d) {
-            return self.colorNode.call(self, d);
         });
         text.attr("transform", function (d) {
             var x = (d.x - coords[0]) * k,
@@ -624,10 +620,8 @@ HTMLWidgets.widget({
      * topic assignemnts
      */
     updateAssignments: function () {
-        var self = this;
-
-        var root = d3.hierarchy(self.data);
-
+        var self = this,
+            root = d3.hierarchy(self.data);
         //Shiny.onInputChange("topics", self.findAssignments(root));
     },
 
