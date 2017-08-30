@@ -160,11 +160,11 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function (d) {
-                //Shiny.onInputChange("hover", d.data.id);
+                Shiny.onInputChange("hover", d.data.id);
                 d3.select(this).style("fill", self.colorNode.call(self, d, true));
             })
             .on("mouseout", function (d) {
-                //Shiny.onInputChange("hover", d.data.id);
+                Shiny.onInputChange("hover", d.data.id);
                 d3.select(this).style("fill", self.colorNode.call(self, d, false));
             })
             .style("fill", function (d) {
@@ -471,7 +471,7 @@ HTMLWidgets.widget({
 
         var root = d3.hierarchy(self.data);
 
-        //Shiny.onInputChange("topics", self.findAssignments(root));
+        Shiny.onInputChange("topics", self.findAssignments(root));
     },
 
     /* Helper function to add hierarchical structure to data.
