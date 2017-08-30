@@ -402,25 +402,6 @@ HTMLWidgets.widget({
             });
     },
 
-    /* Zoom to node.
-     */
-    zoom: function (d) {
-        var self = this,
-            ZOOM_DURATION = 500,
-            coords = [d.x, d.y, d.r * 2 + self.PAGE_MARGIN];
-        self.nodeInFocus = d;
-        d3.transition()
-            .duration(ZOOM_DURATION)
-            .tween("zoom", function () {
-                var interp = d3.interpolateZoom(self.currCoords, coords);
-                return function (t) {
-                    // `tween()` will handle the transition for us, so we can
-                    // pass `useTransition = false`.
-                    self.positionAndResizeNodes(interp(t), false);
-                };
-            });
-    },
-
     /* Update node's children depending on whether it is the new or old parent.
      */
     updateNodeChildren: function (n, oldParentID, newParentID) {
