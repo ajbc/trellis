@@ -159,33 +159,33 @@ HTMLWidgets.widget({
                 nClicks++;
                 if (nClicks === 1) {
                     timer = setTimeout(function () {
-                        self.selectCluster(d);
+                        var userClickedSameNodeTwice = self.nodeInFocus === d,
+                            userClickedDiffNode = self.nodeInFocus !== d;
+                        if (self.isRoot(d) || userClickedSameNodeTwice) {
+                            self.zoom(root);
+                        } else if (userClickedDiffNode) {
+                            self.zoom(d);
+                        }
                         nClicks = 0;
                     }, DBLCLICK_DELAY);
                 } else {
-                    // Double click: zoom.
                     clearTimeout(timer);
                     nClicks = 0;
-                    // Single click: user selected a cluster.
-                    var userClickedSameNodeTwice = self.nodeInFocus === d,
-                        userClickedDiffNode = self.nodeInFocus !== d;
-                    if (self.isRoot(d) || userClickedSameNodeTwice) {
-                        self.zoom(root);
-                    } else if (userClickedDiffNode) {
-                        self.zoom(d);
-                    }
+                    self.selectCluster(d);
                 }
             })
             .on("mouseover", function (d) {
                 //Shiny.onInputChange("hover", d.data.id);
-                if (self.isRoot(d)) { return; }
-                self.showAllChildLabels(d);
+                if (self.isRoot(d)) {
+                    return;
+                }
+                self.setLabelVisibility(d, true);
             })
             .on("mouseout", function (d) {
-                if (self.isRoot(d)) { return; }
-                d3.selectAll('.label').style("display", function (d) {
-                    return self.getLabelVisibility.call(self, d);
-                });
+                if (self.isRoot(d)) {
+                    return;
+                }
+                self.setLabelVisibility(d, false);
             })
             .style("fill", function (d) {
                 return self.colorNode.call(self, d);
@@ -242,9 +242,9 @@ HTMLWidgets.widget({
         if (isRoot) {
             return;
         } else if (sameSource) {
-            self.source = null;
+            self.setSource(null);
         } else if (!isSource || isLeafNode || isIllegalMove) {
-            self.source = target;
+            self.setSource(target);
         } else {
             self.moveNode(target);
             self.updateAssignments();
@@ -290,7 +290,7 @@ HTMLWidgets.widget({
                 });
             }
 
-            self.source = null;
+            self.setSource(null);
             self.nodesToMove = null;
             self.newParent = null;
             self.update(true);
@@ -328,7 +328,7 @@ HTMLWidgets.widget({
             return "translate(" + x + "," + y + ")";
         });
         text.attr("display", function (d) {
-            return self.getLabelVisibility.call(self, d);
+            self.setLabelVisibility(d);
         });
 
         text.selectAll("tspan")
@@ -539,29 +539,31 @@ HTMLWidgets.widget({
         return 1 + depth;
     },
 
-    showAllChildLabels: function (node) {
+    setLabelVisibility: function (d, hover) {
         var self = this,
-            idsToHighlight = [node.data.id];
-        self.traverseTree(node.data, function (n) {
-            idsToHighlight.push(n.id);
-        });
-        //idsToHighlight.forEach(function (id) {
-        //    d3.select('#label-' + id).style('display', 'inline');
-        //});
-        d3.select('#label-' + node.data.id).style('display', 'inline');
-    },
-
-    getLabelVisibility: function (node) {
-        var self = this,
-            parentInFocus = node.depth === self.nodeInFocus.depth + 1;
-        if (parentInFocus) {
-            return "inline";
+            sourceSel = !!self.source,
+            dIsSource = sourceSel && d.data.id === self.source.data.id,
+            parentInFocus = d.depth === self.nodeInFocus.depth + 1,
+            label = d3.select('#label-' + d.data.id);
+        if (dIsSource || parentInFocus || hover) {
+            label.style("display", "inline");
         } else {
-            return "none";
+            label.style("display", "none");
         }
     },
 
-    isRoot: function (node) {
-        return node.data.id === "root";
+    isRoot: function (d) {
+        return d.data.id === "root";
+    },
+
+    setSource: function (val) {
+        var self = this,
+            isSource = !!self.source,
+            label;
+        if (isSource) {
+            self.setLabelVisibility(self.source);
+        }
+        self.source = val;
+        self.setLabelVisibility(self.source);
     }
 });
