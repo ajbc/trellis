@@ -1,3 +1,35 @@
+//==============================================================================
+// README
+//
+// Throughout this program, there are two types of nodes: raw data and D3 data.
+// The way D3's `hierarchy` functionality works is that it creates a tree from
+// the raw data and places each raw data node on a `data` property of each tree
+// node. In other words:
+//
+//     [D3 node].data === [Raw data node]
+//
+// Any time a node is referenced through D3, for example on a click event, D3
+// will pass you a D3 node. View-related properties, such as the (x, y)
+// coordinates of a node, are on D3 nodes.
+//
+// But relationships between nodes are specified by the raw data. D3 just
+// updates the view when the raw data changes. For example, if you want to merge
+// two nodes, do not touch D3 nodes. Instead, update the raw data and D3 will
+// handle rebinding and removing old nodes. For more on this pattern, see:
+//
+//     https://bl.ocks.org/mbostock/3808218
+//
+// More concretely, use the function `traveseTree` if you want to inspect every
+// raw data node. Then call `update` to update the data binding and view.
+//
+// Because this distinction is subtle and a little confusing, use the following
+// style rules:
+//
+//     - Use "n" to refer to raw data nodes.
+//     - Use "d" to refer to D3 nodes. Note that `d.data === n`.
+//     - Avoid "node" unless referring to the concept, e.g. `isRootNode(d)`.
+//==============================================================================
+
 HTMLWidgets.widget({
 
 
@@ -14,17 +46,17 @@ HTMLWidgets.widget({
     // The first node the user clicks in the move process.
     source: null,
 
-    // An array of the nodes that the user intends to move. If `source` is
-    // is a leaf, then `nodesToMove` is an array with just `source`.
-    // Otherwise, `nodesToMove` is an array with `source`'s children.
+    // An array of the nodes that the user intends to move. If `source` is a
+    // leaf, then `nodesToMove` is an array with just `source`. Otherwise,
+    // `nodesToMove` is an array with `source`'s children.
     nodesToMove: null,
 
-    // The second node the user clicks in the move process. This node will be
-    // the new parent node for either `source` or its children.
+    // The parent of the node the user wants to move or merge with `source`.
+    // It will become the new parent for either `source` or `source`'s children.
     newParent: null,
 
-    // Used to decide whether to zoom in or out, depending on if the user has
-    // already zoomed in.
+    // Used for things like deciding whether to zoom in or out or whether or not
+    // to show a label.
     nodeInFocus: null,
     currCoords: null,
 
@@ -108,7 +140,6 @@ HTMLWidgets.widget({
             self.reInitialize();
         } else {
             self.nGroups = self.data.children.length;
-            self.maxDepth = self.getMaxDepth(self.data);
             this.update(false);
         }
     },
@@ -117,32 +148,25 @@ HTMLWidgets.widget({
         var self = this,
             nClicks = 0,
             DBLCLICK_DELAY = 300,
-            root,
+            tree,
             nodes,
             circles,
             constancyFn,
             text,
             timer;
 
-        root = d3.hierarchy(self.data)
+        tree = d3.hierarchy(self.data)
             .sum(function (d) {
                 return d.weight;
             })
             .sort(function (a, b) {
                 return b.value - a.value;
             });
-        nodes = self.pack(root).descendants();
+        nodes = self.pack(tree).descendants();
         self.nodeInFocus = nodes[0];
 
-        // This is a critical function. We need to give D3 permanent IDs for
-        // each node so that it knows which data goes with which bubble. See:
-        // https://bost.ocks.org/mike/constancy/
-        constancyFn = function (node) {
-            return node.data.id;
-        };
-
         circles = self.g.selectAll('circle')
-            .data(nodes, constancyFn);
+            .data(nodes, self.identity);
 
         circles.enter()
             .append('circle')
@@ -168,19 +192,19 @@ HTMLWidgets.widget({
                 } else {
                     clearTimeout(timer);
                     nClicks = 0;
-                    self.zoom(root, d);
+                    self.zoom(tree, d);
                 }
             })
             .on("mouseover", function (d) {
                 //Shiny.onInputChange("hover", d.data.id);
-                if (self.isRoot(d) || self.isGroupInFocus(d)) {
+                if (self.isRootNode(d) || self.isGroupInFocus(d)) {
                     return;
                 }
                 self.setLabelVisibility(d, true);
             })
             .on("mouseout", function (d) {
                 //Shiny.onInputChange("hover", d.data.id);
-                if (self.isRoot(d)) {
+                if (self.isRootNode(d)) {
                     return;
                 }
                 self.setLabelVisibility(d, false);
@@ -190,7 +214,7 @@ HTMLWidgets.widget({
             });
 
         text = self.g.selectAll('text')
-            .data(nodes, constancyFn);
+            .data(nodes, self.identity);
 
         text.enter()
             .append('text')
@@ -222,22 +246,21 @@ HTMLWidgets.widget({
         text.raise();
 
         self.positionAndResizeNodes(
-            [root.x, root.y, root.r * 2 + self.PAGE_MARGIN],
+            [tree.x, tree.y, tree.r * 2 + self.PAGE_MARGIN],
             useTransition
         );
     },
 
     /* Zoom on click.
      */
-    zoom: function (root, node) {
+    zoom: function (root, d) {
         var self = this,
-            isRoot = node.data.id === 'root',
-            userClickedSameNodeTwice = self.nodeInFocus === node,
-            userClickedDiffNode = self.nodeInFocus !== node;
-        if (isRoot || userClickedSameNodeTwice) {
+            userClickedSameNodeTwice = self.nodeInFocus === d,
+            userClickedDiffNode = self.nodeInFocus !== d;
+        if (self.isRootNode(d) || userClickedSameNodeTwice) {
             self.zoomToNode(root);
         } else if (userClickedDiffNode) {
-            self.zoomToNode(node);
+            self.zoomToNode(d);
         }
     },
 
@@ -263,13 +286,12 @@ HTMLWidgets.widget({
     selectNode: function (target, makeNewGroup) {
         var self = this,
             sourceExists = !!self.source,
-            targetIsLeaf = typeof target.children === 'undefined',
             souceSelectedTwice,
             moveGroup,
             targetIsSourceParent,
             isDisallowed;
 
-        if (self.isRoot(target)) {
+        if (self.isRootNode(target)) {
             return;
         } else if (sourceExists) {
             souceSelectedTwice = self.source === target;
@@ -281,7 +303,7 @@ HTMLWidgets.widget({
 
         if (souceSelectedTwice) {
             self.setSource(null);
-        } else if (!sourceExists || targetIsLeaf
+        } else if (!sourceExists || self.isLeafNode(target)
             || (!moveGroup && targetIsSourceParent) || isDisallowed) {
 
             self.setSource(target);
@@ -294,7 +316,7 @@ HTMLWidgets.widget({
     moveOrMerge: function (target, makeNewGroup) {
         var self = this,
             targetIsSource = self.source.data.id === target.data.id,
-            sourceIsLeaf = typeof self.source.children === 'undefined',
+            sourceIsLeaf = self.isLeafNode(self.source),
             mergingNodes = !sourceIsLeaf && self.source.children.length > 1,
             sameParentSel = self.source.parent === target,
             newParentID,
@@ -427,6 +449,8 @@ HTMLWidgets.widget({
         }
     },
 
+    /* Remove node from parent if it meets criteria.
+     */
     removeNode: function (n, nToRmID, nToRmParentID) {
         var newChildren = [];
         if (n.id === nToRmParentID) {
@@ -439,6 +463,8 @@ HTMLWidgets.widget({
         }
     },
 
+    /* Make new group with `target` if node meets criteria.
+     */
     makeNewGroup: function (n, target) {
         var self = this,
             nIsTarget = n.id === target.data.id,
@@ -464,9 +490,6 @@ HTMLWidgets.widget({
             n.children = newChildren;
         }
     },
-
-// Helper functions.
-//------------------------------------------------------------------------------
 
     /* Sets `source` with new value, resetting and setting circle and label fill
      * and visibility.
@@ -511,11 +534,12 @@ HTMLWidgets.widget({
      */
     setLabelVisibility: function (d, hover) {
         var self = this,
-            dIsSource = self.source && d.data.id === self.source.data.id,
-            parentInFocus = d && d.depth === self.nodeInFocus.depth + 1,
-            isLeaf = d && (!d.children || (d.children && d.children.length === 1)),
-            isInFocus = d && d === self.nodeInFocus,
-            zoomedOnLeaf = isInFocus && isLeaf && !self.isRoot(d),
+            dIs = !!d,
+            dIsSource = dIs && self.source && d.data.id === self.source.data.id,
+            parentInFocus = dIs && d.depth === self.nodeInFocus.depth + 1,
+            isLeaf = dIs && self.isLeafNode(d),
+            isInFocus = dIs && d === self.nodeInFocus,
+            zoomedOnLeaf = isInFocus && isLeaf && !self.isRootNode(d),
             label = d3.select('#label-' + d.data.id);
 
         if (dIsSource || parentInFocus || hover || zoomedOnLeaf) {
@@ -570,13 +594,13 @@ HTMLWidgets.widget({
 
     /* Helper function for updateAssignments
      */
-    findAssignments: function (node) {
+    findAssignments: function (n) {
         var self = this,
             assignments = "",
             assignment;
 
-        node.children.forEach(function (d) {
-            assignment = "".concat(d.data.id, ":", (self.isRoot(node)) ? 0 : node.data.id);
+        n.children.forEach(function (d) {
+            assignment = "".concat(d.data.id, ":", (self.isRootNode(n)) ? 0 : n.data.id);
             assignments = assignments.concat(assignment, ",");
 
             //TODO: check that this works for hierarchy
@@ -621,37 +645,45 @@ HTMLWidgets.widget({
     getNewID: function () {
         var self = this,
             maxId = 0;
-        self.traverseTree(self.data, function (node) {
-            if (node.id > maxId) {
-                maxId = node.id;
+        self.traverseTree(self.data, function (n) {
+            if (n.id > maxId) {
+                maxId = n.id;
             }
         });
         return maxId + 1;
     },
 
-    getMaxDepth: function (obj) {
-        var self = this,
-            depth = 0,
-            tmpDepth;
-        if (obj.children) {
-            obj.children.forEach(function (d) {
-                tmpDepth = self.getMaxDepth(d);
-                if (tmpDepth > depth) {
-                    depth = tmpDepth;
-                }
-            })
-        }
-        return 1 + depth;
-    },
-
-    isRoot: function (d) {
+    /* Returns `true` if the node is the root node, `false` otherwise.
+     */
+    isRootNode: function (d) {
         return d.data.id === "root";
     },
 
+    /* Returns `true` if the node is a leaf node, `false` otherwise.
+     */
+    isLeafNode: function (d) {
+        if (d.data.children) {
+            return d.data.children.length > 1;
+        } else {
+            return false;
+        }
+    },
+
+    /* Returns `true` if the node is both in focus and a group rather than a
+     * leaf.
+     */
     isGroupInFocus: function (d) {
         var self = this,
             isInFocus = d === self.nodeInFocus,
-            isGroup = d.data.children && d.data.children.length > 1;
+            isGroup = !self.isLeafNode(d);
         return isInFocus && isGroup;
+    },
+
+    /* This is a critical function. We need to give D3 permanent IDs for each
+     * node so that it knows which data goes with which bubble. See:
+     * https://bost.ocks.org/mike/constancy/
+     */
+    identity: function (d) {
+        return d.data.id;
     }
 });
