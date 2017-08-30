@@ -160,11 +160,11 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function (d) {
-                Shiny.onInputChange("hover", d.data.id);
+                //Shiny.onInputChange("hover", d.data.id);
                 d3.select(this).style("fill", self.colorNode.call(self, d, true));
             })
             .on("mouseout", function (d) {
-                Shiny.onInputChange("hover", d.data.id);
+                //Shiny.onInputChange("hover", d.data.id);
                 d3.select(this).style("fill", self.colorNode.call(self, d, false));
             })
             .style("fill", function (d) {
@@ -206,16 +206,17 @@ HTMLWidgets.widget({
 
     selectCluster: function (node) {
         var self = this,
-            noSelection = !self.selNode,
+            isSource = !!self.selNode,
+            sameSource = isSource && self.selNode.data.id === node.data.id,
             isLeafNode = typeof node.children === 'undefined',
-            isIllegalMove = !noSelection && self.selNode.depth < node.depth,
+            isIllegalMove = isSource && self.selNode.depth < node.depth,
             isRoot = node.data.id === 'root';
         if (isRoot) {
             return;
-        } else if (noSelection || isLeafNode || isIllegalMove) {
+        } else if (sameSource) {
+            self.selNode = null;
+        } else if (!isSource || isLeafNode || isIllegalMove) {
             self.selNode = node;
-            self.nodesToMove = null;
-            self.newParent = null;
         } else {
             self.moveNode(node);
             self.updateAssignments();
@@ -227,7 +228,6 @@ HTMLWidgets.widget({
 
     moveNode: function (node) {
         var self = this,
-            sameNodeSelected = self.selNode.data.id === node.data.id,
             newParentNodeSelected = self.selNode.parent !== node
                 || (self.selNode.children.length > 1),
             nodeToMoveIsLeafNode = typeof self.selNode.children === 'undefined',
@@ -235,9 +235,7 @@ HTMLWidgets.widget({
             oldParentID,
             removeSelNode;
 
-        if (sameNodeSelected) {
-            self.selNode = null;
-        } else if (newParentNodeSelected) {
+        if (newParentNodeSelected) {
             self.newParent = node;
             newParentID = self.newParent.data.id;
             if (nodeToMoveIsLeafNode) {
@@ -473,7 +471,7 @@ HTMLWidgets.widget({
 
         var root = d3.hierarchy(self.data);
 
-        Shiny.onInputChange("topics", self.findAssignments(root));
+        //Shiny.onInputChange("topics", self.findAssignments(root));
     },
 
     /* Helper function to add hierarchical structure to data.
