@@ -175,13 +175,14 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function (d) {
-                //Shiny.onInputChange("hover", d.data.id);
+                Shiny.onInputChange("hover", d.data.id);
                 if (self.isRoot(d) || self.isGroupInFocus(d)) {
                     return;
                 }
                 self.setLabelVisibility(d, true);
             })
             .on("mouseout", function (d) {
+                Shiny.onInputChange("hover", d.data.id);
                 if (self.isRoot(d)) {
                     return;
                 }
@@ -548,7 +549,7 @@ HTMLWidgets.widget({
 
         var root = d3.hierarchy(self.data);
 
-        //Shiny.onInputChange("topics", self.findAssignments(root));
+        Shiny.onInputChange("topics", self.findAssignments(root));
     },
 
     /* Helper function to add hierarchical structure to data.
