@@ -146,17 +146,13 @@ HTMLWidgets.widget({
 
         circles.enter()
             .append('circle')
-            .attr("depth", function (d) {
-                return d.depth;
-            })
             .attr("class", "node")
             .attr("id", function (d) {
                 return 'node-' + d.data.id;
             })
-            .attr("id", function (d) {
-                return "node-" + d.data.id;
+            .attr("depth", function (d) {
+                return d.depth;
             })
-            .attr("class", "node")
             .on("dblclick", function () {
                 d3.event.stopPropagation();
             })
@@ -198,14 +194,13 @@ HTMLWidgets.widget({
 
         text.enter()
             .append('text')
+            .attr("class", "label")
             .attr("id", function (d) {
                 return 'label-' + d.data.id;
             })
-            .attr("class", "label")
             .attr("depth", function (d) {
                 return d.depth;
             })
-            .style('fill', 'black')
             .each(function (d) {
                 var sel = d3.select(this),
                     len = d.data.terms.length;
@@ -307,13 +302,13 @@ HTMLWidgets.widget({
             removeSource;
 
         if (targetIsSource || (sameParentSel && !mergingNodes && !makeNewGroup)) {
-            self.source = null;
+            self.setSource(null);
             return;
         }
 
         if (makeNewGroup) {
-            self.traverseTree(self.data, function (node) {
-                self.makeNewGroup(node, target);
+            self.traverseTree(self.data, function (n) {
+                self.makeNewGroup(n, target);
             });
         } else {
             self.newParent = target;
@@ -325,8 +320,8 @@ HTMLWidgets.widget({
             } else {
                 oldParentID = self.source.data.id;
                 var nodesToMove = [];
-                self.source.children.forEach(function (node) {
-                    nodesToMove.push(node.data);
+                self.source.children.forEach(function (d) {
+                    nodesToMove.push(d.data);
                 });
                 self.nodesToMove = nodesToMove;
                 removeSource = true;
@@ -341,17 +336,12 @@ HTMLWidgets.widget({
                     self.removeNode(n, self.source.data.id, self.source.parent.data.id);
                 });
             }
-
-            self.setSource(null);
-            self.nodesToMove = null;
-            self.newParent = null;
-            self.update(true);
         }
 
-        self.update(true);
-        self.source = null;
+        self.setSource(null);
         self.nodesToMove = null;
         self.newParent = null;
+        self.update(true);
     },
 
     /* This function "zooms" to center of coordinates. It is important to
