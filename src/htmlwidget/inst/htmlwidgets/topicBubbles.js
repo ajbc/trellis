@@ -11,11 +11,11 @@ HTMLWidgets.widget({
     DIAMETER: null,
     FONT_SIZE: 11,
 
-    // `selNode` is the one the user clicks on first.
-    selNode: null,
-    // `nodesToMove` is an array of nodes the user intends to move. If `selNode`
-    // is a leaf node, then `nodesToMove` is an array with just `selNode`.
-    // Otherwise, `nodesToMove` is an array with `selNode`'s children.
+    // `source` is the node the user clicks on first.
+    source: null,
+    // `nodesToMove` is an array of nodes the user intends to move. If `source`
+    // is a leaf node, then `nodesToMove` is an array with just `source`.
+    // Otherwise, `nodesToMove` is an array with `source`'s children.
     nodesToMove: null,
     // `newParent` is the group the user selects after selecting a node to move.
     newParent: null,
@@ -24,9 +24,9 @@ HTMLWidgets.widget({
     nodeInFocus: null,
     currCoords: null,
 
-    // Used to know when the user has changed the number of clusters. In this
+    // Used to know when the user has changed the number of groups. In this
     // scenario, we just completely re-initialize the widget.
-    nClusters: null,
+    nGroups: null,
 
     el: null,
     svg: null,
@@ -88,24 +88,23 @@ HTMLWidgets.widget({
         if (rawData.data == null) { return; }
 
         var self = this,
-            nClustersChanged;
+            nGroupsChanged;
 
         self.data = self.getTreeFromRawData(rawData);
-        nClustersChanged = self.nClusters !== null
-            && self.nClusters !== self.data.children.length;
-        if (nClustersChanged) {
+        nGroupsChanged = self.nGroups !== null
+            && self.nGroups !== self.data.children.length;
+        if (nGroupsChanged) {
             self.reInitialize();
         } else {
-            self.nClusters = self.data.children.length;
+            self.nGroups = self.data.children.length;
             this.update(false);
         }
     },
 
     update: function (useTransition) {
         var self = this,
-            DBLCLICK_DELAY = 200,
             nClicks = 0,
-            shiftPressed = false,
+            DBLCLICK_DELAY = 300,
             root,
             nodes,
             circles,
@@ -130,35 +129,29 @@ HTMLWidgets.widget({
 
         circles.enter()
             .append('circle')
-            .attr('class', function (d) {
-                return d.data.id;
+            .attr("depth", function(d) {
+                return d.depth;
             })
+            .attr("id", function(d) {
+                return "node-" + d.data.id;
+            })
+            .attr("class", "node")
             .on("dblclick", function () {
-                // Prevent double-click in deference to single-click handler.
                 d3.event.stopPropagation();
             })
             .on("click", function (d) {
                 d3.event.stopPropagation();
-                shiftPressed = d3.event.shiftKey;
+                var makeNewGroup = d3.event.shiftKey;
                 nClicks++;
                 if (nClicks === 1) {
                     timer = setTimeout(function () {
-                        // Single click: user selected a cluster.
-                        self.selectCluster(d, shiftPressed);
+                        self.selectNode(d, makeNewGroup);
                         nClicks = 0;
                     }, DBLCLICK_DELAY);
                 } else {
-                    // Double click: zoom.
                     clearTimeout(timer);
                     nClicks = 0;
-                    var isRoot = d.data.id === 'root',
-                        userClickedSameNodeTwice = self.nodeInFocus === d,
-                        userClickedDiffNode = self.nodeInFocus !== d;
-                    if (isRoot || userClickedSameNodeTwice) {
-                        self.zoom(root);
-                    } else if (userClickedDiffNode) {
-                        self.zoom(d);
-                    }
+                    self.zoom(root, d);
                 }
             })
             .on("mouseover", function (d) {
@@ -179,7 +172,9 @@ HTMLWidgets.widget({
         text.enter()
             .append('text')
             .attr("class", "label")
-            .attr("level", function(d) { return d.depth; })
+            .attr("depth", function(d) {
+                return d.depth;
+            })
             .style('fill', 'black')
             .each(function (d) {
                 var sel = d3.select(this),
@@ -195,10 +190,11 @@ HTMLWidgets.widget({
                 });
             });
 
+        circles.exit().remove();
+        text.exit().remove();
+
         circles.raise();
         text.raise();
-
-        circles.exit().remove();
 
         self.positionAndResizeNodes(
             [root.x, root.y, root.r * 2 + self.PAGE_MARGIN],
@@ -206,20 +202,53 @@ HTMLWidgets.widget({
         );
     },
 
-    selectCluster: function (node, shiftPressed) {
+    /* Zoom on click.
+     */
+    zoom: function(root, node) {
         var self = this,
-            noSelection = !self.selNode,
-            isLeafNode = typeof node.children === 'undefined',
-            isIllegalMove = !noSelection && self.selNode.depth < node.depth,
-            isRoot = node.data.id === 'root';
+            isRoot = node.data.id === 'root',
+            userClickedSameNodeTwice = self.nodeInFocus === node,
+            userClickedDiffNode = self.nodeInFocus !== node;
+        if (isRoot || userClickedSameNodeTwice) {
+            self.zoomToNode(root);
+        } else if (userClickedDiffNode) {
+            self.zoomToNode(node);
+        }
+    },
+
+    /* Zoom to node utility function.
+     */
+    zoomToNode: function (node) {
+        var self = this,
+            ZOOM_DURATION = 500,
+            coords = [node.x, node.y, node.r * 2 + self.PAGE_MARGIN];
+        self.nodeInFocus = node;
+        d3.transition()
+            .duration(ZOOM_DURATION)
+            .tween("zoom", function () {
+                var interp = d3.interpolateZoom(self.currCoords, coords);
+                return function (t) {
+                    // `tween()` will handle the transition for us, so we can
+                    // pass `useTransition = false`.
+                    self.positionAndResizeNodes(interp(t), false);
+                };
+            });
+    },
+
+    selectNode: function (target, makeNewGroup) {
+        var self = this,
+            isRoot = target.data.id === 'root',
+            newSource = !self.source,
+            targetIsLeaf = typeof target.children === 'undefined',
+            targetIsChild = !newSource && self.source.depth < target.depth;
         if (isRoot) {
             return;
-        } else if (noSelection || isLeafNode || isIllegalMove) {
-            self.selNode = node;
+        } else if (newSource || targetIsLeaf || targetIsChild) {
+            self.source = target;
             self.nodesToMove = null;
             self.newParent = null;
         } else {
-            self.moveOrMerge(node, shiftPressed);
+            self.moveOrMerge(target, makeNewGroup);
             self.updateAssignments();
         }
         d3.selectAll("circle").style("fill", function (d) {
@@ -227,53 +256,36 @@ HTMLWidgets.widget({
         });
     },
 
-    moveOrMerge: function (node, shiftPressed) {
+    moveOrMerge: function (target, makeNewGroup) {
         var self = this,
-            sameNodeSelected = self.selNode.data.id === node.data.id,
-            movingLeaf = typeof self.selNode.children === 'undefined',
-            mergingNodes = !movingLeaf && self.selNode.children.length > 1,
-            createNewCluster = shiftPressed && movingLeaf,
-            sameParentSelected = self.selNode.parent === node,
+            targetIsSource = self.source.data.id === target.data.id,
+            sourceIsLeaf = typeof self.source.children === 'undefined',
+            mergingNodes = !sourceIsLeaf && self.source.children.length > 1,
+            sameParentSel = self.source.parent === target,
             newParentID,
             oldParentID,
             removeSelNode;
 
-        if (sameNodeSelected || (sameParentSelected && !mergingNodes)) {
-            self.selNode = null;
-        } else if (createNewCluster) {
-            self.traverseTree(self.data, function (n) {
-                if (n.id === node.data.id) {
-                    n.children.push({
-                        id: 20000,
-                        children: [self.selNode.data],
-                        terms: []
-                    });
-                } else if (n.id === self.selNode.parent.data.id) {
-                    var newChildren = [];
-                    self.selNode.parent.children.forEach(function (child) {
-                        if (child.data.id !== self.selNode.data.id) {
-                            newChildren.push(child.data);
-                        }
-                    });
-                    self.selNode.parent.data.children = newChildren;
-                }
+        if (targetIsSource || (sameParentSel && !mergingNodes && !makeNewGroup)) {
+            self.source = null;
+            return;
+        }
+
+        if (makeNewGroup) {
+            self.traverseTree(self.data, function (node) {
+                self.makeNewGroup(node, target);
             });
-            self.selNode = null;
-            self.nodesToMove = null;
-            self.newParent = null;
-            self.update(true);
-            self.update(true);
-        } else if (!shiftPressed) {
-            self.newParent = node;
+        } else {
+            self.newParent = target;
             newParentID = self.newParent.data.id;
-            if (movingLeaf) {
-                oldParentID = self.selNode.parent.data.id;
-                self.nodesToMove = [self.selNode.data];
+            if (sourceIsLeaf) {
+                oldParentID = self.source.parent.data.id;
+                self.nodesToMove = [self.source.data];
                 removeSelNode = false;
             } else {
-                oldParentID = self.selNode.data.id;
+                oldParentID = self.source.data.id;
                 var nodesToMove = [];
-                self.selNode.children.forEach(function (node) {
+                self.source.children.forEach(function (node) {
                     nodesToMove.push(node.data);
                 });
                 self.nodesToMove = nodesToMove;
@@ -283,18 +295,17 @@ HTMLWidgets.widget({
             self.traverseTree(self.data, function (n) {
                 self.updateNodeChildren(n, oldParentID, newParentID);
             });
-
             if (removeSelNode) {
                 self.traverseTree(self.data, function (n) {
-                    self.removeNode(n, self.selNode.data.id, self.selNode.parent.data.id);
+                    self.removeNode(n, self.source.data.id, self.source.parent.data.id);
                 });
             }
-
-            self.selNode = null;
-            self.nodesToMove = null;
-            self.newParent = null;
-            self.update(true);
         }
+
+        self.update(true);
+        self.source = null;
+        self.nodesToMove = null;
+        self.newParent = null;
     },
 
     /* This function "zooms" to center of coordinates. It is important to
@@ -345,25 +356,6 @@ HTMLWidgets.widget({
             });
     },
 
-    /* Zoom to node.
-     */
-    zoom: function (node) {
-        var self = this,
-            ZOOM_DURATION = 500,
-            coords = [node.x, node.y, node.r * 2 + self.PAGE_MARGIN];
-        self.nodeInFocus = node;
-        d3.transition()
-            .duration(ZOOM_DURATION)
-            .tween("zoom", function () {
-                var interp = d3.interpolateZoom(self.currCoords, coords);
-                return function (t) {
-                    // `tween()` will handle the transition for us, so we can
-                    // pass `useTransition = false`.
-                    self.positionAndResizeNodes(interp(t), false);
-                };
-            });
-    },
-
     /* Update node's children depending on whether it is the new or old parent.
      */
     updateNodeChildren: function (node, oldParentID, newParentID) {
@@ -399,15 +391,41 @@ HTMLWidgets.widget({
         }
     },
 
-    removeNode: function (node, nodeToRemoveID, nodeToRemoveParentID) {
+    removeNode: function (n, nToRmID, nToRmParentID) {
         var newChildren = [];
-        if (node.id === nodeToRemoveParentID) {
-            node.children.forEach(function (child) {
-                if (child.id !== nodeToRemoveID) {
+        if (n.id === nToRmParentID) {
+            n.children.forEach(function (child) {
+                if (child.id !== nToRmID) {
                     newChildren.push(child);
                 }
             });
-            node.children = newChildren;
+            n.children = newChildren;
+        }
+    },
+
+    makeNewGroup: function (n, target) {
+        var self = this,
+            nIsTarget = n.id === target.data.id,
+            nIsSourceParent = n.id === self.source.parent.data.id,
+            newChildren;
+        if (nIsTarget) {
+            n.children.push({
+                id: self.getNewID(),
+                children: [self.source.data],
+                terms: []
+            });
+        }
+        // This is not an `else if` because the user can make a new group by
+        // selecting the source node's current parent as the target node. In
+        // this case, `n` can be both the target and the `source` parent.
+        if (nIsSourceParent) {
+            newChildren = [];
+            n.children.forEach(function (child) {
+                if (child.id !== self.source.data.id) {
+                    newChildren.push(child);
+                }
+            });
+            n.children = newChildren;
         }
     },
 
@@ -418,8 +436,8 @@ HTMLWidgets.widget({
      */
     colorNode: function (node, hover) {
         var self = this,
-            isSelNode = self.selNode
-                && self.selNode.data.id === node.data.id;
+            isSelNode = self.source
+                && self.source.data.id === node.data.id;
         if (isSelNode) {
             return "rgb(25, 101, 255)";  // Red.
         } else if (hover && node.depth !== 0) {
@@ -523,5 +541,18 @@ HTMLWidgets.widget({
             });
         }
         return rv;
+    },
+
+    /* Finds the maximum node ID and returns the next integer.
+     */
+    getNewID: function () {
+        var self = this,
+            maxId = 0;
+        self.traverseTree(self.data, function (node) {
+            if (node.id > maxId) {
+                maxId = node.id;
+            }
+        });
+        return maxId + 1;
     }
 });
