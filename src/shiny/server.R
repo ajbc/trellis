@@ -63,7 +63,19 @@ function(input, output) {
       parent.ids <- c(parent.ids, as.integer(ids[[2]]))
     }
 
-    return(parent.ids[order(node.ids)])
+    # adjust ids for missing/deleted clusters
+    # TODO: consider a more elegant solution (see also download)
+    for (i in seq(max(parent.ids))) {
+      # if this id doesn't exist, add a dummy one
+      if (sum(node.ids==i) == 0) {
+        node.ids <- c(node.ids, i)
+        parent.ids <- c(parent.ids, 0)
+      }
+    }
+
+    ids <- parent.ids[order(node.ids)]
+
+    return(ids)
   })
 
   n.nodes <- reactive({
@@ -184,6 +196,16 @@ function(input, output) {
 
       out <- data.frame(topic.id=seq(length(assignments())), parent.id=assignments(),
                         title=c(titles(), cluster.titles()))
+
+      # get rid of empty nodes
+      for (id in rev(out[out$parent.id == 0,]$topic.id)) {
+        if (nrow(out[out$parent.id == id,]) == 0) {
+          out[out$parent.id > id,]$parent.id <- out[out$parent.id > id,]$parent.id - 1
+          out[out$topic.id > id,]$topic.id <- out[out$topic.id > id,]$topic.id - 1
+          out <- out[-id,]
+        }
+      }
+
       write.csv(out, file, row.names = FALSE, quote=FALSE)
     }
   )
