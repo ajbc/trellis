@@ -186,6 +186,7 @@ HTMLWidgets.widget({
                 nClicks++;
                 if (nClicks === 1) {
                     timer = setTimeout(function () {
+                        debugger;
                         self.selectNode(d, makeNewGroup);
                         nClicks = 0;
                     }, DBLCLICK_DELAY);
@@ -287,24 +288,24 @@ HTMLWidgets.widget({
         var self = this,
             sourceExists = !!self.source,
             souceSelectedTwice,
-            moveGroup,
-            targetIsSourceParent,
-            isDisallowed;
+            notReallyAMove,
+            targetIsSourceChild;
 
         if (self.isRootNode(target)) {
             return;
         } else if (sourceExists) {
             souceSelectedTwice = self.source === target;
-            moveGroup = self.source.children
-                && self.source.children.length > 1;
-            targetIsSourceParent = self.source.parent === target;
-            isDisallowed = self.source.depth < target.depth;
+            targetIsSourceChild = self.aIsChildOfB(target, self.source);
+            notReallyAMove = self.isLeafNode(self.source)
+                && self.source.parent === target;
         }
 
         if (souceSelectedTwice) {
             self.setSource(null);
-        } else if (!sourceExists || self.isLeafNode(target)
-            || (!moveGroup && targetIsSourceParent) || isDisallowed) {
+        } else if (!sourceExists
+            || self.isLeafNode(target)
+            || targetIsSourceChild
+            || notReallyAMove) {
 
             self.setSource(target);
         } else {
@@ -662,11 +663,24 @@ HTMLWidgets.widget({
     /* Returns `true` if the node is a leaf node, `false` otherwise.
      */
     isLeafNode: function (d) {
-        if (d.data.children) {
-            return d.data.children.length > 1;
+        var hasChildren = typeof d.data.children !== 'undefined';
+        if (hasChildren) {
+            return d.data.children.length === 0;
         } else {
-            return false;
+            return true;
         }
+    },
+
+    aIsChildOfB: function (a, b) {
+        var result = false;
+        if (b && b.children) {
+            b.children.forEach(function (d) {
+                if (d.data.id === a.data.id) {
+                    result = true;
+                }
+            });
+        }
+        return result;
     },
 
     /* Returns `true` if the node is both in focus and a group rather than a
