@@ -159,21 +159,21 @@ HTMLWidgets.widget({
                 nClicks++;
                 if (nClicks === 1) {
                     timer = setTimeout(function () {
-                        // Single click: user selected a cluster.
-                        var userClickedSameNodeTwice = self.nodeInFocus === d,
-                            userClickedDiffNode = self.nodeInFocus !== d;
-                        if (self.isRoot(d) || userClickedSameNodeTwice) {
-                            self.zoom(root);
-                        } else if (userClickedDiffNode) {
-                            self.zoom(d);
-                        }
+                        self.selectCluster(d);
                         nClicks = 0;
                     }, DBLCLICK_DELAY);
                 } else {
                     // Double click: zoom.
                     clearTimeout(timer);
                     nClicks = 0;
-                    self.selectCluster(d);
+                    // Single click: user selected a cluster.
+                    var userClickedSameNodeTwice = self.nodeInFocus === d,
+                        userClickedDiffNode = self.nodeInFocus !== d;
+                    if (self.isRoot(d) || userClickedSameNodeTwice) {
+                        self.zoom(root);
+                    } else if (userClickedDiffNode) {
+                        self.zoom(d);
+                    }
                 }
             })
             .on("mouseover", function (d) {
@@ -235,13 +235,15 @@ HTMLWidgets.widget({
     selectCluster: function (target) {
         var self = this,
             isSource = !!self.source,
-            targetIsSource = target === self.source,
-            isLeafNode = typeof target.children === 'undefined';
-        if (self.isRoot(target)) {
+            sameSource = isSource && self.source.data.id === target.data.id,
+            isLeafNode = typeof target.children === 'undefined',
+            isIllegalMove = isSource && self.source.depth < target.depth,
+            isRoot = target.data.id === 'root';
+        if (isRoot) {
             return;
-        } else if (targetIsSource) {
+        } else if (sameSource) {
             self.source = null;
-        } else if (isSource || isLeafNode) {
+        } else if (!isSource || isLeafNode || isIllegalMove) {
             self.source = target;
         } else {
             self.moveNode(target);
