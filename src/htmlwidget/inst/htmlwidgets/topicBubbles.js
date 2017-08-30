@@ -108,7 +108,7 @@ HTMLWidgets.widget({
             self.reInitialize();
         } else {
             self.nClusters = self.data.children.length;
-            self.maxDepth = self.getDepth(self.data);
+            self.maxDepth = self.getMaxDepth(self.data);
             this.update(false);
         }
     },
@@ -159,24 +159,24 @@ HTMLWidgets.widget({
                 nClicks++;
                 if (nClicks === 1) {
                     timer = setTimeout(function () {
-                        var userClickedSameNodeTwice = self.nodeInFocus === d,
-                            userClickedDiffNode = self.nodeInFocus !== d;
-                        if (self.isRoot(d) || userClickedSameNodeTwice) {
-                            self.zoom(root);
-                        } else if (userClickedDiffNode) {
-                            self.zoom(d);
-                        }
+                        self.selectCluster(d);
                         nClicks = 0;
                     }, DBLCLICK_DELAY);
                 } else {
                     clearTimeout(timer);
                     nClicks = 0;
-                    self.selectCluster(d);
+                    var userClickedSameNodeTwice = self.nodeInFocus === d,
+                        userClickedDiffNode = self.nodeInFocus !== d;
+                    if (self.isRoot(d) || userClickedSameNodeTwice) {
+                        self.zoom(root);
+                    } else if (userClickedDiffNode) {
+                        self.zoom(d);
+                    }
                 }
             })
             .on("mouseover", function (d) {
                 //Shiny.onInputChange("hover", d.data.id);
-                if (self.isRoot(d)) {
+                if (self.isRoot(d) || self.isGroupInFocus(d)) {
                     return;
                 }
                 self.setLabelVisibility(d, true);
@@ -187,8 +187,8 @@ HTMLWidgets.widget({
                 }
                 self.setLabelVisibility(d, false);
             })
-            .style("fill", function (d) {
-                return self.colorNode.call(self, d);
+            .each(function(d) {
+                self.setCircleFill(d);
             });
 
         text = self.g.selectAll('text')
@@ -209,9 +209,7 @@ HTMLWidgets.widget({
                     len = d.data.terms.length;
                 d.data.terms.forEach(function (term, i) {
                     sel.append("tspan")
-                        .text(function () {
-                            return term;
-                        })
+                        .text(term)
                         .attr("x", 0)
                         .attr("text-anchor", "middle")
                         // This data is used for dynamic sizing of text.
@@ -234,24 +232,33 @@ HTMLWidgets.widget({
 
     selectCluster: function (target) {
         var self = this,
-            isSource = !!self.source,
-            sameSource = isSource && self.source.data.id === target.data.id,
-            isLeafNode = typeof target.children === 'undefined',
-            isIllegalMove = isSource && self.source.depth < target.depth,
-            isRoot = target.data.id === 'root';
-        if (isRoot) {
+            sourceExists = !!self.source,
+            targetIsLeaf = typeof target.children === 'undefined',
+            souceSelectedTwice,
+            moveGroup,
+            targetIsSourceParent,
+            isDisallowed;
+
+        if (self.isRoot(target)) {
             return;
-        } else if (sameSource) {
+        } else if (sourceExists) {
+            souceSelectedTwice = self.source === target;
+            moveGroup = self.source.children
+                && self.source.children.length > 1;
+            targetIsSourceParent = self.source.parent === target;
+            isDisallowed = self.source.depth < target.depth;
+        }
+
+        if (souceSelectedTwice) {
             self.setSource(null);
-        } else if (!isSource || isLeafNode || isIllegalMove) {
+        } else if (!sourceExists || targetIsLeaf
+            || (!moveGroup && targetIsSourceParent) || isDisallowed) {
+
             self.setSource(target);
         } else {
             self.moveNode(target);
             self.updateAssignments();
         }
-        d3.selectAll("circle").style("fill", function (d) {
-            return self.colorNode.call(self, d);
-        });
     },
 
     moveNode: function (target) {
@@ -273,8 +280,8 @@ HTMLWidgets.widget({
             } else {
                 oldParentID = self.source.data.id;
                 var nodesToMove = [];
-                self.source.children.forEach(function (node) {
-                    nodesToMove.push(node.data);
+                self.source.children.forEach(function (d) {
+                    nodesToMove.push(d.data);
                 });
                 self.nodesToMove = nodesToMove;
                 removeSource = true;
@@ -347,11 +354,11 @@ HTMLWidgets.widget({
 
     /* Zoom to node.
      */
-    zoom: function (node) {
+    zoom: function (d) {
         var self = this,
             ZOOM_DURATION = 500,
-            coords = [node.x, node.y, node.r * 2 + self.PAGE_MARGIN];
-        self.nodeInFocus = node;
+            coords = [d.x, d.y, d.r * 2 + self.PAGE_MARGIN];
+        self.nodeInFocus = d;
         d3.transition()
             .duration(ZOOM_DURATION)
             .tween("zoom", function () {
@@ -366,69 +373,109 @@ HTMLWidgets.widget({
 
     /* Update node's children depending on whether it is the new or old parent.
      */
-    updateNodeChildren: function (node, oldParentID, newParentID) {
+    updateNodeChildren: function (n, oldParentID, newParentID) {
         var self = this,
             newChildren;
 
         // Remove nodes-to-move from old parent.
-        if (node.id === oldParentID) {
+        if (n.id === oldParentID) {
             // In this scenario, the user selected a leaf node
             // Remove `nodesToMove` from old parent.
             if (self.nodesToMove.length === 1) {
                 newChildren = [];
-                node.children.forEach(function (child) {
+                n.children.forEach(function (child) {
                     if (child.id !== self.nodesToMove[0].id) {
                         newChildren.push(child);
                     }
                 });
-                node.children = newChildren;
+                n.children = newChildren;
             }
             // In this scenario, the user selected a group of topics;
             // `oldParentID` refers to the selected group; and we're moving all
             // of that group's children.
             else {
-                node.children = [];
+                n.children = [];
             }
         }
 
         // Add nodes-to-move to new parent.
-        else if (node.id === newParentID) {
+        else if (n.id === newParentID) {
             self.nodesToMove.forEach(function (nodeToMove) {
-                node.children.push(nodeToMove);
+                n.children.push(nodeToMove);
             });
         }
     },
 
-    removeNode: function (node, nodeToRemoveID, nodeToRemoveParentID) {
+    removeNode: function (n, nodeToRemoveID, nodeToRemoveParentID) {
         var newChildren = [];
-        if (node.id === nodeToRemoveParentID) {
-            node.children.forEach(function (child) {
+        if (n.id === nodeToRemoveParentID) {
+            n.children.forEach(function (child) {
                 if (child.id !== nodeToRemoveID) {
                     newChildren.push(child);
                 }
             });
-            node.children = newChildren;
+            n.children = newChildren;
         }
     },
 
 // Helper functions.
 //------------------------------------------------------------------------------
 
-    /* Helper function to correctly color any node.
+    /* Sets `source` with new value, resetting and setting circle and label fill
+     * and visibility.
      */
-    colorNode: function (node) {
+    setSource: function (newVal) {
+        var self = this,
+            oldVal = self.source;
+        self.source = newVal;
+        if (oldVal) {
+            self.setLabelVisibility(oldVal);
+            self.setCircleFill(oldVal);
+        }
+        if (newVal) {
+            self.setLabelVisibility(self.source);
+            self.setCircleFill(self.source);
+        }
+    },
+
+    /* Correctly color any node.
+     */
+    setCircleFill: function (d) {
         var self = this,
             isfirstSelNode = self.source
-                && self.source.data.id === node.data.id,
-            color;
+                && self.source.data.id === d.data.id,
+            borderColor = null,
+            fillColor;
         if (isfirstSelNode) {
-            return "rgb(25, 101, 255)";  // Red.
-        } else if (node.children) {
-            return self.colorMap(node.depth);
+            borderColor = "rgb(12, 50, 127)";
+            fillColor = "rgb(25, 101, 255)";
+        } else if (d.children) {
+            fillColor = self.colorMap(d.depth);
         } else {
-            return "rgb(255, 255, 255)";
+            fillColor = "rgb(255, 255, 255)";
         }
+        d3.select("#node-" + d.data.id)
+            .style("fill", fillColor)
+            .style("stroke", borderColor)
+            .style("stroke-width", 2);
+    },
 
+    /* Correctly label any node.
+     */
+    setLabelVisibility: function (d, hover) {
+        var self = this,
+            dIsSource = self.source && d.data.id === self.source.data.id,
+            parentInFocus = d && d.depth === self.nodeInFocus.depth + 1,
+            isLeaf = d && (!d.children || (d.children && d.children.length === 1)),
+            isInFocus = d && d === self.nodeInFocus,
+            zoomedOnLeaf = isInFocus && isLeaf && !self.isRoot(d),
+            label = d3.select('#label-' + d.data.id);
+
+        if (dIsSource || parentInFocus || hover || zoomedOnLeaf) {
+            label.style("display", "inline");
+        } else {
+            label.style("display", "none");
+        }
     },
 
     /* Traverse the underlying tree data structure and apply a callback
@@ -524,13 +571,13 @@ HTMLWidgets.widget({
         return rv;
     },
 
-    getDepth: function (obj) {
+    getMaxDepth: function (obj) {
         var self = this,
             depth = 0,
             tmpDepth;
         if (obj.children) {
             obj.children.forEach(function (d) {
-                tmpDepth = self.getDepth(d);
+                tmpDepth = self.getMaxDepth(d);
                 if (tmpDepth > depth) {
                     depth = tmpDepth;
                 }
@@ -539,31 +586,14 @@ HTMLWidgets.widget({
         return 1 + depth;
     },
 
-    setLabelVisibility: function (d, hover) {
-        var self = this,
-            sourceSel = !!self.source,
-            dIsSource = sourceSel && d.data.id === self.source.data.id,
-            parentInFocus = d.depth === self.nodeInFocus.depth + 1,
-            label = d3.select('#label-' + d.data.id);
-        if (dIsSource || parentInFocus || hover) {
-            label.style("display", "inline");
-        } else {
-            label.style("display", "none");
-        }
-    },
-
     isRoot: function (d) {
         return d.data.id === "root";
     },
 
-    setSource: function (val) {
+    isGroupInFocus: function (d) {
         var self = this,
-            isSource = !!self.source,
-            label;
-        if (isSource) {
-            self.setLabelVisibility(self.source);
-        }
-        self.source = val;
-        self.setLabelVisibility(self.source);
+            isInFocus = d === self.nodeInFocus,
+            isGroup = d.data.children && d.data.children.length > 1;
+        return isInFocus && isGroup;
     }
 });
