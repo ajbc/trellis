@@ -175,14 +175,16 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function (d) {
-                Shiny.onInputChange("hover", d.data.id);
+                var displayid = !self.selNode ? "" : self.selNode.data.id;
+                Shiny.onInputChange("active", d.data.id === 'root' ? displayid : d.data.id);
                 if (self.isRoot(d) || self.isGroupInFocus(d)) {
                     return;
                 }
                 self.setLabelVisibility(d, true);
             })
             .on("mouseout", function (d) {
-                Shiny.onInputChange("hover", d.data.id);
+                Shiny.onInputChange("active",
+                  !self.selNode ? "" : self.selNode.data.id);
                 if (self.isRoot(d)) {
                     return;
                 }
