@@ -181,13 +181,13 @@ HTMLWidgets.widget({
                 nClicks++;
                 if (nClicks === 1) {
                     timer = setTimeout(function () {
-                        self.selectNode(d, makeNewGroup);
                         nClicks = 0;
+                        self.zoom(root, d);
                     }, DBLCLICK_DELAY);
                 } else {
                     clearTimeout(timer);
                     nClicks = 0;
-                    self.zoom(root, d);
+                    self.selectNode(d, makeNewGroup);
                 }
             })
             .on("mouseover", function (d) {
