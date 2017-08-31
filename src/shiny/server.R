@@ -125,6 +125,13 @@ function(input, output) {
     #write assignemnts to topics text file
   })
 
+  observeEvent(input$topics, {
+    if (is.null(data()))
+      return(NULL)
+
+    js$updateTitles(cluster.titles())
+  })
+
   bubbles.data <- reactive({
     if (is.null(data()))
       return(NULL)
