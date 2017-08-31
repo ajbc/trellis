@@ -135,7 +135,7 @@ HTMLWidgets.widget({
         }
     },
 
-    update: function (useTransition) {
+    update: function (useTransition, makeNewGroup) {
         var self = this,
             nClicks = 0,
             DBLCLICK_DELAY = 300,
@@ -192,7 +192,7 @@ HTMLWidgets.widget({
             })
             .on("mouseover", function (d) {
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id;
-                Shiny.onInputChange("active", d.data.id === 'root' ? displayID : d.data.id);
+                //Shiny.onInputChange("active", d.data.id === 'root' ? displayID : d.data.id);
                 if (self.isRootNode(d) || self.isGroupInFocus(d)) {
                     return;
                 }
@@ -200,7 +200,7 @@ HTMLWidgets.widget({
             })
             .on("mouseout", function (d) {
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id;
-                Shiny.onInputChange("active", displayID);
+                //Shiny.onInputChange("active", displayID);
                 if (self.isRootNode(d)) {
                     return;
                 }
@@ -241,6 +241,15 @@ HTMLWidgets.widget({
         circles.order().raise();
         text.order().raise();
         self.sortNodesBasedOnTree();
+
+        // D3 only updates nodes created by new data. But this means that when
+        // a node is moved into a newly created group, its depth property is
+        // wrong. Here, we just reset all the colors.
+        if (makeNewGroup) {
+            d3.selectAll('circle').each(function (d) {
+                self.setCircleFill(d);
+            });
+        }
 
         self.positionAndResizeNodes(
             [root.x, root.y, root.r * 2 + self.PAGE_MARGIN],
@@ -327,7 +336,6 @@ HTMLWidgets.widget({
         }
 
         if (makeNewGroup) {
-            debugger;
             self.createNewGroup(targetD, self.sourceD);
             self.removeChildDFromParent(self.sourceD);
         } else {
@@ -350,8 +358,9 @@ HTMLWidgets.widget({
             }
         }
 
+        var tempD = self.sourceD;
         self.setSource(null);
-        self.update(true);
+        self.update(true, makeNewGroup);
     },
 
     /* This function "zooms" to center of coordinates. It is important to
@@ -577,7 +586,7 @@ HTMLWidgets.widget({
     updateAssignments: function () {
         var self = this,
             root = d3.hierarchy(self.treeData);
-        Shiny.onInputChange("topics", self.findAssignments(root));
+        //Shiny.onInputChange("topics", self.findAssignments(root));
     },
 
     /* Helper function to add hierarchical structure to data.
