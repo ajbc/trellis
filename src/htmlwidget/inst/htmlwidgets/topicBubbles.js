@@ -46,15 +46,6 @@ HTMLWidgets.widget({
     // The first node the user clicks in the move process.
     source: null,
 
-    // An array of the nodes that the user intends to move. If `source` is a
-    // leaf, then `nodesToMove` is an array with just `source`. Otherwise,
-    // `nodesToMove` is an array with `source`'s children.
-    nodesToMove: null,
-
-    // The parent of the node the user wants to move or merge with `source`.
-    // It will become the new parent for either `source` or `source`'s children.
-    newParent: null,
-
     // Used for things like deciding whether to zoom in or out or whether or not
     // to show a label.
     nodeInFocus: null,
@@ -70,7 +61,7 @@ HTMLWidgets.widget({
     // The raw tree data and final arbiter of node relationships. It is
     // converted to hierarchical data using `d3.hierarchy` and this resulting
     // data structure is what backs the visualization.
-    data: null,
+    treeData: null,
 
 
 // Main functions.
@@ -133,13 +124,13 @@ HTMLWidgets.widget({
         var self = this,
             nGroupsChanged;
 
-        self.data = self.getTreeFromRawData(rawData);
+        self.treeData = self.getTreeFromRawData(rawData);
         nGroupsChanged = self.nGroups !== null
-            && self.nGroups !== self.data.children.length;
+            && self.nGroups !== self.treeData.children.length;
         if (nGroupsChanged) {
             self.reInitialize();
         } else {
-            self.nGroups = self.data.children.length;
+            self.nGroups = self.treeData.children.length;
             this.update(false);
         }
     },
@@ -154,7 +145,7 @@ HTMLWidgets.widget({
             text,
             timer;
 
-        root = d3.hierarchy(self.data)
+        root = d3.hierarchy(self.treeData)
             .sum(function (n) {
                 return n.weight;
             })
@@ -163,6 +154,7 @@ HTMLWidgets.widget({
             });
         nodes = self.pack(root).descendants();
         self.nodeInFocus = nodes[0];
+        self.mapData = self.getMapData();
 
         circles = self.g.selectAll('circle')
             .data(nodes, self.identity);
@@ -320,8 +312,8 @@ HTMLWidgets.widget({
             sourceIsLeaf = self.isLeafNode(self.source),
             mergingNodes = !sourceIsLeaf && self.source.children.length > 1,
             sameParentSel = self.source.parent === target,
-            newParentID,
-            oldParentID,
+            oldParent,
+            nodesToMove,
             removeSource;
 
         if (targetIsSource || (sameParentSel && !mergingNodes && !makeNewGroup)) {
@@ -330,41 +322,29 @@ HTMLWidgets.widget({
         }
 
         if (makeNewGroup) {
-            self.traverseTree(self.data, function (n) {
-                self.makeNewGroup(n, target);
-            });
-            debugger;
+            self.makeNewGroup(target);
+            self.removeChildFromParent(self.source);
         } else {
-            self.newParent = target;
-            newParentID = self.newParent.data.id;
             if (sourceIsLeaf) {
-                oldParentID = self.source.parent.data.id;
-                self.nodesToMove = [self.source.data];
+                nodesToMove = [self.source.data];
+                oldParent = self.source.parent.data;
                 removeSource = false;
             } else {
-                oldParentID = self.source.data.id;
-                var nodesToMove = [];
+                nodesToMove = [];
                 self.source.children.forEach(function (d) {
                     nodesToMove.push(d.data);
                 });
-                self.nodesToMove = nodesToMove;
+                oldParent = self.source.data;
                 removeSource = true;
             }
 
-            self.traverseTree(self.data, function (n) {
-                self.updateNodeChildren(n, oldParentID, newParentID);
-            });
-
+            self.updateNodesToMove(nodesToMove, oldParent, target.data);
             if (removeSource) {
-                self.traverseTree(self.data, function (n) {
-                    self.removeNode(n, self.source.data.id, self.source.parent.data.id);
-                });
+                self.removeChildFromParent(self.source);
             }
         }
 
         self.setSource(null);
-        self.nodesToMove = null;
-        self.newParent = null;
         self.update(true);
     },
 
@@ -418,79 +398,50 @@ HTMLWidgets.widget({
 
     /* Update node's children depending on whether it is the new or old parent.
      */
-    updateNodeChildren: function (n, oldParentID, newParentID) {
+    updateNodesToMove: function (nodesToMove, oldParentN, newParentN) {
         var self = this,
-            newChildren;
+            newChildren = [];
 
         // Remove nodes-to-move from old parent.
-        if (n.id === oldParentID) {
-            // In this scenario, the user selected a leaf node
-            // Remove `nodesToMove` from old parent.
-            if (self.nodesToMove.length === 1) {
-                newChildren = [];
-                n.children.forEach(function (child) {
-                    if (child.id !== self.nodesToMove[0].id) {
-                        newChildren.push(child);
-                    }
-                });
-                n.children = newChildren;
-            }
-            // In this scenario, the user selected a group of topics;
-            // `oldParentID` refers to the selected group; and we're moving all
-            // of that group's children.
-            else {
-                n.children = [];
-            }
-        }
-
-        // Add nodes-to-move to new parent.
-        else if (n.id === newParentID) {
-            self.nodesToMove.forEach(function (nodeToMove) {
-                n.children.push(nodeToMove);
-            });
-        }
-    },
-
-    /* Remove node from parent if it meets criteria.
-     */
-    removeNode: function (n, nToRmID, nToRmParentID) {
-        var newChildren = [];
-        if (n.id === nToRmParentID) {
-            n.children.forEach(function (child) {
-                if (child.id !== nToRmID) {
+        if (nodesToMove.length === 1) {
+            oldParentN.children.forEach(function (child) {
+                if (child.id !== nodesToMove[0].id) {
                     newChildren.push(child);
                 }
             });
-            n.children = newChildren;
+            oldParentN.children = newChildren;
+        } else {
+            // In this scenario, the user selected a group of topics
+            // (`oldParent`), and we're moving all of that group's children.
+            oldParentN.children = [];
         }
+
+        // Add nodes-to-move to new parent.
+        nodesToMove.forEach(function (nodeToMove) {
+            newParentN.children.push(nodeToMove);
+        });
+    },
+
+    removeChildFromParent: function (child) {
+        var self = this,
+            newChildren = [];
+        child.parent.children.forEach(function (n) {
+            if (n.id !== child.id) {
+                newChildren.push(n);
+            }
+        });
+        child.parent.children = newChildren;
     },
 
     /* Make new group with `target` if node meets criteria.
      */
-    makeNewGroup: function (n, target) {
-        var self = this,
-            nIsTarget = n === target.data,
-            nIsSourceParent = n === self.source.parent.data,
-            newChildren;
-        if (nIsTarget) {
-            n.children.push({
-                id: self.getNewID(),
-                children: [self.source.data],
-                terms: []
-            });
-        }
-        // This is not an `else if` because the user can make a new group by
-        // selecting the source node's current parent as the target node. In
-        // this case, `n` can be both the target and the `source` parent.
-        if (nIsSourceParent) {
-            newChildren = [];
-            n.children.forEach(function (child) {
-                if (child !== self.source.data) {
-                    newChildren.push(child);
-                }
-            });
-            n.children = newChildren;
-        }
+    makeNewGroup: function (target) {
+        var self = this;
+        target.children.push({
+            id: self.getNewID(),
+            children: [self.source.data],
+            terms: []
+        });
     },
 
     /* Sets `source` with new value, resetting and setting circle and label fill
@@ -594,6 +545,15 @@ HTMLWidgets.widget({
         return data;
     },
 
+    getMapData: function () {
+        var self = this,
+            mapData = {};
+        self.traverseTree(self.treeData, function (n) {
+            mapData[n.id] = n;
+        });
+        return mapData;
+    },
+
     /* Helper function for updateAssignments
      */
     findAssignments: function (n) {
@@ -618,7 +578,7 @@ HTMLWidgets.widget({
      */
     updateAssignments: function () {
         var self = this,
-            root = d3.hierarchy(self.data);
+            root = d3.hierarchy(self.treeData);
         //Shiny.onInputChange("topics", self.findAssignments(root));
     },
 
@@ -647,7 +607,7 @@ HTMLWidgets.widget({
     getNewID: function () {
         var self = this,
             maxID = 0;
-        self.traverseTree(self.data, function (n) {
+        self.traverseTree(self.treeData, function (n) {
             if (n.id > maxID) {
                 maxID = n.id;
             }
@@ -706,7 +666,7 @@ HTMLWidgets.widget({
         var self = this,
             childNode,
             parentNode;
-        self.traverseTree(self.data, function (n) {
+        self.traverseTree(self.treeData, function (n) {
             if (n.children) {
                 n.children.forEach(function (child) {
                     childNode = document.getElementById('node-' + child.id);
