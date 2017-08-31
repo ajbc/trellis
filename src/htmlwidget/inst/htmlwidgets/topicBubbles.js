@@ -147,6 +147,9 @@ HTMLWidgets.widget({
         circles.enter()
             .append('circle')
             .attr("class", "node")
+            .attr("weight", function (d) {
+                return d.data.weight ? d.data.weight : -1;
+            })
             .attr("id", function (d) {
                 return 'node-' + d.data.id;
             })
@@ -175,16 +178,16 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function (d) {
-                var displayid = !self.selNode ? "" : self.selNode.data.id;
-                Shiny.onInputChange("active", d.data.id === 'root' ? displayid : d.data.id);
+                //var displayid = !self.source ? "" : self.source.data.id;
+                //Shiny.onInputChange("active", d.data.id === 'root' ? displayid : d.data.id);
                 if (self.isRoot(d) || self.isGroupInFocus(d)) {
                     return;
                 }
                 self.setLabelVisibility(d, true);
             })
             .on("mouseout", function (d) {
-                Shiny.onInputChange("active",
-                  !self.selNode ? "" : self.selNode.data.id);
+                //Shiny.onInputChange("active",
+                //  !self.source ? "" : self.source.data.id);
                 if (self.isRoot(d)) {
                     return;
                 }
@@ -270,34 +273,31 @@ HTMLWidgets.widget({
                 || (self.source.children.length > 1),
             targetIsLeaf = typeof self.source.children === 'undefined',
             newParentID,
-            oldParentID,
-            removeSource;
+            oldParent;
 
         if (newParentNodeSelected) {
             self.newParent = target;
             newParentID = self.newParent.data.id;
             if (targetIsLeaf) {
-                oldParentID = self.source.parent.data.id;
+                oldParent = self.source.parent;
                 self.nodesToMove = [self.source.data];
-                removeSource = false;
             } else {
-                oldParentID = self.source.data.id;
+                oldParent = self.source;
                 var nodesToMove = [];
                 self.source.children.forEach(function (d) {
                     nodesToMove.push(d.data);
                 });
                 self.nodesToMove = nodesToMove;
-                removeSource = true;
             }
 
             self.traverseTree(self.data, function (n) {
-                self.updateNodeChildren(n, oldParentID, newParentID);
+                self.updateNodeChildren(n, oldParent.data.id, newParentID);
             });
 
-            if (removeSource) {
-                self.traverseTree(self.data, function (n) {
-                    self.removeNode(n, self.source.data.id, self.source.parent.data.id);
-                });
+            if (targetIsLeaf) {
+                self.cleanUpAncestors(oldParent);
+            } else {
+                self.removeSourceNode();
             }
 
             self.setSource(null);
@@ -551,7 +551,7 @@ HTMLWidgets.widget({
 
         var root = d3.hierarchy(self.data);
 
-        Shiny.onInputChange("topics", self.findAssignments(root));
+        //Shiny.onInputChange("topics", self.findAssignments(root));
     },
 
     /* Helper function to add hierarchical structure to data.
@@ -598,5 +598,40 @@ HTMLWidgets.widget({
             isInFocus = d === self.nodeInFocus,
             isGroup = d.data.children && d.data.children.length > 1;
         return isInFocus && isGroup;
+    },
+
+    cleanUpAncestors: function (oldParent) {
+        var self = this,
+            removeNode;
+        self.traverseTree(self.data, function (n) {
+            if (n.id === oldParent.data.id) {
+                // The node has no children. Just remove.
+                removeNode = !n.children || n.children.length === 0;
+            }
+        });
+        if (removeNode) {
+            self.traverseTree(self.data, function (n) {
+                var newChildren;
+                if (n.id === oldParent.parent.data.id) {
+                    newChildren = [];
+                    n.children.forEach(function (child) {
+                        if (child.id !== oldParent.data.id) {
+                            newChildren.push(child);
+                        }
+                    });
+                    n.children = newChildren;
+                }
+            });
+        }
+        if (oldParent.parent) {
+            self.cleanUpAncestors(oldParent.parent);
+        }
+    },
+
+    removeSourceNode: function () {
+        var self = this;
+        self.traverseTree(self.data, function (n) {
+            self.removeNode(n, self.source.data.id, self.source.parent.data.id);
+        });
     }
 });
