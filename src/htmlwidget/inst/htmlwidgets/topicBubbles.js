@@ -178,16 +178,16 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function (d) {
-                //var displayid = !self.source ? "" : self.source.data.id;
-                //Shiny.onInputChange("active", d.data.id === 'root' ? displayid : d.data.id);
+                var displayID = !self.source ? "" : self.source.data.id;
+                Shiny.onInputChange("active", d.data.id === 'root' ? displayID : d.data.id);
                 if (self.isRoot(d) || self.isGroupInFocus(d)) {
                     return;
                 }
                 self.setLabelVisibility(d, true);
             })
             .on("mouseout", function (d) {
-                //Shiny.onInputChange("active",
-                //  !self.source ? "" : self.source.data.id);
+                var displayID = !self.source ? "" : self.source.data.id;
+                Shiny.onInputChange("active", displayID);
                 if (self.isRoot(d)) {
                     return;
                 }
@@ -551,7 +551,7 @@ HTMLWidgets.widget({
 
         var root = d3.hierarchy(self.data);
 
-        //Shiny.onInputChange("topics", self.findAssignments(root));
+        Shiny.onInputChange("topics", self.findAssignments(root));
     },
 
     /* Helper function to add hierarchical structure to data.
