@@ -460,7 +460,7 @@ HTMLWidgets.widget({
         newGroupD.data.children.push({
             id: self.getNewID(),
             children: [childD.data],
-            terms: []
+            terms: childD.data.terms
         });
     },
 
