@@ -192,7 +192,7 @@ HTMLWidgets.widget({
             })
             .on("mouseover", function (d) {
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id;
-                //Shiny.onInputChange("active", d.data.id === 'root' ? displayID : d.data.id);
+                Shiny.onInputChange("active", d.data.id === 'root' ? displayID : d.data.id);
                 if (self.isRootNode(d) || self.isGroupInFocus(d)) {
                     return;
                 }
@@ -200,7 +200,7 @@ HTMLWidgets.widget({
             })
             .on("mouseout", function (d) {
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id;
-                //Shiny.onInputChange("active", displayID);
+                Shiny.onInputChange("active", displayID);
                 if (self.isRootNode(d)) {
                     return;
                 }
@@ -591,7 +591,7 @@ HTMLWidgets.widget({
     updateAssignments: function () {
         var self = this,
             root = d3.hierarchy(self.treeData);
-        //Shiny.onInputChange("topics", self.findAssignments(root));
+        Shiny.onInputChange("topics", self.findAssignments(root));
     },
 
     /* Helper function to add hierarchical structure to data.
