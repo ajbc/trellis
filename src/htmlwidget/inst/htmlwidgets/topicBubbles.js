@@ -240,6 +240,10 @@ HTMLWidgets.widget({
 
         circles.order().raise();
         text.order().raise();
+
+        // This is needed because SVG elements are displayed not based on a
+        // tunable Z-index but based on their location in the DOM. This function
+        // correctly sorts the nodes based on `treeData`.
         self.sortNodesBasedOnTree();
 
         // D3 only updates nodes created by new data. But this means that when
@@ -671,9 +675,7 @@ HTMLWidgets.widget({
         return d.data.id;
     },
 
-    /* Walks the tree data and moves each node after its parent. This is needed
-     * because SVG elements are displayed not based on a tunable Z-index but
-     * based on their location in the DOM.
+    /* Walks the tree data and moves each node after its parent.
      */
     sortNodesBasedOnTree: function () {
         var self = this,
