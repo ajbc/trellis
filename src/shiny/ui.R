@@ -21,8 +21,8 @@ fluidPage(
   includeCSS("www/styling.css"),
   #tags$script(src="https://d3js.org/d3.v3.min.js"),
   #tags$script(src="bubbles.js"),
-  #useShinyjs(),
-  #extendShinyjs(script="www/bubbles.js"),
+  useShinyjs(),
+  extendShinyjs(script="www/bubbles.js"),
   sidebarLayout(
     sidebarPanel(width=3,
       titlePanel("Topic Aggregation"),
