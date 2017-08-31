@@ -509,13 +509,14 @@ HTMLWidgets.widget({
         var self = this,
             dIs = !!d,
             dIsSource = dIs && self.sourceD && d.data.id === self.sourceD.data.id,
+            dInFocus = dIs && d === self.nodeInFocus,
             parentInFocus = dIs && d.depth === self.nodeInFocus.depth + 1,
             isLeaf = dIs && self.isLeafNode(d),
             isInFocus = dIs && d === self.nodeInFocus,
             zoomedOnLeaf = isInFocus && isLeaf && !self.isRootNode(d),
             label = d3.select('#label-' + d.data.id);
 
-        if (dIsSource || parentInFocus || hover || zoomedOnLeaf) {
+        if ((dIsSource && !dInFocus) || parentInFocus || hover || zoomedOnLeaf) {
             label.style("display", "inline");
         } else {
             label.style("display", "none");
