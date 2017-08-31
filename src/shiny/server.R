@@ -133,7 +133,7 @@ function(input, output) {
     rv <- data.frame(parentID=c(rep(0, input$num.clusters), kmeans.fit()$cluster + K()),
                      nodeID=c(seq(K()+1,K()+input$num.clusters), seq(K())),
                      weight=c(rep(0, input$num.clusters), colSums(data()$model$theta)),
-                     title=c(rep("", input$num.clusters), titles()))
+                     title=c(isolate(cluster.titles()), titles()))
 
     return(rv)
   })
