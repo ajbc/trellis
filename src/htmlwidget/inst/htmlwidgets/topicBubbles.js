@@ -44,7 +44,7 @@ HTMLWidgets.widget({
     FONT_SIZE: 11,
 
     // The first node the user clicks in the move process.
-    source: null,
+    sourceD: null,
 
     // Used for things like deciding whether to zoom in or out or whether or not
     // to show a label.
@@ -191,7 +191,7 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function (d) {
-                var displayID = !self.source ? "" : self.source.data.id;
+                var displayID = !self.sourceD ? "" : self.sourceD.data.id;
                 //Shiny.onInputChange("active", d.data.id === 'root' ? displayID : d.data.id);
                 if (self.isRootNode(d) || self.isGroupInFocus(d)) {
                     return;
@@ -199,7 +199,7 @@ HTMLWidgets.widget({
                 self.setLabelVisibility(d, true);
             })
             .on("mouseout", function (d) {
-                var displayID = !self.source ? "" : self.source.data.id;
+                var displayID = !self.sourceD ? "" : self.sourceD.data.id;
                 //Shiny.onInputChange("active", displayID);
                 if (self.isRootNode(d)) {
                     return;
@@ -238,8 +238,8 @@ HTMLWidgets.widget({
                 });
             });
 
-        //circles.order().raise();
-        //text.order().raise();
+        circles.order().raise();
+        text.order().raise();
         self.sortNodesBasedOnTree();
 
         self.positionAndResizeNodes(
@@ -280,42 +280,44 @@ HTMLWidgets.widget({
             });
     },
 
-    selectNode: function (target, makeNewGroup) {
+    selectNode: function (targetD, makeNewGroup) {
         var self = this,
-            sourceExists = !!self.source,
+            sourceExists = !!self.sourceD,
             souceSelectedTwice,
             notReallyAMove,
             targetIsSourceChild;
 
-        if (self.isRootNode(target)) {
+        if (self.isRootNode(targetD)) {
             return;
         } else if (sourceExists) {
-            souceSelectedTwice = self.source === target;
-            targetIsSourceChild = self.aIsChildOfB(target, self.source);
-            notReallyAMove = self.isLeafNode(self.source)
-                && self.source.parent === target;
+            souceSelectedTwice = self.sourceD === targetD;
+            targetIsSourceChild = self.aIsChildOfB(targetD, self.sourceD);
+            notReallyAMove = self.isLeafNode(self.sourceD)
+                && self.sourceD.parent === targetD;
         }
 
         if (souceSelectedTwice) {
             self.setSource(null);
         } else if (!sourceExists
-            || self.isLeafNode(target)
+            || self.isLeafNode(targetD)
             || targetIsSourceChild
             || notReallyAMove) {
 
-            self.setSource(target);
+            self.setSource(targetD);
         } else {
-            self.moveOrMerge(target, makeNewGroup);
+            self.moveOrMerge(targetD, makeNewGroup);
             self.updateAssignments();
         }
     },
 
-    moveOrMerge: function (target, makeNewGroup) {
+    /* Move or merge source node with target node.
+     */
+    moveOrMerge: function (targetD, makeNewGroup) {
         var self = this,
-            sourceIsLeaf = self.isLeafNode(self.source),
-            targetIsSource = self.source.data.id === target.data.id,
-            mergingNodes = self.source.children && self.source.children.length > 1,
-            sameParentSel = self.source.parent === target,
+            sourceIsLeaf = self.isLeafNode(self.sourceD),
+            targetIsSource = self.sourceD.data.id === targetD.data.id,
+            mergingNodes = self.sourceD.children && self.sourceD.children.length > 1,
+            sameParentSel = self.sourceD.parent === targetD,
             oldParentD,
             nsToMove;
 
@@ -325,27 +327,26 @@ HTMLWidgets.widget({
         }
 
         if (makeNewGroup) {
-            self.makeNewGroup(target);
-            self.removeChildDFromParent(self.source);
+            debugger;
+            self.createNewGroup(targetD, self.sourceD);
+            self.removeChildDFromParent(self.sourceD);
         } else {
             if (sourceIsLeaf) {
-                nsToMove = [self.source.data];
-                oldParentD = self.source.parent;
+                nsToMove = [self.sourceD.data];
+                oldParentD = self.sourceD.parent;
             } else {
                 nsToMove = [];
-                self.source.children.forEach(function (d) {
+                self.sourceD.children.forEach(function (d) {
                     nsToMove.push(d.data);
                 });
-                oldParentD = self.source;
+                oldParentD = self.sourceD;
             }
 
-            self.updateNsToMove(nsToMove, oldParentD, target);
+            self.updateNsToMove(nsToMove, oldParentD, targetD);
             if (sourceIsLeaf) {
-                debugger;
-                self.cleanUpAncestors(oldParentD);
+                self.cleanUpEmptyGroups(oldParentD);
             } else {
-                debugger;
-                self.removeChildDFromParent(self.source);
+                self.removeChildDFromParent(self.sourceD);
             }
         }
 
@@ -427,6 +428,8 @@ HTMLWidgets.widget({
         });
     },
 
+    /* Removes child node from its parent.
+     */
     removeChildDFromParent: function (childD) {
         var newChildren = [];
         childD.parent.data.children.forEach(function (n) {
@@ -439,11 +442,11 @@ HTMLWidgets.widget({
 
     /* Make new group with `target` if node meets criteria.
      */
-    makeNewGroup: function (target) {
+    createNewGroup: function (newGroupD, childD) {
         var self = this;
-        target.children.push({
+        newGroupD.data.children.push({
             id: self.getNewID(),
-            children: [self.source.data],
+            children: [childD.data],
             terms: []
         });
     },
@@ -453,15 +456,15 @@ HTMLWidgets.widget({
      */
     setSource: function (newVal) {
         var self = this,
-            oldVal = self.source;
-        self.source = newVal;
+            oldVal = self.sourceD;
+        self.sourceD = newVal;
         if (oldVal) {
             self.setLabelVisibility(oldVal);
             self.setCircleFill(oldVal);
         }
         if (newVal) {
-            self.setLabelVisibility(self.source);
-            self.setCircleFill(self.source);
+            self.setLabelVisibility(self.sourceD);
+            self.setCircleFill(self.sourceD);
         }
     },
 
@@ -469,8 +472,8 @@ HTMLWidgets.widget({
      */
     setCircleFill: function (d) {
         var self = this,
-            isfirstSelNode = self.source
-                && self.source.data.id === d.data.id,
+            isfirstSelNode = self.sourceD
+                && self.sourceD.data.id === d.data.id,
             borderColor = null,
             fillColor;
         if (isfirstSelNode) {
@@ -492,7 +495,7 @@ HTMLWidgets.widget({
     setLabelVisibility: function (d, hover) {
         var self = this,
             dIs = !!d,
-            dIsSource = dIs && self.source && d.data.id === self.source.data.id,
+            dIsSource = dIs && self.sourceD && d.data.id === self.sourceD.data.id,
             parentInFocus = dIs && d.depth === self.nodeInFocus.depth + 1,
             isLeaf = dIs && self.isLeafNode(d),
             isInFocus = dIs && d === self.nodeInFocus,
@@ -627,11 +630,13 @@ HTMLWidgets.widget({
         }
     },
 
-    aIsChildOfB: function (a, b) {
+    /* Returns true if node `a` is a child node of `b`.
+     */
+    aIsChildOfB: function (aD, bD) {
         var result = false;
-        if (b && b.children) {
-            b.children.forEach(function (d) {
-                if (d.data.id === a.data.id) {
+        if (bD && bD.data.children) {
+            bD.children.forEach(function (d) {
+                if (d.data.id === aD.data.id) {
                     result = true;
                 }
             });
@@ -657,35 +662,45 @@ HTMLWidgets.widget({
         return d.data.id;
     },
 
+    /* Walks the tree data and moves each node after its parent. This is needed
+     * because SVG elements are displayed not based on a tunable Z-index but
+     * based on their location in the DOM.
+     */
     sortNodesBasedOnTree: function () {
         var self = this,
             childNode,
             parentNode;
+
+        function insertAfter(newNode, referenceNode) {
+            referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
+        }
+
         self.traverseTree(self.treeData, function (n) {
             if (n.children) {
                 n.children.forEach(function (child) {
                     childNode = document.getElementById('node-' + child.id);
                     parentNode = document.getElementById('node-' + n.id);
-                    self.insertAfter(childNode, parentNode);
+                    insertAfter(childNode, parentNode);
                 });
             }
         });
     },
 
-    insertAfter: function (newNode, referenceNode) {
-        referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
-    },
-
-    cleanUpAncestors: function (oldParentD) {
+    /* Walks up the tree and removes empty groups, starting with `oldParentD`.
+     */
+    cleanUpEmptyGroups: function (groupD) {
         var self = this,
-            removeNode;
+            removeGroup;
 
-        removeNode = !oldParentD.data.children || oldParentD.data.children.length === 0;
-        if (removeNode) {
-            self.removeChildDFromParent(oldParentD);
+        removeGroup = !groupD.data.children || groupD.data.children.length === 0;
+        if (removeGroup) {
+            self.removeChildDFromParent(groupD);
         }
-        //if (oldParent.parent) {
-        //    self.cleanUpAncestors(oldParent.parent);
-        //}
+        // Walk up the tree. In principle, `groupD` could be an only child. In
+        // this scenario, we want to remove its parent as well. This recursion
+        // should continue so long as each new group is an only child.
+        if (groupD.parent) {
+            self.cleanUpEmptyGroups(groupD.parent);
+        }
     }
 });
