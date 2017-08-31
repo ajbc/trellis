@@ -105,7 +105,7 @@ HTMLWidgets.widget({
 
         // Set depth-to-color mapping function.
         self.colorMap = d3.scaleLinear()
-            .domain([-1, 1.5])
+            .domain([-2, 2])
             .range(["hsl(155,30%,82%)", "hsl(155,66%,25%)"])
             .interpolate(d3.interpolateHcl);
     },
@@ -148,25 +148,26 @@ HTMLWidgets.widget({
         var self = this,
             nClicks = 0,
             DBLCLICK_DELAY = 300,
-            tree,
+            root,
             nodes,
             circles,
-            constancyFn,
             text,
             timer;
 
-        tree = d3.hierarchy(self.data)
-            .sum(function (d) {
-                return d.weight;
+        root = d3.hierarchy(self.data)
+            .sum(function (n) {
+                return n.weight;
             })
             .sort(function (a, b) {
                 return b.value - a.value;
             });
-        nodes = self.pack(tree).descendants();
+        nodes = self.pack(root).descendants();
         self.nodeInFocus = nodes[0];
 
         circles = self.g.selectAll('circle')
             .data(nodes, self.identity);
+
+        circles.exit().remove();
 
         circles.enter()
             .append('circle')
@@ -186,14 +187,13 @@ HTMLWidgets.widget({
                 nClicks++;
                 if (nClicks === 1) {
                     timer = setTimeout(function () {
-                        debugger;
                         self.selectNode(d, makeNewGroup);
                         nClicks = 0;
                     }, DBLCLICK_DELAY);
                 } else {
                     clearTimeout(timer);
                     nClicks = 0;
-                    self.zoom(tree, d);
+                    self.zoom(root, d);
                 }
             })
             .on("mouseover", function (d) {
@@ -216,6 +216,8 @@ HTMLWidgets.widget({
 
         text = self.g.selectAll('text')
             .data(nodes, self.identity);
+
+        text.exit().remove();
 
         text.enter()
             .append('text')
@@ -240,14 +242,12 @@ HTMLWidgets.widget({
                 });
             });
 
-        circles.exit().remove();
-        text.exit().remove();
-
-        circles.raise();
-        text.raise();
+        //circles.order().raise();
+        //text.order().raise();
+        self.sortNodesBasedOnTree();
 
         self.positionAndResizeNodes(
-            [tree.x, tree.y, tree.r * 2 + self.PAGE_MARGIN],
+            [root.x, root.y, root.r * 2 + self.PAGE_MARGIN],
             useTransition
         );
     },
@@ -333,6 +333,7 @@ HTMLWidgets.widget({
             self.traverseTree(self.data, function (n) {
                 self.makeNewGroup(n, target);
             });
+            debugger;
         } else {
             self.newParent = target;
             newParentID = self.newParent.data.id;
@@ -468,8 +469,8 @@ HTMLWidgets.widget({
      */
     makeNewGroup: function (n, target) {
         var self = this,
-            nIsTarget = n.id === target.data.id,
-            nIsSourceParent = n.id === self.source.parent.data.id,
+            nIsTarget = n === target.data,
+            nIsSourceParent = n === self.source.parent.data,
             newChildren;
         if (nIsTarget) {
             n.children.push({
@@ -484,7 +485,7 @@ HTMLWidgets.widget({
         if (nIsSourceParent) {
             newChildren = [];
             n.children.forEach(function (child) {
-                if (child.id !== self.source.data.id) {
+                if (child !== self.source.data) {
                     newChildren.push(child);
                 }
             });
@@ -645,13 +646,13 @@ HTMLWidgets.widget({
      */
     getNewID: function () {
         var self = this,
-            maxId = 0;
+            maxID = 0;
         self.traverseTree(self.data, function (n) {
-            if (n.id > maxId) {
-                maxId = n.id;
+            if (n.id > maxID) {
+                maxID = n.id;
             }
         });
-        return maxId + 1;
+        return maxID + 1;
     },
 
     /* Returns `true` if the node is the root node, `false` otherwise.
@@ -699,5 +700,24 @@ HTMLWidgets.widget({
      */
     identity: function (d) {
         return d.data.id;
+    },
+
+    sortNodesBasedOnTree: function () {
+        var self = this,
+            childNode,
+            parentNode;
+        self.traverseTree(self.data, function (n) {
+            if (n.children) {
+                n.children.forEach(function (child) {
+                    childNode = document.getElementById('node-' + child.id);
+                    parentNode = document.getElementById('node-' + n.id);
+                    self.insertAfter(childNode, parentNode);
+                });
+            }
+        });
+    },
+
+    insertAfter: function (newNode, referenceNode) {
+        referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
     }
 });
