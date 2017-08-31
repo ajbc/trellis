@@ -179,7 +179,7 @@ HTMLWidgets.widget({
             })
             .on("mouseover", function (d) {
                 var displayID = !self.source ? "" : self.source.data.id;
-                Shiny.onInputChange("active", d.data.id === 'root' ? displayID : d.data.id);
+                // Shiny.onInputChange("active", d.data.id === 'root' ? displayID : d.data.id);
                 if (self.isRoot(d) || self.isGroupInFocus(d)) {
                     return;
                 }
@@ -187,7 +187,7 @@ HTMLWidgets.widget({
             })
             .on("mouseout", function (d) {
                 var displayID = !self.source ? "" : self.source.data.id;
-                Shiny.onInputChange("active", displayID);
+                // Shiny.onInputChange("active", displayID);
                 if (self.isRoot(d)) {
                     return;
                 }
@@ -468,13 +468,14 @@ HTMLWidgets.widget({
     setLabelVisibility: function (d, hover) {
         var self = this,
             dIsSource = self.source && d.data.id === self.source.data.id,
+            dInFocus = d === self.nodeInFocus,
             parentInFocus = d && d.depth === self.nodeInFocus.depth + 1,
             isLeaf = d && (!d.children || (d.children && d.children.length === 1)),
             isInFocus = d && d === self.nodeInFocus,
             zoomedOnLeaf = isInFocus && isLeaf && !self.isRoot(d),
             label = d3.select('#label-' + d.data.id);
 
-        if (dIsSource || parentInFocus || hover || zoomedOnLeaf) {
+        if ((dIsSource && !dInFocus) || parentInFocus || hover || zoomedOnLeaf) {
             label.style("display", "inline");
         } else {
             label.style("display", "none");
@@ -551,7 +552,7 @@ HTMLWidgets.widget({
 
         var root = d3.hierarchy(self.data);
 
-        Shiny.onInputChange("topics", self.findAssignments(root));
+        // Shiny.onInputChange("topics", self.findAssignments(root));
     },
 
     /* Helper function to add hierarchical structure to data.
