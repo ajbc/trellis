@@ -154,7 +154,6 @@ HTMLWidgets.widget({
             });
         nodes = self.pack(root).descendants();
         self.nodeInFocus = nodes[0];
-        self.mapData = self.getMapData();
 
         circles = self.g.selectAll('circle')
             .data(nodes, self.identity);
@@ -164,6 +163,9 @@ HTMLWidgets.widget({
         circles.enter()
             .append('circle')
             .attr("class", "node")
+            .attr("weight", function (d) {
+                return d.data.weight ? d.data.weight : -1;
+            })
             .attr("id", function (d) {
                 return 'node-' + d.data.id;
             })
@@ -189,14 +191,16 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function (d) {
-                //Shiny.onInputChange("hover", d.data.id);
+                var displayID = !self.source ? "" : self.source.data.id;
+                //Shiny.onInputChange("active", d.data.id === 'root' ? displayID : d.data.id);
                 if (self.isRootNode(d) || self.isGroupInFocus(d)) {
                     return;
                 }
                 self.setLabelVisibility(d, true);
             })
             .on("mouseout", function (d) {
-                //Shiny.onInputChange("hover", d.data.id);
+                var displayID = !self.source ? "" : self.source.data.id;
+                //Shiny.onInputChange("active", displayID);
                 if (self.isRootNode(d)) {
                     return;
                 }
@@ -308,13 +312,12 @@ HTMLWidgets.widget({
 
     moveOrMerge: function (target, makeNewGroup) {
         var self = this,
-            targetIsSource = self.source.data.id === target.data.id,
             sourceIsLeaf = self.isLeafNode(self.source),
-            mergingNodes = !sourceIsLeaf && self.source.children.length > 1,
+            targetIsSource = self.source.data.id === target.data.id,
+            mergingNodes = self.source.children && self.source.children.length > 1,
             sameParentSel = self.source.parent === target,
-            oldParent,
-            nodesToMove,
-            removeSource;
+            oldParentD,
+            nsToMove;
 
         if (targetIsSource || (sameParentSel && !mergingNodes && !makeNewGroup)) {
             self.setSource(null);
@@ -323,24 +326,26 @@ HTMLWidgets.widget({
 
         if (makeNewGroup) {
             self.makeNewGroup(target);
-            self.removeChildFromParent(self.source);
+            self.removeChildDFromParent(self.source);
         } else {
             if (sourceIsLeaf) {
-                nodesToMove = [self.source.data];
-                oldParent = self.source.parent.data;
-                removeSource = false;
+                nsToMove = [self.source.data];
+                oldParentD = self.source.parent;
             } else {
-                nodesToMove = [];
+                nsToMove = [];
                 self.source.children.forEach(function (d) {
-                    nodesToMove.push(d.data);
+                    nsToMove.push(d.data);
                 });
-                oldParent = self.source.data;
-                removeSource = true;
+                oldParentD = self.source;
             }
 
-            self.updateNodesToMove(nodesToMove, oldParent, target.data);
-            if (removeSource) {
-                self.removeChildFromParent(self.source);
+            self.updateNsToMove(nsToMove, oldParentD, target);
+            if (sourceIsLeaf) {
+                debugger;
+                self.cleanUpAncestors(oldParentD);
+            } else {
+                debugger;
+                self.removeChildDFromParent(self.source);
             }
         }
 
@@ -398,39 +403,38 @@ HTMLWidgets.widget({
 
     /* Update node's children depending on whether it is the new or old parent.
      */
-    updateNodesToMove: function (nodesToMove, oldParentN, newParentN) {
+    updateNsToMove: function (nsToMove, oldParentD, newParentD) {
         var self = this,
             newChildren = [];
 
         // Remove nodes-to-move from old parent.
-        if (nodesToMove.length === 1) {
-            oldParentN.children.forEach(function (child) {
-                if (child.id !== nodesToMove[0].id) {
+        if (nsToMove.length === 1) {
+            oldParentD.data.children.forEach(function (child) {
+                if (child.id !== nsToMove[0].id) {
                     newChildren.push(child);
                 }
             });
-            oldParentN.children = newChildren;
+            oldParentD.data.children = newChildren;
         } else {
             // In this scenario, the user selected a group of topics
             // (`oldParent`), and we're moving all of that group's children.
-            oldParentN.children = [];
+            oldParentD.data.children = [];
         }
 
         // Add nodes-to-move to new parent.
-        nodesToMove.forEach(function (nodeToMove) {
-            newParentN.children.push(nodeToMove);
+        nsToMove.forEach(function (nToMove) {
+            newParentD.data.children.push(nToMove);
         });
     },
 
-    removeChildFromParent: function (child) {
-        var self = this,
-            newChildren = [];
-        child.parent.children.forEach(function (n) {
-            if (n.id !== child.id) {
+    removeChildDFromParent: function (childD) {
+        var newChildren = [];
+        childD.parent.data.children.forEach(function (n) {
+            if (n.id !== childD.data.id) {
                 newChildren.push(n);
             }
         });
-        child.parent.children = newChildren;
+        childD.parent.data.children = newChildren;
     },
 
     /* Make new group with `target` if node meets criteria.
@@ -543,15 +547,6 @@ HTMLWidgets.widget({
         });
 
         return data;
-    },
-
-    getMapData: function () {
-        var self = this,
-            mapData = {};
-        self.traverseTree(self.treeData, function (n) {
-            mapData[n.id] = n;
-        });
-        return mapData;
     },
 
     /* Helper function for updateAssignments
@@ -679,5 +674,18 @@ HTMLWidgets.widget({
 
     insertAfter: function (newNode, referenceNode) {
         referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
+    },
+
+    cleanUpAncestors: function (oldParentD) {
+        var self = this,
+            removeNode;
+
+        removeNode = !oldParentD.data.children || oldParentD.data.children.length === 0;
+        if (removeNode) {
+            self.removeChildDFromParent(oldParentD);
+        }
+        //if (oldParent.parent) {
+        //    self.cleanUpAncestors(oldParent.parent);
+        //}
     }
 });
