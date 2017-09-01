@@ -135,7 +135,7 @@ HTMLWidgets.widget({
         }
     },
 
-    updateView: function (useTransition, makeNewGroup) {
+    updateView: function (useTransition) {
         var self = this,
             nClicks = 0,
             DBLCLICK_DELAY = 300,
@@ -156,7 +156,7 @@ HTMLWidgets.widget({
         self.nodeInFocus = nodes[0];
 
         circles = self.g.selectAll('circle')
-            .data(nodes, self.identity);
+            .data(nodes, self.constancy);
 
         circles.enter()
             .append('circle')
@@ -166,9 +166,6 @@ HTMLWidgets.widget({
             })
             .attr("id", function (d) {
                 return 'node-' + d.data.id;
-            })
-            .attr("depth", function (d) {
-                return d.depth;
             })
             .on("dblclick", function () {
                 d3.event.stopPropagation();
@@ -204,35 +201,16 @@ HTMLWidgets.widget({
                     return;
                 }
                 self.setLabelVisibility(d, false);
-            })
-            .each(function (d) {
-                self.setCircleFill(d);
             });
 
         text = self.g.selectAll('text')
-            .data(nodes, self.identity);
+            .data(nodes, self.constancy);
 
         text.enter()
             .append('text')
             .attr("class", "label")
             .attr("id", function (d) {
                 return 'label-' + d.data.id;
-            })
-            .attr("depth", function (d) {
-                return d.depth;
-            })
-            .each(function (d) {
-                var sel = d3.select(this),
-                    len = d.data.terms.length;
-                d.data.terms.forEach(function (term, i) {
-                    sel.append("tspan")
-                        .text(term)
-                        .attr("x", 0)
-                        .attr("text-anchor", "middle")
-                        // This data is used for dynamic sizing of text.
-                        .attr("data-term-index", i)
-                        .attr("data-term-len", len);
-                });
             });
 
         circles.exit().remove();
@@ -245,16 +223,6 @@ HTMLWidgets.widget({
         // tunable Z-index but based on their location in the DOM. This function
         // correctly sorts the nodes based on `treeData`.
         self.sortNodesBasedOnTree();
-
-        // D3 only updates nodes created by new data. But this means that when
-        // a node is moved into a newly created group, its depth property is
-        // wrong. Here, we just reset all the colors.
-        if (makeNewGroup) {
-            d3.selectAll('circle').each(function (d) {
-                self.setCircleFill(d);
-                self.setLabelVisibility(d);
-            });
-        }
 
         self.positionAndResizeNodes(
             [root.x, root.y, root.r * 2 + self.PAGE_MARGIN],
@@ -321,8 +289,9 @@ HTMLWidgets.widget({
             self.setSource(targetD);
         } else {
             self.moveOrMerge(targetD, makeNewGroup);
-            self.updateTopicAssignments();
-            self.updateView(true, makeNewGroup);
+            self.updateTopicAssignments(function() {
+                self.updateView(true);
+            });
         }
     },
 
@@ -380,8 +349,8 @@ HTMLWidgets.widget({
         var self = this,
             MOVE_DURATION = 1000,
             k = self.DIAMETER / coords[2],
-            circles = d3.selectAll("circle"),
-            text = d3.selectAll('text');
+            circles = self.g.selectAll("circle"),
+            text = self.g.selectAll('text');
         self.currCoords = coords;
 
         if (transition) {
@@ -390,21 +359,45 @@ HTMLWidgets.widget({
         }
 
         circles.attr("transform", function (d) {
-            var x = (d.x - coords[0]) * k,
-                y = (d.y - coords[1]) * k;
-            return "translate(" + x + "," + y + ")";
-        });
-        circles.attr("r", function (d) {
-            return d.r * k;
-        });
+                var x = (d.x - coords[0]) * k,
+                    y = (d.y - coords[1]) * k;
+                return "translate(" + x + "," + y + ")";
+            })
+            .attr("r", function (d) {
+                return d.r * k;
+            })
+            .attr("depth", function (d) {
+                return d.depth;
+            })
+            .each(function (d) {
+                self.setCircleFill(d);
+            });
+
         text.attr("transform", function (d) {
-            var x = (d.x - coords[0]) * k,
-                y = (d.y - coords[1]) * k;
-            return "translate(" + x + "," + y + ")";
-        });
-        text.attr("display", function (d) {
-            self.setLabelVisibility(d);
-        });
+                var x = (d.x - coords[0]) * k,
+                    y = (d.y - coords[1]) * k;
+                return "translate(" + x + "," + y + ")";
+            })
+            .attr("display", function (d) {
+                self.setLabelVisibility(d);
+            })
+            .attr("depth", function (d) {
+                return d.depth;
+            })
+            .each(function (d) {
+                var sel = d3.select(this),
+                    len = d.data.terms.length;
+                sel.selectAll("*").remove();
+                d.data.terms.forEach(function (term, i) {
+                    sel.append("tspan")
+                        .text(term)
+                        .attr("x", 0)
+                        .attr("text-anchor", "middle")
+                        // This data is used for dynamic sizing of text.
+                        .attr("data-term-index", i)
+                        .attr("data-term-len", len);
+                });
+            });
 
         text.selectAll("tspan")
             .attr("y", function () {
@@ -574,7 +567,7 @@ HTMLWidgets.widget({
     /* Update the string that informs the Shiny server about the hierarchy of
      * topic assignments
      */
-    updateTopicAssignments: function () {
+    updateTopicAssignments: function (callback) {
         var self = this,
             assignments = [],
             EVENT = "topics";
@@ -586,12 +579,21 @@ HTMLWidgets.widget({
                 assignments.push(childN.id + ":" + n.id);
             });
         });
-        Shiny.addCustomMessageHandler(EVENT, self.updateTopicView);
+        Shiny.addCustomMessageHandler(EVENT, function (newTopics) {
+            self.updateTopicView(newTopics);
+            callback();
+        });
         Shiny.onInputChange(EVENT, assignments.join(","));
     },
 
-    updateTopicView: function (data) {
-        console.log(data);
+    updateTopicView: function (newTopics) {
+        var self = this;
+        self.traverseTree(self.treeData, function (n) {
+            var terms = newTopics[n.id];
+            if (terms) {
+                n.terms = terms;
+            }
+        });
     },
 
     /* Helper function to add hierarchical structure to data.
@@ -669,7 +671,7 @@ HTMLWidgets.widget({
      * node so that it knows which data goes with which bubble. See:
      * https://bost.ocks.org/mike/constancy/
      */
-    identity: function (d) {
+    constancy: function (d) {
         return d.data.id;
     },
 
@@ -715,9 +717,5 @@ HTMLWidgets.widget({
         if (groupD.parent) {
             self.removeChildlessNodes(groupD.parent);
         }
-    },
-
-    test: function () {
-        alert('hello');
     }
 });
