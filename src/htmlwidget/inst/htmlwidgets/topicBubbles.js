@@ -576,7 +576,7 @@ HTMLWidgets.widget({
     updateTopicAssignments: function () {
         var self = this,
             assignments = [],
-            EVENT = "topics"
+            EVENT = "topics";
         self.traverseTree(self.treeData, function (n) {
             if (!n.children) {
                 return;
