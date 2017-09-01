@@ -190,7 +190,7 @@ HTMLWidgets.widget({
             })
             .on("mouseover", function (d) {
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id;
-                Shiny.onInputChange("active", d.data.id === 'root' ? displayID : d.data.id);
+                // Shiny.onInputChange("active", d.data.id === 'root' ? displayID : d.data.id);
                 if (self.isRootNode(d) || self.isGroupInFocus(d)) {
                     return;
                 }
@@ -198,7 +198,7 @@ HTMLWidgets.widget({
             })
             .on("mouseout", function (d) {
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id;
-                Shiny.onInputChange("active", displayID);
+                // Shiny.onInputChange("active", displayID);
                 if (self.isRootNode(d)) {
                     return;
                 }
@@ -251,6 +251,7 @@ HTMLWidgets.widget({
         if (makeNewGroup) {
             d3.selectAll('circle').each(function (d) {
                 self.setCircleFill(d);
+                self.setLabelVisibility(d);
             });
         }
 
@@ -366,7 +367,6 @@ HTMLWidgets.widget({
             }
         }
 
-        var tempD = self.sourceD;
         self.setSource(null);
         self.update(true, makeNewGroup);
     },
@@ -595,7 +595,7 @@ HTMLWidgets.widget({
     updateAssignments: function () {
         var self = this,
             root = d3.hierarchy(self.treeData);
-        Shiny.onInputChange("topics", self.findAssignments(root));
+        // Shiny.onInputChange("topics", self.findAssignments(root));
     },
 
     /* Helper function to add hierarchical structure to data.
@@ -696,6 +696,10 @@ HTMLWidgets.widget({
                 n.children.forEach(function (child) {
                     childNode = document.getElementById('node-' + child.id);
                     parentNode = document.getElementById('node-' + n.id);
+                    insertAfter(childNode, parentNode);
+
+                    childNode = document.getElementById('label-' + child.id);
+                    parentNode = document.getElementById('label-' + n.id);
                     insertAfter(childNode, parentNode);
                 });
             }
