@@ -5,7 +5,7 @@ library(data.table)
 
 options(shiny.maxRequestSize=1e4*1024^2)
 
-function(input, output) {
+function(input, output, session) {
 
   data <- reactive({
     inFile <- input$topic.file
@@ -188,13 +188,20 @@ function(input, output) {
     return(cluster.titles()[topic-K()])
   })
 
-  output$topic.summary <- renderUI({
+  observe({
+    updateTextInput(session, 'activeTopicTitle', value = topic.title())
+
+    if (input$active == "")
+      hide('summaryPanel')
+    else
+      show('summaryPanel')
+  })
+
+  output$topic.docs <- renderUI({
     if (input$active == "")
       return()
 
-    out.string <- paste("<hr/>\n<h3>Topic Summary</h3>\n",
-                        "<h4>", topic.title(), "</h4>\n", documents())
-    return(HTML(out.string))
+    return(HTML(documents()))
   })
 
   output$download <- downloadHandler(

@@ -490,7 +490,7 @@ HTMLWidgets.widget({
         processNode(node);
         if (typeof node.children !== "undefined") {
             node.children.forEach(function (childNode) {
-                self.traverseTree(childNode, processNode)
+                self.traverseTree(childNode, processNode);
             });
         }
     },

@@ -33,19 +33,11 @@ fluidPage(
       ),
       numericInput('num.clusters', "Number of clusters", value=10),
       downloadButton('download', 'Download'),
-      htmlOutput('topic.summary', class="summary")
-      # tags$hr(),
-      # checkboxInput('header', 'Header', TRUE),
-      # radioButtons('sep', 'Separator',
-      #              c(Comma=',',
-      #                Semicolon=';',
-      #                Tab='\t'),
-      #              ','),
-      # radioButtons('quote', 'Quote',
-      #              c(None='',
-      #                'Double Quote'='"',
-      #                'Single Quote'="'"),
-      #              '"')
+      hidden(div(id="summaryPanel",
+                 hr(),
+                 h3("Topic Summary"),
+                 textInput('activeTopicTitle', ""),
+                 htmlOutput('topic.docs', class="docs")))
     ),
     mainPanel(
       topicBubblesOutput("bubbles", height=800),

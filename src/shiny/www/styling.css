@@ -1,4 +1,4 @@
-div#bubbles svg {
+#bubbles svg {
   background-color: #fff !important;
 }
 
@@ -10,6 +10,13 @@ h2 {
   display: none;
 }
 
-#hover {
+#active {
   display: none;
+}
+
+#activeTopicTitle {
+    border: none;
+    background-color: transparent;
+    font-size: 12pt;
+    font-weight: bold;
 }
