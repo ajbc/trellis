@@ -107,7 +107,7 @@ HTMLWidgets.widget({
         var self = this;
         d3.select(self.el).selectAll("*").remove();
         self.initialize(self.el, self.DIAMETER, self.DIAMETER);
-        self.update(false);
+        self.updateView(false);
     },
 
     resize: function (el, width, height) {
@@ -131,11 +131,11 @@ HTMLWidgets.widget({
             self.reInitialize();
         } else {
             self.nGroups = self.treeData.children.length;
-            this.update(false);
+            self.updateView(false);
         }
     },
 
-    update: function (useTransition, makeNewGroup) {
+    updateView: function (useTransition, makeNewGroup) {
         var self = this,
             nClicks = 0,
             DBLCLICK_DELAY = 300,
@@ -189,9 +189,10 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function (d) {
-                var displayID = !self.sourceD ? "" : self.sourceD.data.id;
-                Shiny.onInputChange("active", d.data.id === 'root' ? displayID : d.data.id);
-                if (self.isRootNode(d) || self.isGroupInFocus(d)) {
+                var displayID = !self.sourceD ? "" : self.sourceD.data.id,
+                    isRoot = self.isRootNode(d);
+                Shiny.onInputChange("active", isRoot ? displayID : d.data.id);
+                if (isRoot || self.isGroupInFocus(d)) {
                     return;
                 }
                 self.setLabelVisibility(d, true);
@@ -319,7 +320,8 @@ HTMLWidgets.widget({
             self.setSource(targetD);
         } else {
             self.moveOrMerge(targetD, makeNewGroup);
-            self.updateAssignments();
+            self.updateTopicAssignments();
+            self.updateView(true, makeNewGroup);
         }
     },
 
@@ -366,9 +368,7 @@ HTMLWidgets.widget({
             }
         }
 
-        var tempD = self.sourceD;
         self.setSource(null);
-        self.update(true, makeNewGroup);
     },
 
     /* This function "zooms" to center of coordinates. It is important to
@@ -544,7 +544,7 @@ HTMLWidgets.widget({
      */
     getTreeFromRawData: function (x) {
         var self = this,
-            data = {id: "root", children: [], terms: []},
+            data = {id: 0, children: [], terms: []},
             srcData = HTMLWidgets.dataframeToD3(x.data);
 
         // For each data row add to the output tree.
@@ -570,42 +570,34 @@ HTMLWidgets.widget({
         return data;
     },
 
-    /* Helper function for updateAssignments
+    /* Update the string that informs the Shiny server about the hierarchy of
+     * topic assignments
      */
-    findAssignments: function (n) {
+    updateTopicAssignments: function () {
         var self = this,
-            assignments = "",
-            assignment;
-
-        n.children.forEach(function (d) {
-            assignment = "".concat(d.data.id, ":", (self.isRootNode(n)) ? 0 : n.data.id);
-            assignments = assignments.concat(assignment, ",");
-
-            //TODO: check that this works for hierarchy
-            if (d.hasOwnProperty("children"))
-                assignments = assignments.concat(self.findAssignments(d));
+            assignments = [],
+            EVENT = "topics"
+        self.traverseTree(self.treeData, function (n) {
+            if (!n.children) {
+                return;
+            }
+            n.children.forEach(function (childN) {
+                assignments.push(childN.id + ":" + n.id);
+            });
         });
-
-        return assignments;
+        Shiny.addCustomMessageHandler(EVENT, self.updateTopicView);
+        Shiny.onInputChange(EVENT, assignments.join(","));
     },
 
-    /* Update the string that informs the Shiny server about the hierarchy of
-     * topic assignemnts
-     */
-    updateAssignments: function () {
-        var self = this,
-            root = d3.hierarchy(self.treeData);
-        Shiny.onInputChange("topics", self.findAssignments(root));
+    updateTopicView: function (data) {
+        console.log(data);
     },
 
     /* Helper function to add hierarchical structure to data.
      */
     findParent: function (branch, parentID, nodeID) {
-        var self = this;
-        if (parentID === 0) {
-            parentID = "root";
-        }
-        var rv = null;
+        var self = this,
+            rv = null;
         if (branch.id == parentID) {
             rv = branch;
         } else if (rv === null && branch.children !== undefined) {
@@ -634,7 +626,7 @@ HTMLWidgets.widget({
     /* Returns `true` if the node is the root node, `false` otherwise.
      */
     isRootNode: function (d) {
-        return d.data.id === "root";
+        return d.data.id === 0;
     },
 
     /* Returns `true` if the node is a leaf node, `false` otherwise.
@@ -718,5 +710,9 @@ HTMLWidgets.widget({
         if (groupD.parent) {
             self.removeChildlessNodes(groupD.parent);
         }
+    },
+
+    test: function () {
+        alert('hello');
     }
 });
