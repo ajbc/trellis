@@ -158,8 +158,6 @@ HTMLWidgets.widget({
         circles = self.g.selectAll('circle')
             .data(nodes, self.identity);
 
-        circles.exit().remove();
-
         circles.enter()
             .append('circle')
             .attr("class", "node")
@@ -213,8 +211,6 @@ HTMLWidgets.widget({
         text = self.g.selectAll('text')
             .data(nodes, self.identity);
 
-        text.exit().remove();
-
         text.enter()
             .append('text')
             .attr("class", "label")
@@ -237,6 +233,9 @@ HTMLWidgets.widget({
                         .attr("data-term-len", len);
                 });
             });
+
+        circles.exit().remove();
+        text.exit().remove();
 
         circles.order().raise();
         text.order().raise();
@@ -300,13 +299,14 @@ HTMLWidgets.widget({
             notReallyAMove,
             targetIsSourceChild;
 
-        if (self.isRootNode(targetD)) {
+        if (self.isRootNode(targetD) && !sourceExists) {
             return;
         } else if (sourceExists) {
             souceSelectedTwice = self.sourceD === targetD;
             targetIsSourceChild = self.aIsChildOfB(targetD, self.sourceD);
             notReallyAMove = self.isLeafNode(self.sourceD)
-                && self.sourceD.parent === targetD;
+                && self.sourceD.parent === targetD
+                && !makeNewGroup;
         }
 
         if (souceSelectedTwice) {
@@ -340,8 +340,12 @@ HTMLWidgets.widget({
         }
 
         if (makeNewGroup) {
+            oldParentD = self.sourceD.parent;
             self.createNewGroup(targetD, self.sourceD);
             self.removeChildDFromParent(self.sourceD);
+            // Any or all of the source's ancestors might be childless now.
+            // Walk up the tree and remove childless nodes.
+            self.removeChildlessNodes(oldParentD);
         } else {
             if (sourceIsLeaf) {
                 nsToMove = [self.sourceD.data];
@@ -356,7 +360,7 @@ HTMLWidgets.widget({
 
             self.updateNsToMove(nsToMove, oldParentD, targetD);
             if (sourceIsLeaf) {
-                self.cleanUpEmptyGroups(oldParentD);
+                self.removeChildlessNodes(oldParentD);
             } else {
                 self.removeChildDFromParent(self.sourceD);
             }
@@ -700,7 +704,7 @@ HTMLWidgets.widget({
 
     /* Walks up the tree and removes empty groups, starting with `oldParentD`.
      */
-    cleanUpEmptyGroups: function (groupD) {
+    removeChildlessNodes: function (groupD) {
         var self = this,
             removeGroup;
 
@@ -712,7 +716,7 @@ HTMLWidgets.widget({
         // this scenario, we want to remove its parent as well. This recursion
         // should continue so long as each new group is an only child.
         if (groupD.parent) {
-            self.cleanUpEmptyGroups(groupD.parent);
+            self.removeChildlessNodes(groupD.parent);
         }
     }
 });
