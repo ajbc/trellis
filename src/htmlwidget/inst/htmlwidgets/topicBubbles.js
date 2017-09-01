@@ -252,6 +252,7 @@ HTMLWidgets.widget({
         if (makeNewGroup) {
             d3.selectAll('circle').each(function (d) {
                 self.setCircleFill(d);
+                self.setLabelVisibility(d);
             });
         }
 
@@ -688,6 +689,10 @@ HTMLWidgets.widget({
                 n.children.forEach(function (child) {
                     childNode = document.getElementById('node-' + child.id);
                     parentNode = document.getElementById('node-' + n.id);
+                    insertAfter(childNode, parentNode);
+
+                    childNode = document.getElementById('label-' + child.id);
+                    parentNode = document.getElementById('label-' + n.id);
                     insertAfter(childNode, parentNode);
                 });
             }
