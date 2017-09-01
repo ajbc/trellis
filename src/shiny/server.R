@@ -35,13 +35,17 @@ function(input, output, session) {
     return(nrow(beta()))
   })
 
+  observe({ manual.titles <<- c(rep("", K() + input$num.clusters)) })
+
   titles <- reactive({
     rv <- c()
     if (is.null(data()))
       return(rv)
 
     for (k in seq(K())) {
-      title <- paste(data()$out$vocab[order(beta()[k,], decreasing=TRUE)][seq(5)], collapse=" ")
+      title <- manual.titles[k]
+      if (title == "")
+        title <- paste(data()$out$vocab[order(beta()[k,], decreasing=TRUE)][seq(5)], collapse=" ")
       rv <- c(rv, title)
     }
 
@@ -108,14 +112,13 @@ function(input, output, session) {
 
     rv <- c()
     for (cluster in seq(n.nodes())) {
-      title <- paste(data()$out$vocab[order(marginals[cluster,],
-                                            decreasing=TRUE)][seq(5)], collapse=" ")
+      title <- manual.titles[K() + cluster]
+      if (title == "") {
+        title <- paste(data()$out$vocab[order(marginals[cluster,],
+                                              decreasing=TRUE)][seq(5)], collapse=" ")
+      }
 
       rv <- c(rv, title)
-
-      title <- paste(data()$out$vocab[order(marginals[cluster,],
-                                            decreasing=TRUE)][seq(20)], collapse=" ")
-      vals <- marginals[cluster, order(marginals[cluster,], decreasing=TRUE)[seq(20)]]
     }
 
     return(rv)
