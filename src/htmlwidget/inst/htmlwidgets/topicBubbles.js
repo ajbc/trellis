@@ -385,6 +385,10 @@ HTMLWidgets.widget({
                 return d.depth;
             })
             .each(function (d) {
+                if (!d.data.terms) {
+                    console.log(d);
+                    return;
+                }
                 var sel = d3.select(this),
                     len = d.data.terms.length;
                 sel.selectAll("*").remove();
@@ -591,7 +595,7 @@ HTMLWidgets.widget({
         self.traverseTree(self.treeData, function (n) {
             var terms = newTopics[n.id];
             if (terms) {
-                n.terms = terms;
+                n.terms = terms.split(' ');
             }
         });
     },
