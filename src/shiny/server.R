@@ -5,6 +5,8 @@ library(data.table)
 
 options(shiny.maxRequestSize=1e4*1024^2)
 
+manual.titles <- list()
+
 function(input, output, session) {
 
   data <- reactive({
@@ -32,10 +34,17 @@ function(input, output, session) {
   K <- reactive({
     if (is.null(data()))
       return(0)
+    for (i in seq(nrow(beta()) + input$num.clusters))
+      manual.titles[[i]] <<- ""
     return(nrow(beta()))
   })
 
-  observe({ manual.titles <<- c(rep("", K() + input$num.clusters)) })
+  observeEvent(input$num.clusters, {
+    if (is.null(data()))
+      return(0)
+    for (i in seq(input$num.clusters))
+      manual.titles[[i + K()]] <<- ""
+  })
 
   titles <- reactive({
     rv <- c()
@@ -43,7 +52,8 @@ function(input, output, session) {
       return(rv)
 
     for (k in seq(K())) {
-      title <- manual.titles[k]
+      title <- manual.titles[[k]]
+
       if (title == "")
         title <- paste(data()$out$vocab[order(beta()[k,], decreasing=TRUE)][seq(5)], collapse=" ")
       rv <- c(rv, title)
@@ -112,7 +122,7 @@ function(input, output, session) {
 
     rv <- c()
     for (cluster in seq(n.nodes())) {
-      title <- manual.titles[K() + cluster]
+      title <- manual.titles[[K() + cluster]]
       if (title == "") {
         title <- paste(data()$out$vocab[order(marginals[cluster,],
                                               decreasing=TRUE)][seq(5)], collapse=" ")
@@ -186,9 +196,9 @@ function(input, output, session) {
       return()
 
     topic <- as.integer(input$active)
-    if (topic <= K())
-      return(titles()[topic])
-    return(cluster.titles()[topic-K()])
+    if (manual.titles[[topic]] != "")
+      return(manual.titles[[topic]])
+    return(all.titles()[topic])
   })
 
   observe({
@@ -198,6 +208,22 @@ function(input, output, session) {
       hide('summaryPanel')
     else
       show('summaryPanel')
+  })
+
+  all.titles <- reactive({ return(c(titles(), cluster.titles())) })
+
+  observeEvent(input$activeTopicTitle, {
+    if (input$active == "")
+      return()
+
+    # don't use auto title for manual title
+    if (all.titles()[as.integer(input$active)] == input$activeTopicTitle)
+      return()
+
+    print(input$activeTopicTitle)
+    print(as.integer(input$active))
+    manual.titles[[as.integer(input$active)]] <<- input$activeTopicTitle
+    #TODO: push to d3 viz too
   })
 
   output$topic.docs <- renderUI({
