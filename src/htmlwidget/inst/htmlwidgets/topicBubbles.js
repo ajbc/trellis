@@ -84,6 +84,7 @@ HTMLWidgets.widget({
             .append("svg")
             .attr("width", self.DIAMETER)
             .attr("height", self.DIAMETER)
+            .attr("id", "bubbles-svg")
             .append("g")
             .attr("id", "root-node")
             .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
@@ -110,8 +111,33 @@ HTMLWidgets.widget({
         self.updateView(false);
     },
 
+    // resize: function (el, width, height) {
+    //     // NOTE(tfs;2017-09-06): This solution is very slow/laggy (it reinstantiates everything)
+    //     var self = this;
+
+    //     self.DIAMETER = width;
+    //     self.el = el;
+
+    //     self.reInitialize();
+    // },
+
     resize: function (el, width, height) {
-        this.initialize(el, width, height);
+        var self = this,
+            SVG_R = width / 2;
+
+        self.el = el;
+        self.DIAMETER = width;
+        
+        var svgElement = d3.select("#bubbles-svg")
+            .attr("width", self.DIAMETER)
+            .attr("height", self.DIAMETER);
+
+        self.g = d3.select("#root-node")
+            .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
+
+        self.updateView(false);
+
+        console.log("This is version C");
     },
 
     renderValue: function (el, rawData) {
