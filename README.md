@@ -15,6 +15,8 @@ install.packages("htmlwidgets")
 install.packages("devtools")
 install.packages("shiny")
 install.packages("shinyjs")
+install.packages("stm")
+install.packages("V8")
 ```
 
 From the `topic-bubbles` directory, install the htmlwidget:
