@@ -107,7 +107,7 @@ HTMLWidgets.widget({
         var self = this;
         d3.select(self.el).selectAll("*").remove();
         self.initialize(self.el, self.DIAMETER, self.DIAMETER);
-        self.update(false);
+        self.updateView(false);
     },
 
     resize: function (el, width, height) {
@@ -131,11 +131,11 @@ HTMLWidgets.widget({
             self.reInitialize();
         } else {
             self.nGroups = self.treeData.children.length;
-            this.update(false);
+            self.updateView(false);
         }
     },
 
-    update: function (useTransition, makeNewGroup) {
+    updateView: function (useTransition) {
         var self = this,
             nClicks = 0,
             DBLCLICK_DELAY = 300,
@@ -156,7 +156,7 @@ HTMLWidgets.widget({
         self.nodeInFocus = nodes[0];
 
         circles = self.g.selectAll('circle')
-            .data(nodes, self.identity);
+            .data(nodes, self.constancy);
 
         circles.enter()
             .append('circle')
@@ -166,9 +166,6 @@ HTMLWidgets.widget({
             })
             .attr("id", function (d) {
                 return 'node-' + d.data.id;
-            })
-            .attr("depth", function (d) {
-                return d.depth;
             })
             .on("dblclick", function () {
                 d3.event.stopPropagation();
@@ -189,9 +186,10 @@ HTMLWidgets.widget({
                 }
             })
             .on("mouseover", function (d) {
-                var displayID = !self.sourceD ? "" : self.sourceD.data.id;
-                Shiny.onInputChange("active", d.data.id === 'root' ? displayID : d.data.id);
-                if (self.isRootNode(d) || self.isGroupInFocus(d)) {
+                var displayID = !self.sourceD ? "" : self.sourceD.data.id,
+                    isRoot = self.isRootNode(d);
+                Shiny.onInputChange("active", isRoot ? displayID : d.data.id);
+                if (isRoot || self.isGroupInFocus(d)) {
                     return;
                 }
                 self.setLabelVisibility(d, true);
@@ -203,35 +201,16 @@ HTMLWidgets.widget({
                     return;
                 }
                 self.setLabelVisibility(d, false);
-            })
-            .each(function (d) {
-                self.setCircleFill(d);
             });
 
         text = self.g.selectAll('text')
-            .data(nodes, self.identity);
+            .data(nodes, self.constancy);
 
         text.enter()
             .append('text')
             .attr("class", "label")
             .attr("id", function (d) {
                 return 'label-' + d.data.id;
-            })
-            .attr("depth", function (d) {
-                return d.depth;
-            })
-            .each(function (d) {
-                var sel = d3.select(this),
-                    len = d.data.terms.length;
-                d.data.terms.forEach(function (term, i) {
-                    sel.append("tspan")
-                        .text(term)
-                        .attr("x", 0)
-                        .attr("text-anchor", "middle")
-                        // This data is used for dynamic sizing of text.
-                        .attr("data-term-index", i)
-                        .attr("data-term-len", len);
-                });
             });
 
         circles.exit().remove();
@@ -244,16 +223,6 @@ HTMLWidgets.widget({
         // tunable Z-index but based on their location in the DOM. This function
         // correctly sorts the nodes based on `treeData`.
         self.sortNodesBasedOnTree();
-
-        // D3 only updates nodes created by new data. But this means that when
-        // a node is moved into a newly created group, its depth property is
-        // wrong. Here, we just reset all the colors.
-        if (makeNewGroup) {
-            d3.selectAll('circle').each(function (d) {
-                self.setCircleFill(d);
-                self.setLabelVisibility(d);
-            });
-        }
 
         self.positionAndResizeNodes(
             [root.x, root.y, root.r * 2 + self.PAGE_MARGIN],
@@ -320,7 +289,9 @@ HTMLWidgets.widget({
             self.setSource(targetD);
         } else {
             self.moveOrMerge(targetD, makeNewGroup);
-            self.updateAssignments();
+            self.updateTopicAssignments(function() {
+                self.updateView(true);
+            });
         }
     },
 
@@ -368,7 +339,6 @@ HTMLWidgets.widget({
         }
 
         self.setSource(null);
-        self.update(true, makeNewGroup);
     },
 
     /* This function "zooms" to center of coordinates. It is important to
@@ -379,8 +349,8 @@ HTMLWidgets.widget({
         var self = this,
             MOVE_DURATION = 1000,
             k = self.DIAMETER / coords[2],
-            circles = d3.selectAll("circle"),
-            text = d3.selectAll('text');
+            circles = self.g.selectAll("circle"),
+            text = self.g.selectAll('text');
         self.currCoords = coords;
 
         if (transition) {
@@ -389,21 +359,49 @@ HTMLWidgets.widget({
         }
 
         circles.attr("transform", function (d) {
-            var x = (d.x - coords[0]) * k,
-                y = (d.y - coords[1]) * k;
-            return "translate(" + x + "," + y + ")";
-        });
-        circles.attr("r", function (d) {
-            return d.r * k;
-        });
+                var x = (d.x - coords[0]) * k,
+                    y = (d.y - coords[1]) * k;
+                return "translate(" + x + "," + y + ")";
+            })
+            .attr("r", function (d) {
+                return d.r * k;
+            })
+            .attr("depth", function (d) {
+                return d.depth;
+            })
+            .each(function (d) {
+                self.setCircleFill(d);
+            });
+
         text.attr("transform", function (d) {
-            var x = (d.x - coords[0]) * k,
-                y = (d.y - coords[1]) * k;
-            return "translate(" + x + "," + y + ")";
-        });
-        text.attr("display", function (d) {
-            self.setLabelVisibility(d);
-        });
+                var x = (d.x - coords[0]) * k,
+                    y = (d.y - coords[1]) * k;
+                return "translate(" + x + "," + y + ")";
+            })
+            .attr("display", function (d) {
+                self.setLabelVisibility(d);
+            })
+            .attr("depth", function (d) {
+                return d.depth;
+            })
+            .each(function (d) {
+                if (!d.data.terms) {
+                    console.log(d);
+                    return;
+                }
+                var sel = d3.select(this),
+                    len = d.data.terms.length;
+                sel.selectAll("*").remove();
+                d.data.terms.forEach(function (term, i) {
+                    sel.append("tspan")
+                        .text(term)
+                        .attr("x", 0)
+                        .attr("text-anchor", "middle")
+                        // This data is used for dynamic sizing of text.
+                        .attr("data-term-index", i)
+                        .attr("data-term-len", len);
+                });
+            });
 
         text.selectAll("tspan")
             .attr("y", function () {
@@ -544,7 +542,7 @@ HTMLWidgets.widget({
      */
     getTreeFromRawData: function (x) {
         var self = this,
-            data = {id: "root", children: [], terms: []},
+            data = {id: 0, children: [], terms: []},
             srcData = HTMLWidgets.dataframeToD3(x.data);
 
         // For each data row add to the output tree.
@@ -570,42 +568,43 @@ HTMLWidgets.widget({
         return data;
     },
 
-    /* Helper function for updateAssignments
+    /* Update the string that informs the Shiny server about the hierarchy of
+     * topic assignments
      */
-    findAssignments: function (n) {
+    updateTopicAssignments: function (callback) {
         var self = this,
-            assignments = "",
-            assignment;
-
-        n.children.forEach(function (d) {
-            assignment = "".concat(d.data.id, ":", (self.isRootNode(n)) ? 0 : n.data.id);
-            assignments = assignments.concat(assignment, ",");
-
-            //TODO: check that this works for hierarchy
-            if (d.hasOwnProperty("children"))
-                assignments = assignments.concat(self.findAssignments(d));
+            assignments = [],
+            EVENT = "topics";
+        self.traverseTree(self.treeData, function (n) {
+            if (!n.children) {
+                return;
+            }
+            n.children.forEach(function (childN) {
+                assignments.push(childN.id + ":" + n.id);
+            });
         });
-
-        return assignments;
+        Shiny.addCustomMessageHandler(EVENT, function (newTopics) {
+            self.updateTopicView(newTopics);
+            callback();
+        });
+        Shiny.onInputChange(EVENT, assignments.join(","));
     },
 
-    /* Update the string that informs the Shiny server about the hierarchy of
-     * topic assignemnts
-     */
-    updateAssignments: function () {
-        var self = this,
-            root = d3.hierarchy(self.treeData);
-        Shiny.onInputChange("topics", self.findAssignments(root));
+    updateTopicView: function (newTopics) {
+        var self = this;
+        self.traverseTree(self.treeData, function (n) {
+            var terms = newTopics[n.id];
+            if (terms) {
+                n.terms = terms.split(' ');
+            }
+        });
     },
 
     /* Helper function to add hierarchical structure to data.
      */
     findParent: function (branch, parentID, nodeID) {
-        var self = this;
-        if (parentID === 0) {
-            parentID = "root";
-        }
-        var rv = null;
+        var self = this,
+            rv = null;
         if (branch.id == parentID) {
             rv = branch;
         } else if (rv === null && branch.children !== undefined) {
@@ -634,7 +633,7 @@ HTMLWidgets.widget({
     /* Returns `true` if the node is the root node, `false` otherwise.
      */
     isRootNode: function (d) {
-        return d.data.id === "root";
+        return d.data.id === 0;
     },
 
     /* Returns `true` if the node is a leaf node, `false` otherwise.
@@ -676,7 +675,7 @@ HTMLWidgets.widget({
      * node so that it knows which data goes with which bubble. See:
      * https://bost.ocks.org/mike/constancy/
      */
-    identity: function (d) {
+    constancy: function (d) {
         return d.data.id;
     },
 

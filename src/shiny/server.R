@@ -5,7 +5,7 @@ library(data.table)
 
 options(shiny.maxRequestSize=1e4*1024^2)
 
-function(input, output) {
+function(input, output, session) {
 
   data <- reactive({
     inFile <- input$topic.file
@@ -129,7 +129,7 @@ function(input, output) {
     if (is.null(data()))
       return(NULL)
 
-    js$updateTitles(cluster.titles())
+    session$sendCustomMessage(type = "topics", cluster.titles())
   })
 
   bubbles.data <- reactive({
