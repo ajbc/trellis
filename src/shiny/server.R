@@ -36,6 +36,11 @@ function(input, output, session) {
       return(0)
     for (i in seq(nrow(beta()) + input$num.clusters))
       manual.titles[[i]] <<- ""
+
+    # get rid of legacy topics > K
+    for (topic in seq(nrow(beta()) + input$num.clusters + 1, length(manual.titles)))
+      manual.titles[[topic]] <<- NULL
+
     return(nrow(beta()))
   })
 
@@ -85,6 +90,10 @@ function(input, output, session) {
         node.ids <- c(node.ids, i)
         parent.ids <- c(parent.ids, 0)
       }
+
+      # if there is a new cluster, add a space to the list of manual titles
+      if (i > length(manual.titles))
+        manual.titles[[i]] <<- ""
     }
 
     ids <- parent.ids[order(node.ids)]
@@ -122,6 +131,9 @@ function(input, output, session) {
 
     rv <- c()
     for (cluster in seq(n.nodes())) {
+      if (K() + cluster > length(manual.titles))
+        manual.titles[[K() + cluster]] <<- ""
+
       title <- manual.titles[[K() + cluster]]
       if (title == "") {
         title <- paste(data()$out$vocab[order(marginals[cluster,],
@@ -196,8 +208,10 @@ function(input, output, session) {
       return()
 
     topic <- as.integer(input$active)
+
     if (manual.titles[[topic]] != "")
       return(manual.titles[[topic]])
+
     return(all.titles()[topic])
   })
 
@@ -221,7 +235,6 @@ function(input, output, session) {
       return()
 
     manual.titles[[as.integer(input$active)]] <<- input$activeTopicTitle
-    #TODO: push to d3 viz too
   })
 
   output$topic.docs <- renderUI({
