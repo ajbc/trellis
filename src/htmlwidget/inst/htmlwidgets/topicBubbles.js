@@ -133,8 +133,10 @@ HTMLWidgets.widget({
         self.g = d3.select("#root-node")
             .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
 
-        // Re-render according to new dimensions
-        self.updateView(false);
+        // Re-render according to new dimensions, only if data already rendered
+        if (self.treeData !== null) {
+            self.updateView(false);
+        }
     },
 
     renderValue: function (el, rawData) {
