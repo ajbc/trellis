@@ -1,7 +1,7 @@
 library(htmltools)
 library(htmlwidgets)
 library(devtools)
-setwd("/Users/ajbc/Projects/Academic/topic-bubbles")
+setwd("/Users/ajbc/Projects/Academic/topic-bubbles-editable-titles")
 #setwd("/Users/gwg/topicbubbles")
 
 devtools::install(file.path(getwd(), "src/htmlwidget"))

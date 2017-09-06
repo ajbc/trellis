@@ -142,7 +142,7 @@ function(input, output, session) {
     if (is.null(data()))
       return(NULL)
 
-    session$sendCustomMessage(type = "topics", cluster.titles())
+    session$sendCustomMessage(type = "topics", all.titles())
   })
 
   bubbles.data <- reactive({
@@ -220,8 +220,6 @@ function(input, output, session) {
     if (all.titles()[as.integer(input$active)] == input$activeTopicTitle)
       return()
 
-    print(input$activeTopicTitle)
-    print(as.integer(input$active))
     manual.titles[[as.integer(input$active)]] <<- input$activeTopicTitle
     #TODO: push to d3 viz too
   })

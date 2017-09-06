@@ -593,7 +593,7 @@ HTMLWidgets.widget({
     updateTopicView: function (newTopics) {
         var self = this;
         self.traverseTree(self.treeData, function (n) {
-            var terms = newTopics[n.id];
+            var terms = newTopics[n.id-1];
             if (terms) {
                 n.terms = terms.split(' ');
             }
