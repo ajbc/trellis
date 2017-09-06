@@ -142,7 +142,7 @@ function(input, output, session) {
     if (is.null(data()))
       return(NULL)
 
-    js$updateTitles(cluster.titles())
+    session$sendCustomMessage(type = "topics", cluster.titles())
   })
 
   bubbles.data <- reactive({
