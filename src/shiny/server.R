@@ -154,7 +154,9 @@ function(input, output, session) {
     if (is.null(data()))
       return(NULL)
 
-    session$sendCustomMessage(type = "topics", all.titles())
+    session$sendCustomMessage(type = "topics",
+                              data.frame(id=seq(length(all.titles())),
+                                         title=all.titles()))
   })
 
   bubbles.data <- reactive({
@@ -235,6 +237,8 @@ function(input, output, session) {
       return()
 
     manual.titles[[as.integer(input$active)]] <<- input$activeTopicTitle
+    session$sendCustomMessage(type = "manualTitle", data.frame(id=as.integer(input$active),
+                                                         title=input$activeTopicTitle))
   })
 
   output$topic.docs <- renderUI({
