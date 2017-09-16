@@ -13,3 +13,7 @@ h2 {
 #hover {
   display: none;
 }
+
+#active {
+	visibility: hidden;
+}
