@@ -11,6 +11,3 @@ dependencies:
     version: 0.1
     src: "htmlwidgets/lib"
     stylesheet: styling.css
-#  - name: hierarchicalJSON
-#    src: "htmlwidgets/lib/hierarchicalJSON"
-#    script: hierarchicalJSON.js
