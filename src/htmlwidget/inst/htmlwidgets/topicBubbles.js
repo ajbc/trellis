@@ -84,6 +84,7 @@ HTMLWidgets.widget({
             .append("svg")
             .attr("width", self.DIAMETER)
             .attr("height", self.DIAMETER)
+            .attr("id", "bubbles-svg")
             .append("g")
             .attr("id", "root-node")
             .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
@@ -115,8 +116,32 @@ HTMLWidgets.widget({
         self.updateView(false);
     },
 
+    /* Upon resize event, updates the self.el and self.DIAMETER values.
+     * Then selects and modifies the width and height attributes of the
+     * existing SVG element, as well as the transform attribute of the
+     * root-node element.
+     */
     resize: function (el, width, height) {
-        this.initialize(el, width, height);
+        var self = this,
+            SVG_R = width / 2;
+
+        // Update state corresponding to new width
+        self.el = el;
+        self.DIAMETER = width;
+        
+        // Modify width and height of existing svg element
+        var svgElement = d3.select("#bubbles-svg")
+            .attr("width", self.DIAMETER)
+            .attr("height", self.DIAMETER);
+
+        // Reset the centering of root-node
+        self.g = d3.select("#root-node")
+            .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
+
+        // Re-render according to new dimensions, only if data already rendered
+        if (self.treeData !== null) {
+            self.updateView(false);
+        }
     },
 
     renderValue: function (el, rawData) {

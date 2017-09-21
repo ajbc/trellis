@@ -11,6 +11,7 @@ h2 {
 }
 
 #active {
+  visibility: hidden;
   display: none;
 }
 
