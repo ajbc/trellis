@@ -48,7 +48,7 @@ Then navigate to `http://127.0.0.1:<PORT>` in a browser if not redirected automa
 
 ## Use
 
-We are working on a tutorial video.
+Check out our [tutorial video](https://youtu.be/ItFgB0pbkBg).
 
 ### File Format
 Upload an `.Rdata` file with three variables:
