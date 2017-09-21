@@ -5,6 +5,8 @@ library(data.table)
 
 options(shiny.maxRequestSize=1e4*1024^2)
 
+manual.titles <- list()
+
 function(input, output, session) {
 
   data <- reactive({
@@ -32,7 +34,21 @@ function(input, output, session) {
   K <- reactive({
     if (is.null(data()))
       return(0)
+    for (i in seq(nrow(beta()) + input$num.clusters))
+      manual.titles[[i]] <<- ""
+
+    # get rid of legacy topics > K
+    for (topic in seq(nrow(beta()) + input$num.clusters + 1, length(manual.titles)))
+      manual.titles[[topic]] <<- NULL
+
     return(nrow(beta()))
+  })
+
+  observeEvent(input$num.clusters, {
+    if (is.null(data()))
+      return(0)
+    for (i in seq(input$num.clusters))
+      manual.titles[[i + K()]] <<- ""
   })
 
   titles <- reactive({
@@ -41,7 +57,10 @@ function(input, output, session) {
       return(rv)
 
     for (k in seq(K())) {
-      title <- paste(data()$out$vocab[order(beta()[k,], decreasing=TRUE)][seq(5)], collapse=" ")
+      title <- manual.titles[[k]]
+
+      if (title == "")
+        title <- paste(data()$out$vocab[order(beta()[k,], decreasing=TRUE)][seq(5)], collapse=" ")
       rv <- c(rv, title)
     }
 
@@ -71,6 +90,10 @@ function(input, output, session) {
         node.ids <- c(node.ids, i)
         parent.ids <- c(parent.ids, 0)
       }
+
+      # if there is a new cluster, add a space to the list of manual titles
+      if (i > length(manual.titles))
+        manual.titles[[i]] <<- ""
     }
 
     ids <- parent.ids[order(node.ids)]
@@ -108,14 +131,16 @@ function(input, output, session) {
 
     rv <- c()
     for (cluster in seq(n.nodes())) {
-      title <- paste(data()$out$vocab[order(marginals[cluster,],
-                                            decreasing=TRUE)][seq(5)], collapse=" ")
+      if (K() + cluster > length(manual.titles))
+        manual.titles[[K() + cluster]] <<- ""
+
+      title <- manual.titles[[K() + cluster]]
+      if (title == "") {
+        title <- paste(data()$out$vocab[order(marginals[cluster,],
+                                              decreasing=TRUE)][seq(5)], collapse=" ")
+      }
 
       rv <- c(rv, title)
-
-      title <- paste(data()$out$vocab[order(marginals[cluster,],
-                                            decreasing=TRUE)][seq(20)], collapse=" ")
-      vals <- marginals[cluster, order(marginals[cluster,], decreasing=TRUE)[seq(20)]]
     }
 
     return(rv)
@@ -129,7 +154,9 @@ function(input, output, session) {
     if (is.null(data()))
       return(NULL)
 
-    session$sendCustomMessage(type = "topics", cluster.titles())
+    session$sendCustomMessage(type = "topics",
+                              data.frame(id=seq(length(all.titles())),
+                                         title=all.titles()))
   })
 
   bubbles.data <- reactive({
@@ -183,18 +210,42 @@ function(input, output, session) {
       return()
 
     topic <- as.integer(input$active)
-    if (topic <= K())
-      return(titles()[topic])
-    return(cluster.titles()[topic-K()])
+
+    if (manual.titles[[topic]] != "")
+      return(manual.titles[[topic]])
+
+    return(all.titles()[topic])
   })
 
-  output$topic.summary <- renderUI({
+  observe({
+    updateTextInput(session, 'activeTopicTitle', value = topic.title())
+
+    if (input$active == "")
+      hide('summaryPanel')
+    else
+      show('summaryPanel')
+  })
+
+  all.titles <- reactive({ return(c(titles(), cluster.titles())) })
+
+  observeEvent(input$activeTopicTitle, {
     if (input$active == "")
       return()
 
-    out.string <- paste("<hr/>\n<h3>Topic Summary</h3>\n",
-                        "<h4>", topic.title(), "</h4>\n", documents())
-    return(HTML(out.string))
+    # don't use auto title for manual title
+    if (all.titles()[as.integer(input$active)] == input$activeTopicTitle)
+      return()
+
+    manual.titles[[as.integer(input$active)]] <<- input$activeTopicTitle
+    session$sendCustomMessage(type = "manualTitle", data.frame(id=as.integer(input$active),
+                                                         title=input$activeTopicTitle))
+  })
+
+  output$topic.docs <- renderUI({
+    if (input$active == "")
+      return()
+
+    return(HTML(documents()))
   })
 
   output$download <- downloadHandler(

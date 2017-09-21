@@ -100,6 +100,11 @@ HTMLWidgets.widget({
             .domain([-2, 2])
             .range(["hsl(155,30%,82%)", "hsl(155,66%,25%)"])
             .interpolate(d3.interpolateHcl);
+
+        Shiny.addCustomMessageHandler("manualTitle", function (newTitles) {
+            self.updateTopicView(newTitles);
+            self.updateView(true);
+        });
     },
 
     /* Removes all svg elements and then re-renders everything from scratch.
@@ -558,7 +563,7 @@ HTMLWidgets.widget({
         processNode(node);
         if (typeof node.children !== "undefined") {
             node.children.forEach(function (childNode) {
-                self.traverseTree(childNode, processNode)
+                self.traverseTree(childNode, processNode);
             });
         }
     },
@@ -608,20 +613,36 @@ HTMLWidgets.widget({
                 assignments.push(childN.id + ":" + n.id);
             });
         });
-        Shiny.addCustomMessageHandler(EVENT, function (newTopics) {
-            self.updateTopicView(newTopics);
+        Shiny.addCustomMessageHandler(EVENT, function (newTitles) {
+            self.updateTopicView(newTitles);
             callback();
         });
         Shiny.onInputChange(EVENT, assignments.join(","));
     },
 
-    updateTopicView: function (newTopics) {
+    updateTopicView: function (newTitles) {
+        var self = this,
+            newTitles = HTMLWidgets.dataframeToD3(newTitles);
+        for (i = 0; i < newTitles.length; i++) {
+            // TODO: there's got to be a better way to do this
+            self.traverseTree(self.treeData, function (n) {
+                if (n.id == newTitles[i].id) {
+                    var terms = newTitles[i].title;
+                    if (terms) {
+                        n.terms = terms.split(' ');
+                    } else {
+                        // If terms need to be reset, reset them here?
+                    }
+                 }
+            });
+        }
+    },
+
+    updateTitle: function (newTitle) {
         var self = this;
         self.traverseTree(self.treeData, function (n) {
-            var terms = newTopics[n.id];
-            if (terms) {
-                n.terms = terms.split(' ');
-            }
+          if (n.id == newTitle.id)
+            n.terms = newTitle.title;
         });
     },
 
