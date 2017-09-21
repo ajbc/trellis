@@ -624,15 +624,17 @@ HTMLWidgets.widget({
         var self = this,
             newTitles = HTMLWidgets.dataframeToD3(newTitles);
         for (i = 0; i < newTitles.length; i++) {
-          // TODO: there's got to be a better way to do this
-          self.traverseTree(self.treeData, function (n) {
-            if (n.id == newTitles[i].id) {
-              var terms = newTitles[i].title;
-              if (terms) {
-                  n.terms = terms.split(' ');
-              }
-            }
-        });
+            // TODO: there's got to be a better way to do this
+            self.traverseTree(self.treeData, function (n) {
+                if (n.id == newTitles[i].id) {
+                    var terms = newTitles[i].title;
+                    if (terms) {
+                        n.terms = terms.split(' ');
+                    } else {
+                        // If terms need to be reset, reset them here?
+                    }
+                 }
+            });
         }
     },
 
