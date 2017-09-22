@@ -2,6 +2,8 @@ library(shiny)
 library(shinyjs)
 library(stm)
 library(data.table)
+library(htmlwidgets)
+library(topicBubbles)
 
 options(shiny.maxRequestSize=1e4*1024^2)
 
