@@ -311,6 +311,7 @@ HTMLWidgets.widget({
 
         if (souceSelectedTwice) {
             self.setSource(null);
+            self.setLabelVisibility(targetD, true);
         } else if (!sourceExists
             || self.isLeafNode(targetD)
             || targetIsSourceChild
@@ -631,7 +632,7 @@ HTMLWidgets.widget({
                     if (terms) {
                         n.terms = terms.split(' ');
                     } else {
-                        // If terms need to be reset, reset them here?
+                        console.log(self.treeData);
                     }
                  }
             });
