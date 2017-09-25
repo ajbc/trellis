@@ -4,6 +4,7 @@ library(shinyjs)
 #library(htmlwidgets)
 #library(devtools)
 #devtools::install("/Users/ajbc/Projects/Academic/topic-bubbles/src/htmlwidget")
+library(htmlwidgets)
 library(topicBubbles)
 
 #https://cran.r-project.org/web/packages/shinyjs/vignettes/shinyjs-extend.html
@@ -22,7 +23,7 @@ fluidPage(
   #tags$script(src="https://d3js.org/d3.v3.min.js"),
   #tags$script(src="bubbles.js"),
   useShinyjs(),
-  extendShinyjs(script="www/bubbles.js"),
+  # extendShinyjs(script="www/bubbles.js"),
   sidebarLayout(
     sidebarPanel(width=3,
       titlePanel("Topic Aggregation"),
