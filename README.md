@@ -2,7 +2,7 @@
 
 ## Demo on Server
 
-We are working on getting a demo up on [shinyapps.io](https://ajbc.shinyapps.io/topicBubbles/); it's currently broken.
+We have a demo up on [shinyapps.io](https://ajbc.shinyapps.io/topicBubbles/)!
 
 Upload an `.Rdata` file ([example file](https://github.com/ajbc/topic-bubbles/blob/master/dat/poliblogs2008.K100.RData); see [file format section](https://github.com/ajbc/topic-bubbles#file-format)).  See [use section](https://github.com/ajbc/topic-bubbles#use) for more details on how to interact with the app.
 
