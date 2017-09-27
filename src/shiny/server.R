@@ -9,41 +9,36 @@ options(shiny.maxRequestSize=1e4*1024^2)
 
 function(input, output, session) {
 
-  data <- reactive({
-    inFile <- input$topic.file
-    if (is.null(inFile))
-      return(NULL)
+  showModal(modalDialog(
+    title = "Topic Aggregation Demo", footer = modalButton("I understand."),
+    tags$h4("Caveat"), "This software is intended to be run locally.  The online demo may run much slower than its locally-hosted counterpart.  Please see our project page for instructions on how to run the software locally, which also allows you to work with your own data.",
+    br(), hr(), tags$h4("Use"), "Please wait for the visualization to load.",
+    tags$ul(
+      tags$li(tags$b("Click"), "to zoom"),
+      tags$li(tags$b("Double-click"), "to select, move, and merge"),
+      tags$li(tags$b("Shift + double-click"), "to create a new sub-cluster")
+    )
+  ))
 
-    load(inFile$datapath)
+  #load("www/poliblogs2008.K100.RData")
+  load("www/fit_grimmer_200.RData")
 
-    return(list("model"=model, "out"=out, "processed"=processed, "doc.summaries"=doc.summaries))
-  })
-
-  beta <- reactive({
-    if (is.null(data()))
-      return(NULL)
-    return(exp(data()$model$beta$logbeta[[1]]))
-  })
+  beta <- exp(model$beta$logbeta[[1]])
 
   kmeans.fit <- reactive({
-    if (is.null(beta()))
-      return(NULL)
-    return(kmeans(beta(), input$num.clusters))
+    progress <- shiny::Progress$new()
+    on.exit(progress$close())
+    progress$set(message = "Clustering data...", value = 0)
+
+    return(kmeans(beta, input$num.clusters))
   })
 
-  K <- reactive({
-    if (is.null(data()))
-      return(0)
-    return(nrow(beta()))
-  })
+  K <- nrow(beta)
 
   titles <- reactive({
     rv <- c()
-    if (is.null(data()))
-      return(rv)
-
-    for (k in seq(K())) {
-      title <- paste(data()$out$vocab[order(beta()[k,], decreasing=TRUE)][seq(5)], collapse=" ")
+    for (k in seq(K)) {
+      title <- paste(out$vocab[order(beta[k,], decreasing=TRUE)][seq(5)], collapse=" ")
       rv <- c(rv, title)
     }
 
@@ -51,11 +46,8 @@ function(input, output, session) {
   })
 
   assignments <- reactive({
-    if (is.null(data()))
-      return(c())
-
     if (input$topics == "")
-      return(c(kmeans.fit()$cluster + K(), rep(0, input$num.clusters)))
+      return(c(kmeans.fit()$cluster + K, rep(0, input$num.clusters)))
 
     node.ids <- c()
     parent.ids <- c()
@@ -81,41 +73,35 @@ function(input, output, session) {
   })
 
   n.nodes <- reactive({
-    if (is.null(data()))
-      return(0)
-
     if (input$topics == "")
       return(input$num.clusters)
 
-    return(length(assignments())-K())
+    return(length(assignments())-K)
   })
 
   # TODO: this may not work for deeper hierarchy; needs to be checked once implemented
   cluster.titles <- reactive({
-    if (is.null(data()))
-      return(c())
-
-    marginals <- matrix(0, nrow=n.nodes(), ncol=ncol(beta()))
-    weights <- colSums(data()$model$theta)
+    marginals <- matrix(0, nrow=n.nodes(), ncol=ncol(beta))
+    weights <- colSums(model$theta)
     for (node in seq(length(assignments()), 1)) {
       val <- 0
       if (assignments()[node] == 0)
         val <- 0
-      else if (node <= K())
-        val <- beta()[node,] * weights[node]
+      else if (node <= K)
+        val <- beta[node,] * weights[node]
       else
-        val <- marginals[node - K(),]
-      marginals[assignments()[node]-K(),] <- marginals[assignments()[node]-K(),] + val
+        val <- marginals[node - K,]
+      marginals[assignments()[node]-K,] <- marginals[assignments()[node]-K,] + val
     }
 
     rv <- c()
     for (cluster in seq(n.nodes())) {
-      title <- paste(data()$out$vocab[order(marginals[cluster,],
+      title <- paste(out$vocab[order(marginals[cluster,],
                                             decreasing=TRUE)][seq(5)], collapse=" ")
 
       rv <- c(rv, title)
 
-      title <- paste(data()$out$vocab[order(marginals[cluster,],
+      title <- paste(out$vocab[order(marginals[cluster,],
                                             decreasing=TRUE)][seq(20)], collapse=" ")
       vals <- marginals[cluster, order(marginals[cluster,], decreasing=TRUE)[seq(20)]]
     }
@@ -128,22 +114,15 @@ function(input, output, session) {
   })
 
   observeEvent(input$topics, {
-    if (is.null(data()))
-      return(NULL)
-
     session$sendCustomMessage(type = "topics", cluster.titles())
   })
 
   bubbles.data <- reactive({
-    if (is.null(data()))
-      return(NULL)
-
     #parent.id, topic.id, weight, title
-    rv <- data.frame(parentID=c(rep(0, input$num.clusters), kmeans.fit()$cluster + K()),
-                     nodeID=c(seq(K()+1,K()+input$num.clusters), seq(K())),
-                     weight=c(rep(0, input$num.clusters), colSums(data()$model$theta)),
+    rv <- data.frame(parentID=c(rep(0, input$num.clusters), kmeans.fit()$cluster + K),
+                     nodeID=c(seq(K+1,K+input$num.clusters), seq(K)),
+                     weight=c(rep(0, input$num.clusters), colSums(model$theta)),
                      title=c(isolate(cluster.titles()), titles()))
-
     return(rv)
   })
 
@@ -152,17 +131,17 @@ function(input, output, session) {
   top.documents <- reactive({
     # TODO: this will need to be updated for hierarchy
     rv <- list()
-    theta <- data()$model$theta
-    meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
-    for (topic in seq(K())) {
-      rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:10]]
+    theta <- model$theta
+    meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K)
+    for (topic in seq(K)) {
+      rv[[topic]] <- doc.summaries[order(theta[,topic], decreasing=TRUE)[1:10]]
 
-      meta.theta[,assignments()[topic] - K()] <-
-        meta.theta[,assignments()[topic] - K()] + theta[,topic]
+      meta.theta[,assignments()[topic] - K] <-
+        meta.theta[,assignments()[topic] - K] + theta[,topic]
     }
 
-    for (meta.topic in seq(length(assignments()) - K())) {
-      rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta[,meta.topic],
+    for (meta.topic in seq(length(assignments()) - K)) {
+      rv[[meta.topic + K]] <- doc.summaries[order(meta.theta[,meta.topic],
                                                 decreasing=TRUE)[1:10]]
     }
 
@@ -185,9 +164,9 @@ function(input, output, session) {
       return()
 
     topic <- as.integer(input$active)
-    if (topic <= K())
+    if (topic <= K)
       return(titles()[topic])
-    return(cluster.titles()[topic-K()])
+    return(cluster.titles()[topic-K])
   })
 
   output$topic.summary <- renderUI({

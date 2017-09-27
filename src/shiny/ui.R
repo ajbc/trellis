@@ -20,18 +20,11 @@ library(topicBubbles)
 fluidPage(
   #tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "styling.css")),
   includeCSS("www/styling.css"),
-  #tags$script(src="https://d3js.org/d3.v3.min.js"),
-  #tags$script(src="bubbles.js"),
   useShinyjs(),
-  # extendShinyjs(script="www/bubbles.js"),
   sidebarLayout(
     sidebarPanel(width=3,
-      titlePanel("Topic Aggregation"),
-      fileInput('topic.file', 'Topic Model (.RData)',
-                  placeholder = "",
-                  buttonLabel = "Select"#,
-                  #accept=c('.RData')
-      ),
+      titlePanel(a("Topic Aggregation", href="http://ajbc.io/topic-bubbles/")),
+      p("Data: All press releases from U.S. Senators between 2005-2007", a("(see here)", href="https://dataverse.harvard.edu/dataset.xhtml?persistentId=hdl:1902.1/14596")),
       numericInput('num.clusters', "Number of clusters", value=10),
       downloadButton('download', 'Download'),
       htmlOutput('topic.summary', class="summary")
