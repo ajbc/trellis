@@ -2,9 +2,9 @@
 
 ## Demo on Server
 
-We have a demo up on [shinyapps.io](https://ajbc.shinyapps.io/topicBubbles/)!
+We have a demo up on [shinyapps.io](https://bstewart.shinyapps.io/topicBubbles/)!
 
-Upload an `.Rdata` file ([example file](https://github.com/ajbc/topic-bubbles/blob/master/dat/poliblogs2008.K100.RData); see [file format section](https://github.com/ajbc/topic-bubbles#file-format)).  See [use section](https://github.com/ajbc/topic-bubbles#use) for more details on how to interact with the app.
+Please note that this software is intended to be run locally.  The online demo may run much slower than a locally-hosted version.  Please see below for instructions on how to run the software locally.
 
 ## Running locally
 
