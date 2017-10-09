@@ -20,8 +20,8 @@ function(input, output, session) {
     )
   ))
 
-  #load("www/poliblogs2008.K100.RData")
-  load("www/fit_grimmer_200.RData")
+  load("www/poliblogs2008.K100.RData")
+  # load("www/fit_grimmer_200.RData")
 
   beta <- exp(model$beta$logbeta[[1]])
 
