@@ -9,6 +9,10 @@ options(shiny.maxRequestSize=1e4*1024^2)
 
 function(input, output, session) {
 
+  observeEvent(input$num.clusters, {
+    updateTextInput(session, "topics", value = "")
+  })
+
   data <- reactive({
     inFile <- input$topic.file
     if (is.null(inFile))
@@ -28,6 +32,7 @@ function(input, output, session) {
   kmeans.fit <- reactive({
     if (is.null(beta()))
       return(NULL)
+
     return(kmeans(beta(), input$num.clusters))
   })
 
@@ -139,6 +144,7 @@ function(input, output, session) {
       return(NULL)
 
     #parent.id, topic.id, weight, title
+    n.nodes()
     rv <- data.frame(parentID=c(rep(0, input$num.clusters), kmeans.fit()$cluster + K()),
                      nodeID=c(seq(K()+1,K()+input$num.clusters), seq(K())),
                      weight=c(rep(0, input$num.clusters), colSums(data()$model$theta)),
