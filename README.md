@@ -27,7 +27,12 @@ install.packages("stm")
 install.packages("V8")
 ```
 
-Install the htmlwidget:
+Install the htmlwidget for local use:
+```
+devtools::install("src/htmlwidget")
+```
+
+Alternately, install the htmlwidget for remote deployment
 ```
 devtools::install_github("ajbc/topic-bubbles", subdir="src/htmlwidget")
 ```
