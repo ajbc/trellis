@@ -19,7 +19,20 @@ function(input, output, session) {
       tags$li(tags$b("Shift + double-click"), "to create a new sub-cluster")
     )
   ))
-
+  
+  observeEvent(input$instructions, {
+    showModal(modalDialog(
+      title = "Topic Aggregation Demo", footer = modalButton("OK"),
+      tags$h4("Caveat"), "This software is intended to be run locally.  The online demo may run much slower than its locally-hosted counterpart.  Please see our project page for instructions on how to run the software locally, which also allows you to work with your own data.",
+      br(), hr(), tags$h4("Use"), "Please wait for the visualization to load.",
+      tags$ul(
+        tags$li(tags$b("Click"), "to zoom"),
+        tags$li(tags$b("Double-click"), "to select, move, and merge"),
+        tags$li(tags$b("Shift + double-click"), "to create a new sub-cluster")
+      )
+    ))
+  })
+  
   load("www/poliblogs2008.K100.RData")
   # load("www/fit_grimmer_200.RData")
 
