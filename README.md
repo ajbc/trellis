@@ -1,5 +1,7 @@
 # Topic Bubbles
 
+[Sign up for updates and give us feedback!](https://goo.gl/forms/HP7aTlMyMdKChaGi2)
+
 ## Demo on Server
 
 We have a demo up on [shinyapps.io](https://bstewart.shinyapps.io/topicBubbles/)!
