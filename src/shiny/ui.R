@@ -24,9 +24,11 @@ fluidPage(
   sidebarLayout(
     sidebarPanel(width=3,
       titlePanel(a("Topic Aggregation", href="http://ajbc.io/topic-bubbles/")),
-      p("Data: All press releases from U.S. Senators between 2005-2007", a("(see here)", href="https://dataverse.harvard.edu/dataset.xhtml?persistentId=hdl:1902.1/14596")),
+      p("Data: Blog posts from 6 blogs during the U.S. 2008 Presidential Election", a("(see here)", href="https://www.rdocumentation.org/packages/stm/versions/1.1.3/topics/poliblog5k")),
       numericInput('num.clusters', "Number of clusters", value=10),
       downloadButton('download', 'Download'),
+      actionButton('instructions', 'Use'),
+      actionButton('feedback', 'Suscribe', onclick ="window.open('https://goo.gl/forms/HP7aTlMyMdKChaGi2', '_blank')"),
       htmlOutput('topic.summary', class="summary")
       # tags$hr(),
       # checkboxInput('header', 'Header', TRUE),
