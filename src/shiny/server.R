@@ -80,7 +80,7 @@ function(input, output, session) {
     #      However, the length of assignments in input$topics will
     #      correspond to the previous num.clusters, resulting in a
     #      crash unless we verify before returning here.
-    if (length(ids) != input$num.clusters) {
+    if (length(ids) != (K + input$num.clusters)) {
       return(c(fit$cluster + K, rep(0, input$num.clusters)))
     }
 
