@@ -19,20 +19,7 @@ function(input, output, session) {
       tags$li(tags$b("Shift + double-click"), "to create a new sub-cluster")
     )
   ))
-  
-  observeEvent(input$instructions, {
-    showModal(modalDialog(
-      title = "Topic Aggregation Demo", footer = modalButton("OK"),
-      tags$h4("Caveat"), "This software is intended to be run locally.  The online demo may run much slower than its locally-hosted counterpart.  Please see our project page for instructions on how to run the software locally, which also allows you to work with your own data.",
-      br(), hr(), tags$h4("Use"), "Please wait for the visualization to load.",
-      tags$ul(
-        tags$li(tags$b("Click"), "to zoom"),
-        tags$li(tags$b("Double-click"), "to select, move, and merge"),
-        tags$li(tags$b("Shift + double-click"), "to create a new sub-cluster")
-      )
-    ))
-  })
-  
+
   load("www/poliblogs2008.K100.RData")
   # load("www/fit_grimmer_200.RData")
 
@@ -65,7 +52,7 @@ function(input, output, session) {
     fit <- kmeans.fit()
 
     if (input$topics == "") {
-      return(c(fit$cluster + K(), rep(0, input$num.clusters)))
+      return(c(fit$cluster + K, rep(0, input$num.clusters)))
     }
 
     node.ids <- c()
@@ -94,7 +81,7 @@ function(input, output, session) {
     #      correspond to the previous num.clusters, resulting in a
     #      crash unless we verify before returning here.
     if (length(ids) != input$num.clusters) {
-      return(c(fit$cluster + K(), rep(0, input$num.clusters)))
+      return(c(fit$cluster + K, rep(0, input$num.clusters)))
     }
 
     return(ids)
@@ -146,26 +133,14 @@ function(input, output, session) {
   })
 
   bubbles.data <- reactive({
-<<<<<<< HEAD
+    if (is.null(data()))
+      return(NULL)
+
     #parent.id, topic.id, weight, title
     rv <- data.frame(parentID=c(rep(0, input$num.clusters), kmeans.fit()$cluster + K),
                      nodeID=c(seq(K+1,K+input$num.clusters), seq(K)),
                      weight=c(rep(0, input$num.clusters), colSums(model$theta)),
                      title=c(isolate(cluster.titles()), titles()))
-=======
-    if (is.null(data()))
-      return(NULL)
-
-
-    pid <- c(rep(0, input$num.clusters), kmeans.fit()$cluster + K())
-    nid <- c(seq(K()+1,K()+input$num.clusters), seq(K()))
-    wgt <- c(rep(0, input$num.clusters), colSums(data()$model$theta))
-    ttl <- c(isolate(cluster.titles()), titles())
-
-    rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl)
-
-
->>>>>>> thomas-cluster-bug
     return(rv)
   })
 
