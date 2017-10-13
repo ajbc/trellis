@@ -46,8 +46,14 @@ function(input, output, session) {
   })
 
   assignments <- reactive({
-    if (input$topics == "")
-      return(c(kmeans.fit()$cluster + K, rep(0, input$num.clusters)))
+    if (is.null(data()))
+      return(c())
+
+    fit <- kmeans.fit()
+
+    if (input$topics == "") {
+      return(c(fit$cluster + K(), rep(0, input$num.clusters)))
+    }
 
     node.ids <- c()
     parent.ids <- c()
@@ -68,6 +74,15 @@ function(input, output, session) {
     }
 
     ids <- parent.ids[order(node.ids)]
+
+    # NOTE(tfs; 2017-10-12): If num.clusters was updated on the UI after
+    #      nodes were manually assigned, input$topics will not be empty.
+    #      However, the length of assignments in input$topics will
+    #      correspond to the previous num.clusters, resulting in a
+    #      crash unless we verify before returning here.
+    if (length(ids) != input$num.clusters) {
+      return(c(fit$cluster + K(), rep(0, input$num.clusters)))
+    }
 
     return(ids)
   })
@@ -118,11 +133,26 @@ function(input, output, session) {
   })
 
   bubbles.data <- reactive({
+<<<<<<< HEAD
     #parent.id, topic.id, weight, title
     rv <- data.frame(parentID=c(rep(0, input$num.clusters), kmeans.fit()$cluster + K),
                      nodeID=c(seq(K+1,K+input$num.clusters), seq(K)),
                      weight=c(rep(0, input$num.clusters), colSums(model$theta)),
                      title=c(isolate(cluster.titles()), titles()))
+=======
+    if (is.null(data()))
+      return(NULL)
+
+
+    pid <- c(rep(0, input$num.clusters), kmeans.fit()$cluster + K())
+    nid <- c(seq(K()+1,K()+input$num.clusters), seq(K()))
+    wgt <- c(rep(0, input$num.clusters), colSums(data()$model$theta))
+    ttl <- c(isolate(cluster.titles()), titles())
+
+    rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl)
+
+
+>>>>>>> thomas-cluster-bug
     return(rv)
   })
 
