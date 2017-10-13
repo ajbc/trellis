@@ -95,6 +95,8 @@ function(input, output, session) {
     if (is.null(data()))
       return(c())
 
+    print("Running cluster titles!!!!")
+
     marginals <- matrix(0, nrow=n.nodes(), ncol=ncol(beta()))
     weights <- colSums(data()$model$theta)
     for (node in seq(length(assignments()), 1)) {
@@ -138,11 +140,22 @@ function(input, output, session) {
     if (is.null(data()))
       return(NULL)
 
+    print("A")
+
+    pid <- c(rep(0, input$num.clusters), kmeans.fit()$cluster + K())
+    nid <- c(seq(K()+1,K()+input$num.clusters), seq(K()))
+    wgt <- c(rep(0, input$num.clusters), colSums(data()$model$theta))
+    ttl <- c(isolate(cluster.titles()), titles())
+
     #parent.id, topic.id, weight, title
-    rv <- data.frame(parentID=c(rep(0, input$num.clusters), kmeans.fit()$cluster + K()),
-                     nodeID=c(seq(K()+1,K()+input$num.clusters), seq(K())),
-                     weight=c(rep(0, input$num.clusters), colSums(data()$model$theta)),
-                     title=c(isolate(cluster.titles()), titles()))
+    # rv <- data.frame(parentID=c(rep(0, input$num.clusters), kmeans.fit()$cluster + K()),
+    #                  nodeID=c(seq(K()+1,K()+input$num.clusters), seq(K())),
+    #                  weight=c(rep(0, input$num.clusters), colSums(data()$model$theta)),
+    #                  title=c(isolate(cluster.titles()), titles()))
+
+    rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl)
+
+    print("B")
 
     return(rv)
   })
