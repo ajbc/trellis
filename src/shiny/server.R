@@ -26,18 +26,21 @@ function(input, output, session) {
   })
 
   kmeans.fit <- reactive({
+    print("kmeansfit")
     if (is.null(beta()))
       return(NULL)
     return(kmeans(beta(), input$num.clusters))
   })
 
   K <- reactive({
+    print("k")
     if (is.null(data()))
       return(0)
     return(nrow(beta()))
   })
 
   titles <- reactive({
+    print("titles")
     rv <- c()
     if (is.null(data()))
       return(rv)
@@ -51,12 +54,20 @@ function(input, output, session) {
   })
 
   assignments <- reactive({
+    print("assignments")
     if (is.null(data()))
       return(c())
 
-    if (input$topics == "")
-      return(c(kmeans.fit()$cluster + K(), rep(0, input$num.clusters)))
+    fit <- kmeans.fit()
+    nclusters <- input$num.clusters
+    print("babba:")
+    print(nclusters)
 
+    if (input$topics == "")
+      print("cheeeep!!")
+      return(c(fit$cluster + K(), rep(0, nclusters)))
+
+    print("Dunk :(")
     node.ids <- c()
     parent.ids <- c()
     for (pair in strsplit(input$topics, ',')[[1]]) {
@@ -81,6 +92,7 @@ function(input, output, session) {
   })
 
   n.nodes <- reactive({
+    print("nnodes")
     if (is.null(data()))
       return(0)
 
@@ -92,10 +104,9 @@ function(input, output, session) {
 
   # TODO: this may not work for deeper hierarchy; needs to be checked once implemented
   cluster.titles <- reactive({
+    print("clustertitles")
     if (is.null(data()))
       return(c())
-
-    print("Running cluster titles!!!!")
 
     marginals <- matrix(0, nrow=n.nodes(), ncol=ncol(beta()))
     weights <- colSums(data()$model$theta)
@@ -109,6 +120,8 @@ function(input, output, session) {
         val <- marginals[node - K(),]
       marginals[assignments()[node]-K(),] <- marginals[assignments()[node]-K(),] + val
     }
+    print("yo:")
+    print(n.nodes())
 
     rv <- c()
     for (cluster in seq(n.nodes())) {
