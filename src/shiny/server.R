@@ -26,21 +26,18 @@ function(input, output, session) {
   })
 
   kmeans.fit <- reactive({
-    print("kmeansfit")
     if (is.null(beta()))
       return(NULL)
     return(kmeans(beta(), input$num.clusters))
   })
 
   K <- reactive({
-    print("k")
     if (is.null(data()))
       return(0)
     return(nrow(beta()))
   })
 
   titles <- reactive({
-    print("titles")
     rv <- c()
     if (is.null(data()))
       return(rv)
@@ -54,20 +51,15 @@ function(input, output, session) {
   })
 
   assignments <- reactive({
-    print("assignments")
     if (is.null(data()))
       return(c())
 
     fit <- kmeans.fit()
-    nclusters <- input$num.clusters
-    print("babba:")
-    print(nclusters)
 
-    if (input$topics == "")
-      print("cheeeep!!")
-      return(c(fit$cluster + K(), rep(0, nclusters)))
+    if (input$topics == "") {
+      return(c(fit$cluster + K(), rep(0, input$num.clusters)))
+    }
 
-    print("Dunk :(")
     node.ids <- c()
     parent.ids <- c()
     for (pair in strsplit(input$topics, ',')[[1]]) {
@@ -88,11 +80,19 @@ function(input, output, session) {
 
     ids <- parent.ids[order(node.ids)]
 
+    # NOTE(tfs; 2017-10-12): If num.clusters was updated on the UI after
+    #      nodes were manually assigned, input$topics will not be empty.
+    #      However, the length of assignments in input$topics will
+    #      correspond to the previous num.clusters, resulting in a
+    #      crash unless we verify before returning here.
+    if (length(ids) != input$num.clusters) {
+      return(c(fit$cluster + K(), rep(0, input$num.clusters)))
+    }
+
     return(ids)
   })
 
   n.nodes <- reactive({
-    print("nnodes")
     if (is.null(data()))
       return(0)
 
@@ -104,7 +104,6 @@ function(input, output, session) {
 
   # TODO: this may not work for deeper hierarchy; needs to be checked once implemented
   cluster.titles <- reactive({
-    print("clustertitles")
     if (is.null(data()))
       return(c())
 
@@ -120,8 +119,6 @@ function(input, output, session) {
         val <- marginals[node - K(),]
       marginals[assignments()[node]-K(),] <- marginals[assignments()[node]-K(),] + val
     }
-    print("yo:")
-    print(n.nodes())
 
     rv <- c()
     for (cluster in seq(n.nodes())) {
@@ -153,22 +150,14 @@ function(input, output, session) {
     if (is.null(data()))
       return(NULL)
 
-    print("A")
 
     pid <- c(rep(0, input$num.clusters), kmeans.fit()$cluster + K())
     nid <- c(seq(K()+1,K()+input$num.clusters), seq(K()))
     wgt <- c(rep(0, input$num.clusters), colSums(data()$model$theta))
     ttl <- c(isolate(cluster.titles()), titles())
 
-    #parent.id, topic.id, weight, title
-    # rv <- data.frame(parentID=c(rep(0, input$num.clusters), kmeans.fit()$cluster + K()),
-    #                  nodeID=c(seq(K()+1,K()+input$num.clusters), seq(K())),
-    #                  weight=c(rep(0, input$num.clusters), colSums(data()$model$theta)),
-    #                  title=c(isolate(cluster.titles()), titles()))
-
     rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl)
 
-    print("B")
 
     return(rv)
   })
