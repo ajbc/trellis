@@ -1,2 +1,4 @@
 .Rhistory
 rsconnect/
+.DS_Store
+.RData

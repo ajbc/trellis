@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<!-- template.html -->
+<html>
+    <head>
+        <!-- Loads Shiny's defaults -->
+        {{ headContent() }}
+
+        <!-- Load custom styling last, enforcing our rules over shiny's -->
+        <link rel="stylesheet" href="styling-0.1/styling.css"/>
+        <link rel="stylesheet" href="shared/bootstrap/css/bootstrap.min.css"/>
+        <link rel="stylesheet" href="styling.css"/>
+    </head>
+
+    <body>
+        <h1 class="initial" id="initial-title">Topic Aggregation</h1>
+        <div class="initial center-float" id="initial-panel">
+            {{ titleName }}
+            <br />
+            <span id="dataset-upload-inputs">
+                {{ dataName }}
+                {{ fileUpload }}
+            </span>
+
+            <br />
+
+            <span id="kmeans-initialization-inputs">
+                {{ initialKmeans }}
+                <span id="kmeans-initialization-row2">
+                    {{ numClusters }}
+                    {{ startButton }}
+                </span>
+            </span>
+        </div>
+    </body>
+</html>
