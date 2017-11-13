@@ -54,8 +54,11 @@ function(input, output, session) {
     if (is.null(data()))
       return(c())
 
-    if (input$topics == "")
-      return(c(kmeans.fit()$cluster + K(), rep(0, input$num.clusters)))
+    fit <- kmeans.fit()
+
+    if (input$topics == "") {
+      return(c(fit$cluster + K(), rep(0, input$num.clusters)))
+    }
 
     node.ids <- c()
     parent.ids <- c()
@@ -76,6 +79,15 @@ function(input, output, session) {
     }
 
     ids <- parent.ids[order(node.ids)]
+
+    # NOTE(tfs; 2017-10-12): If num.clusters was updated on the UI after
+    #      nodes were manually assigned, input$topics will not be empty.
+    #      However, the length of assignments in input$topics will
+    #      correspond to the previous num.clusters, resulting in a
+    #      crash unless we verify before returning here.
+    if (length(ids) != (K() + input$num.clusters)) {
+      return(c(fit$cluster + K(), rep(0, input$num.clusters)))
+    }
 
     return(ids)
   })
