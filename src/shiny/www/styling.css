@@ -1,6 +1,17 @@
+/**********************************************************
+ *                                                        *
+ *                    General content                     *
+ *                                                        *
+ **********************************************************/
+
 .shinyjs-hide {
     /* This is what shiny does */
     display: none !important;
+}
+
+/* Just for the dev process, building UI first then functionality */
+.initial {
+    display: none;
 }
 
 div#bubbles svg {
@@ -114,6 +125,48 @@ span#kmeans-initialization-row2 .form-group label {
 }
 
 
+
+
+/**********************************************************
+ *                                                        *
+ *               Left column content styling              *
+ *                                                        *
+ **********************************************************/
+
+.left-content {
+    width: 30vw;
+    min-width: 350px;
+    height: 100vh;
+    border-color: black;
+    border-right-width: 3px;
+    /*background-color: lightblue;*/
+    border-right-style: solid;
+    float: left;
+    box-sizing: border-box;
+}
+
+
+
+/**********************************************************
+ *                                                        *
+ *                  Main content styling                  *
+ *                                                        *
+ **********************************************************/
+
+.main-content {
+    display: none;
+}
+
+
+ /**********************************************************
+ *                                                        *
+ *               Expanded document styling                *
+ *                                                        *
+ **********************************************************/
+
+.document-expanded {
+    display: none;
+}
 
 
 
