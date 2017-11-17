@@ -47,6 +47,12 @@ h2 {
     box-sizing: border-box;
 }
 
+
+/**********************************************************
+ *                                                        *
+ *            Start styling for initial panel             *
+ *                                                        *
+ **********************************************************/
 #initial-panel {
     -moz-border-radius: 20px;
     -webkit-border-radius: 20px;
@@ -84,6 +90,30 @@ span#kmeans-initialization-inputs .form-group {
     font-weight: 800;
     font-size: 48px;
 }
+
+span#kmeans-initialization-row2 .form-group {
+    display: inline-block;
+    width: auto;
+    text-align: left;
+    float: left;
+}
+
+span#kmeans-initialization-row2 .form-group label {
+    display: inline-block;
+}
+
+#num\.clusters {
+    width: 75px;
+    display: inline-block;
+}
+
+#topic\.start {
+    display: inline-block;
+    margin-right: 5%;
+    float: right;
+}
+
+
 
 
 
