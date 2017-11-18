@@ -4,14 +4,19 @@
  *                                                        *
  **********************************************************/
 
-.shinyjs-hide {
-    /* This is what shiny does */
+/*.shinyjs-hide {
+     This is what shiny does 
     display: none !important;
-}
+}*/
 
 /* Just for the dev process, building UI first then functionality */
 .initial {
-    display: none;
+    /*display: none;*/
+}
+
+.initial-hidden {
+    /*display: none;*/
+    /*visibility: hidden;*/
 }
 
 div#bubbles svg {
