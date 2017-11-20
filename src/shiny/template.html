@@ -36,12 +36,14 @@
         <!-- Basic structure? -->
         <div class="left-content initial-hidden shinyjs-hide">
             <h3 id="chosen-dataset-name">
-                {{ outputTitleName }}
+                {{ outputDataName }}
             </h3>
         </div>
 
         <div class="main-content initial-hidden shinyjs-hide">
-
+            <div id="export-button-container">
+                {{ inputExportButton }}
+            </div>
         </div>
 
         <div class="document-expanded initial-hidden shinyjs-hide">

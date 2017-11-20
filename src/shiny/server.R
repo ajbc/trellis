@@ -8,7 +8,7 @@ library(topicBubbles)
 options(shiny.maxRequestSize=1e4*1024^2)
 
 function(input, output, session) {
-  output$chosenName <- reactive(input$topic.datasetName)
+  output$topic.chosenName <- reactive(input$topic.datasetName)
 
   # FOR REFERENCE
   # observe({
@@ -36,10 +36,9 @@ function(input, output, session) {
 
     #   return(list("model"=model, "out"=out, "processed"=processed, "doc.summaries"=doc.summaries))
     # })
-    shinyjs::logjs("test")
     shinyjs::hide(selector=".initial")
-    shinyjs::show("left-content")
-    shinyjs::show(selector="#main-content")
+    shinyjs::show(selector=".left-content")
+    shinyjs::show(selector=".main-content")
     # session$sendCustomMessage(type="initialized", "Howdy?")
   })
 }

@@ -11,5 +11,6 @@ htmlTemplate("template.html",
                     value = TRUE, width="auto"),
     inputNumClusters = numericInput('num.clusters', "Number of clusters", value=10),
     inputStartButton = actionButton("topic.start", "Start"),
-    outputDataName = textOutput("topic.chosenName") # I want to know if there's a better way to organize this naming. More angular-like?
+    outputDataName = textOutput("topic.chosenName"), # I want to know if there's a better way to organize this naming. More angular-like?
+    inputExportButton = actionButton("export", "Export")
 )
