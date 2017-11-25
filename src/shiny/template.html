@@ -33,21 +33,50 @@
             </span>
         </div>
 
-        <!-- Basic structure? -->
         <div class="left-content initial-hidden shinyjs-hide">
-            <h3 id="chosen-dataset-name">
-                {{ outputDataName }}
-            </h3>
+            <div id="left-bar-controls">
+                <h3 id="chosen-dataset-name">
+                    {{ outputDataName }}
+                </h3>
+
+                <div id="view-selection-container">
+                    <button id="bubbles-selector" class="btn view-select-button selected-view-button" disabled="enabled">Bubbles</button>
+                    <button id="tree-selector" class="btn view-select-button">Tree</button>
+                </div>
+            </div>
         </div>
 
         <div class="main-content initial-hidden shinyjs-hide">
+            <!-- Controls -->
+            <div id="download-button-container">
+                {{ inputSaveButton }}
+            </div>
+
             <div id="export-button-container">
                 {{ inputExportButton }}
+            </div>
+
+            <div id="help-box" class="hidden-popup">
+                <h2>Instructions</h2>
+                Probably should wait until we have actual instructions/interactions to generate this copy
+            </div>
+
+            <div id="help-button-container">
+                <button id="help-button">?</button>
+            </div>
+
+            <!-- Main views -->
+            <div id="bubbles-view" class="view">
+                <h3>Bubbles View</h3>
+            </div>
+
+            <div id="tree-view" class="view hidden-view">
+                <h3>Tree View</h3>
             </div>
         </div>
 
         <div class="document-expanded initial-hidden shinyjs-hide">
-
+            <h3>Expanded Document</h3>
         </div>
 
         <script src="topics.js"></script>

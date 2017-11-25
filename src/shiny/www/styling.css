@@ -77,6 +77,7 @@ h3 {
 #initial-panel {
     -moz-border-radius: 20px;
     -webkit-border-radius: 20px;
+    -ms-border-radius: 20px;
     -o-border-radius: 20px;
     border-radius: 20px;
 
@@ -101,6 +102,7 @@ span#kmeans-initialization-inputs .form-group {
     -webkit-user-select: none; /* Safari */        
     -moz-user-select: none; /* Firefox */
     -ms-user-select: none; /* IE10+/Edge */
+    -o-user-select: none;
     user-select: none; /* Standard */
 }
 
@@ -148,11 +150,36 @@ span#kmeans-initialization-row2 .form-group label {
     min-width: 350px;
     height: 100vh;
     border-color: black;
-    border-right-width: 3px;
+    border-right-width: 2px;
     background-color: lightblue;
     border-right-style: solid;
     float: left;
     box-sizing: border-box;
+}
+
+
+.view-select-button {
+    display: flex;
+    justify-content: space-around;
+    justify-content: space-evenly;
+    width: 80px;
+}
+
+
+#view-selection-container {
+    display: flex;
+    justify-content: space-around;
+    justify-content: space-evenly; /* Not sure if this renders in all browsers */
+}
+
+
+#left-bar-controls {
+    border-bottom-style: solid;
+    border-bottom-color: black;
+    border-bottom-width: 2px;
+    padding-bottom: 25px;
+    padding-top: 10px;
+    background-color: lightgray;
 }
 
 
@@ -165,9 +192,15 @@ span#kmeans-initialization-row2 .form-group label {
 
 .main-content {
     display: none;
-    background-color: palevioletred;
+    background-color: #fff;
     width: 100%;
     height: 100vh;
+}
+
+
+#chosen-dataset-name {
+    margin-bottom: 20px;
+    margin-top: 0px;
 }
 
 
@@ -183,8 +216,68 @@ span#kmeans-initialization-row2 .form-group label {
     opacity: 1.0;
 }
 
+#download-button-container {
+    float: left;
+    text-align: left;
+    margin-top: 10px;
+    margin-left: 15px;
+    opacity: 0.60;
+}
 
- /**********************************************************
+#donwload-button-container:hover {
+    opacity: 1.0;
+}
+
+#help-button-container {
+    position: absolute;
+    right: 40px;
+    bottom: 30px;
+    opacity: 0.6;
+
+    -webkit-user-select: none; /* Safari */        
+    -moz-user-select: none; /* Firefox */
+    -ms-user-select: none; /* IE10+/Edge */
+    -o-user-select: none;
+    user-select: none; /* Standard */
+}
+
+#help-button-container:hover {
+    opacity: 1.0;
+}
+
+#help-button {
+    -webkit-user-select: none; /* Safari */        
+    -moz-user-select: none; /* Firefox */
+    -ms-user-select: none; /* IE10+/Edge */
+    -o-user-select: none;
+    user-select: none; /* Standard */
+
+    margin: auto;
+
+    -webkit-border-radius: 40px;
+    -moz-border-radius: 40px;
+    -ms-border-radius: 40px;
+    -o-border-radius: 40px;
+    border-radius: 40px;
+
+    text-align: center;
+    width: 40px;
+    height: 40px;
+}
+
+
+.hidden-view {
+    display: none;
+}
+
+
+.view {
+    overflow: hidden;
+}
+
+
+
+/**********************************************************
  *                                                        *
  *               Expanded document styling                *
  *                                                        *
@@ -194,6 +287,31 @@ span#kmeans-initialization-row2 .form-group label {
     display: none;
 }
 
+
+/**********************************************************
+ *                                                        *
+ *               Expanded document styling                *
+ *                                                        *
+ **********************************************************/
+
+#help-box {
+    position: fixed;
+    top: 20vh;
+    left: 20vw;
+    width: 60vw;
+    height: 60vh;
+    background-color: lightgray;
+    opacity: 0.8;
+    text-align: center;
+
+    border-color: black;
+    border-style: solid;
+    border-width: 2px;
+}
+
+#help-box.hidden-popup {
+    display: none;
+}
 
 
 

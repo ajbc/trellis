@@ -8,7 +8,14 @@ library(topicBubbles)
 options(shiny.maxRequestSize=1e4*1024^2)
 
 function(input, output, session) {
-  output$topic.chosenName <- reactive(input$topic.datasetName)
+  output$topic.chosenName <- reactive({
+    chosen <- input$topic.datasetName
+    if (chosen != "") {
+      return(chosen)
+    } else {
+      return("Dataset")
+    }
+  })
 
   # FOR REFERENCE
   # observe({
