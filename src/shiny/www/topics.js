@@ -1,5 +1,6 @@
 var showingHelp = false; // This is probably just terrible AND not needed
 var selectedView = "Bubbles";
+var selectedLeftTab = "Document";
 
 
 
@@ -16,6 +17,16 @@ $("#bubbles-selector").click(function(event) {
 $("#tree-selector").click(function(event) {
 	event.preventDefault();
 	selectTree();
+});
+
+$("#left-bar-topic-tab").click(function(event) {
+	event.preventDefault();
+	selectTopicTab();
+});
+
+$("#left-bar-document-tab").click(function(event) {
+	event.preventDefault();
+	selectDocumentTab();
 });
 
 
@@ -60,6 +71,31 @@ function selectTree() {
 	$("#bubbles-selector").removeAttr("disabled");
 }
 
+
+function selectTopicTab() {
+	if (selectedLeftTab == "Topic") {
+		return;
+	}
+
+	selectedLeftTab = "Topic";
+	$("#left-bar-topic-tab").addClass("active-left-bar-tab");
+	$("#left-bar-document-tab").removeClass("active-left-bar-tab");
+	$("#left-bar-topic-content").removeClass("hidden-left-bar-content");
+	$("#left-bar-document-content").addClass("hidden-left-bar-content");
+}
+
+
+function selectDocumentTab() {
+	if (selectedLeftTab == "Document") {
+		return;
+	}
+
+	selectedLeftTab = "Document";
+	$("#left-bar-document-tab").addClass("active-left-bar-tab");
+	$("#left-bar-topic-tab").removeClass("active-left-bar-tab");
+	$("#left-bar-document-content").removeClass("hidden-left-bar-content");
+	$("#left-bar-topic-content").addClass("hidden-left-bar-content");
+}
 
 
 // Shiny.addCustomMessageHandler("initialized", function(msg) {

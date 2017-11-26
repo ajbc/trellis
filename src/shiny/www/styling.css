@@ -1,5 +1,19 @@
 /**********************************************************
  *                                                        *
+ *                    Defined values                      *
+ *                                                        *
+ **********************************************************/
+/*
+:root {
+    --left-bar-bg-color: #fff;
+    --left-bar-tab-bg-color: gray;
+}*/
+
+
+
+
+/**********************************************************
+ *                                                        *
  *                    General content                     *
  *                                                        *
  **********************************************************/
@@ -151,7 +165,9 @@ span#kmeans-initialization-row2 .form-group label {
     height: 100vh;
     border-color: black;
     border-right-width: 2px;
-    background-color: lightblue;
+    /*background-color: lightblue;*/
+    /*background-color: var(--left-bar-bg-color, #fff);*/
+    background-color: #fff;
     border-right-style: solid;
     float: left;
     box-sizing: border-box;
@@ -182,6 +198,52 @@ span#kmeans-initialization-row2 .form-group label {
     background-color: lightgray;
 }
 
+
+.left-bar-tab {
+    /*background-color: var(--left-bar-tab-bg-color, gray);*/
+    background-color: lightgray;
+    text-align: center;
+    box-sizing: border-box;
+    width: 50%;
+    display: inline-block;
+}
+
+
+#left-bar-topic-tab {
+    border-right: 2px solid black;
+    border-bottom: 2px solid black;
+}
+
+
+#left-bar-topic-tab.active-left-bar-tab {
+    /*border-color: var(--left-bar-tab-bg-color, gray);*/
+    border-color: #fff;
+    background-color: #fff;
+}
+
+
+#left-bar-document-tab {
+    border-left: 2px solid black;
+    border-bottom: 2px solid black;
+}
+
+
+#left-bar-document-tab.active-left-bar-tab {
+    /*border-color: var(--left-bar-tab-bg-color, gray);*/
+    border-color: #fff;
+    background-color: #fff;
+}
+
+
+.hidden-left-bar-content {
+    display: none;
+}
+
+
+.left-bar-content {
+    width: 100%;
+    height: 100%;
+}
 
 
 /**********************************************************
