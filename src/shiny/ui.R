@@ -1,3 +1,8 @@
+library(shiny)
+library(shinyjs)
+library(htmlwidgets)
+library(topicBubbles)
+
 htmlTemplate("template.html",
     outputTitleName = titlePanel("Upload Dataset"),
     inputFileUpload = fileInput('topic.file', '',

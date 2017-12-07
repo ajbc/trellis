@@ -1,7 +1,7 @@
 var showingHelp = false; // This is probably just terrible AND not needed
 var selectedView = "Bubbles";
 var selectedLeftTab = "Document";
-
+var data = null;
 
 
 $("#help-button").click(function(event) {
@@ -30,6 +30,11 @@ $("#left-bar-document-tab").click(function(event) {
 });
 
 
+function updateData(dataObject) {
+	data = dataObject;
+};
+
+
 function toggleHelpButton() {
 	var helpbox = $("#help-box");
 	if (helpbox.hasClass("hidden-popup")) {
@@ -39,7 +44,7 @@ function toggleHelpButton() {
 		helpbox.addClass("hidden-popup");
 		showingHelp = true;
 	}
-}
+};
 
 
 function selectBubbles() {
@@ -54,7 +59,7 @@ function selectBubbles() {
 	$("#tree-view").addClass("hidden-view");
 	$("#bubbles-selector").attr("disabled", "disabled");
 	$("#tree-selector").removeAttr("disabled");
-}
+};
 
 
 function selectTree() {
@@ -69,7 +74,7 @@ function selectTree() {
 	$("#bubbles-view").addClass("hidden-view");
 	$("#tree-selector").attr("disabled", "disabled");
 	$("#bubbles-selector").removeAttr("disabled");
-}
+};
 
 
 function selectTopicTab() {
@@ -82,7 +87,7 @@ function selectTopicTab() {
 	$("#left-bar-document-tab").removeClass("active-left-bar-tab");
 	$("#left-bar-topic-content").removeClass("hidden-left-bar-content");
 	$("#left-bar-document-content").addClass("hidden-left-bar-content");
-}
+};
 
 
 function selectDocumentTab() {
@@ -95,7 +100,7 @@ function selectDocumentTab() {
 	$("#left-bar-topic-tab").removeClass("active-left-bar-tab");
 	$("#left-bar-document-content").removeClass("hidden-left-bar-content");
 	$("#left-bar-topic-content").addClass("hidden-left-bar-content");
-}
+};
 
 
 // Shiny.addCustomMessageHandler("initialized", function(msg) {

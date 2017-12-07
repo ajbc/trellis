@@ -33,6 +33,14 @@
     /*visibility: hidden;*/
 }
 
+.non-selectable {
+    -webkit-user-select: none; /* Safari */        
+    -moz-user-select: none; /* Firefox */
+    -ms-user-select: none; /* IE10+/Edge */
+    -o-user-select: none;
+    user-select: none; /* Standard */
+}
+
 div#bubbles svg {
   background-color: #fff !important;
 }

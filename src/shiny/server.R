@@ -48,6 +48,20 @@ function(input, output, session) {
     shinyjs::show(selector=".main-content")
     # session$sendCustomMessage(type="initialized", "Howdy?")
   })
+
+
+  beta <- reactive({
+    if (is.null(data()))
+      return(NULL)
+
+    return(exp(data()$model$beta$logbeta[[1]]))
+  })
+
+  K <- reactive({
+    if (is.null(data()))
+      return(NULL)
+    return(nrow(beta()))  
+  })
 }
 
 # function(input, output, session) {
