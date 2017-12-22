@@ -1,5 +1,6 @@
 library(shiny)
 library(shinyjs)
+library(jsonlite)
 library(stm)
 library(data.table)
 library(htmlwidgets)
@@ -22,7 +23,7 @@ function(input, output, session) {
   #     shinyjs::toggleState("submit", !is.null(input$name) && input$name != "")
   #   })
 
-  isolate(input$topic.file) # Really not sure how best to isolate these yet? Probably not necessary as everything should hide anyway
+  # isolate(input$topic.file) # Really not sure how best to isolate these yet? Probably not necessary as everything should hide anyway
   data <- reactive({
     inFile <- input$topic.file
     if (is.null(inFile))
@@ -30,6 +31,7 @@ function(input, output, session) {
 
     load(inFile$datapath)
 
+    session$sendCustomMessage("parsed", "Parsed");
     return(list("model"=model, "out"=out, "processed"=processed, "doc.summaries"=doc.summaries))
   })
 
@@ -43,10 +45,15 @@ function(input, output, session) {
 
     #   return(list("model"=model, "out"=out, "processed"=processed, "doc.summaries"=doc.summaries))
     # })
+
+    # session$sendCustomMessage(type="initialized", "Howdy?")
+    # dataJSON <- toJSON(data())
+    session$sendCustomMessage("parsed", "JSONIFIED")
+    session$sendCustomMessage(type = "startInit", "Parsing File")
+    session$sendCustomMessage(type = "initData", data())
     shinyjs::hide(selector=".initial")
     shinyjs::show(selector=".left-content")
     shinyjs::show(selector=".main-content")
-    # session$sendCustomMessage(type="initialized", "Howdy?")
   })
 
 

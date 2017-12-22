@@ -103,6 +103,26 @@ function selectDocumentTab() {
 };
 
 
+function initializeData(initData) {
+	data = initData;
+	console.log(initData);
+};
+
+
+Shiny.addCustomMessageHandler("initData", function(msg) {
+	alert("Please");
+	initializeData(msg);
+});
+
+Shiny.addCustomMessageHandler("startInit", function(msg) {
+	alert(msg);
+});
+
+Shiny.addCustomMessageHandler("parsed", function(msg) {
+	alert(msg);
+});
+
+
 // Shiny.addCustomMessageHandler("initialized", function(msg) {
 	// alert(msg);
 	// $(".initial").hide();
