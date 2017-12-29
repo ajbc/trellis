@@ -31,6 +31,14 @@
                     {{ inputStartButton }}
                 </span>
             </span>
+
+
+            <br />
+
+            <div id="init-message" class="centered inplace-hidden-message">
+            <!-- <div id="init-message" class="centered"> -->
+                Parsing data file, this may take a few moments.
+            </div>
         </div>
 
         <div class="left-content initial-hidden shinyjs-hide">
@@ -53,10 +61,16 @@
             <div id="left-bar-content-container">
                 <div id="left-bar-topic-content" class="left-bar-content hidden-left-bar-content">
                     <h3>Topics</h3>
+
+                    {{ outputTopicSummaries }}
+
                 </div>
 
                 <div id="left-bar-document-content" class="left-bar-content">
                     <h3>Documents</h3>
+
+                    {{ outputDocuments }}
+
                 </div>
             </div>
         </div>

@@ -3,30 +3,34 @@ var selectedView = "Bubbles";
 var selectedLeftTab = "Document";
 var data = null;
 
+$(document).ready(function() {
+	Shiny.onInputChange("topics", "");
+	Shiny.onInputChange("topic.selected", 1);
+	
+	$("#help-button").click(function(event) {
+		event.preventDefault();
+		toggleHelpButton();
+	});
 
-$("#help-button").click(function(event) {
-	event.preventDefault();
-	toggleHelpButton();
-});
+	$("#bubbles-selector").click(function(event) {
+		event.preventDefault();
+		selectBubbles();
+	});
 
-$("#bubbles-selector").click(function(event) {
-	event.preventDefault();
-	selectBubbles();
-});
+	$("#tree-selector").click(function(event) {
+		event.preventDefault();
+		selectTree();
+	});
 
-$("#tree-selector").click(function(event) {
-	event.preventDefault();
-	selectTree();
-});
+	$("#left-bar-topic-tab").click(function(event) {
+		event.preventDefault();
+		selectTopicTab();
+	});
 
-$("#left-bar-topic-tab").click(function(event) {
-	event.preventDefault();
-	selectTopicTab();
-});
-
-$("#left-bar-document-tab").click(function(event) {
-	event.preventDefault();
-	selectDocumentTab();
+	$("#left-bar-document-tab").click(function(event) {
+		event.preventDefault();
+		selectDocumentTab();
+	});
 });
 
 
@@ -120,6 +124,11 @@ Shiny.addCustomMessageHandler("startInit", function(msg) {
 
 Shiny.addCustomMessageHandler("parsed", function(msg) {
 	alert(msg);
+});
+
+Shiny.addCustomMessageHandler("processingFile", function(msg) {
+	$("#topic\\.start").attr("disabled", true);
+	$("#init-message").removeClass("inplace-hidden-message");
 });
 
 

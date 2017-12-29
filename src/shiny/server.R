@@ -31,8 +31,13 @@ function(input, output, session) {
 
     load(inFile$datapath)
 
-    session$sendCustomMessage("parsed", "Parsed");
+    # session$sendCustomMessage("parsed", "Parsed");
     return(list("model"=model, "out"=out, "processed"=processed, "doc.summaries"=doc.summaries))
+    # return(list("out"=out, "processed"=processed, "docSummaries"=doc.summaries))
+  })
+
+  observe({
+    shinyjs::toggleState("topic.start", !is.null(input$topic.file))
   })
 
   observeEvent(input$topic.start, {
@@ -48,9 +53,12 @@ function(input, output, session) {
 
     # session$sendCustomMessage(type="initialized", "Howdy?")
     # dataJSON <- toJSON(data())
-    session$sendCustomMessage("parsed", "JSONIFIED")
-    session$sendCustomMessage(type = "startInit", "Parsing File")
-    session$sendCustomMessage(type = "initData", data())
+    # session$sendCustomMessage("parsed", "JSONIFIED")
+    # session$sendCustomMessage(type = "startInit", "Parsing File")
+    # session$sendCustomMessage(type = "initData", data())
+    session$sendCustomMessage(type="processingFile", "")
+    req(data())
+    req(documents())
     shinyjs::hide(selector=".initial")
     shinyjs::show(selector=".left-content")
     shinyjs::show(selector=".main-content")
@@ -68,6 +76,151 @@ function(input, output, session) {
     if (is.null(data()))
       return(NULL)
     return(nrow(beta()))  
+  })
+
+  kmeans.fit <- reactive({
+    if (is.null(beta()))
+      return(NULL)
+    return(kmeans(beta(), input$num.clusters))
+  })
+
+  titles <- reactive({
+    rv <- c()
+    if (is.null(data()))
+      return(rv)
+
+    for (k in seq(K())) {
+      title <- paste(data()$out$vocab[order(beta()[k,], decreasing=TRUE)][seq(5)], collapse=" ")
+      rv <- c(rv, title)
+    }
+
+    return(rv)
+  })
+
+  assignments <- reactive({
+    if (is.null(data()))
+      return(c())
+
+    fit <- kmeans.fit()
+
+    if (input$topics == "") {
+      return(c(fit$cluster + K(), rep(0, input$num.clusters)))
+    }
+
+    node.ids <- c()
+    parent.ids <- c()
+    for (pair in strsplit(input$topics, ',')[[1]]) {
+      ids <- strsplit(pair, ":")[[1]]
+      node.ids <- c(node.ids, as.integer(ids[[1]]))
+      parent.ids <- c(parent.ids, as.integer(ids[[2]]))
+    }
+
+    # adjust ids for missing/deleted clusters
+    # TODO: consider a more elegant solution (see also download)
+    for (i in seq(max(parent.ids))) {
+      # if this id doesn't exist, add a dummy one
+      if (sum(node.ids==i) == 0) {
+        node.ids <- c(node.ids, i)
+        parent.ids <- c(parent.ids, 0)
+      }
+    }
+
+    ids <- parent.ids[order(node.ids)]
+
+    # NOTE(tfs; 2017-10-12): If num.clusters was updated on the UI after
+    #      nodes were manually assigned, input$topics will not be empty.
+    #      However, the length of assignments in input$topics will
+    #      correspond to the previous num.clusters, resulting in a
+    #      crash unless we verify before returning here.
+    if (length(ids) != (K() + input$num.clusters)) {
+      return(c(fit$cluster + K(), rep(0, input$num.clusters)))
+    }
+
+    return(ids)
+  })
+
+  n.nodes <- reactive({
+    if (is.null(data()))
+      return(0)
+
+    if (input$topics == "")
+      return(input$num.clusters)
+
+    return(length(assignments())-K())
+  })
+
+  output$topic.summary <- renderUI({
+    # if (input$active == "")
+    #   return()
+
+    out.string <- paste("<hr/>\n<h3>Topic Summary</h3>\n",
+                        "<h4>", topic.title(), "</h4>\n", documents())
+    return(HTML(out.string))
+  })
+
+  top.documents <- reactive({
+    rv <- list()
+    theta <- data()$model$theta
+    meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
+    for (topic in seq(K())) {
+      rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:10]]
+
+      meta.theta[,assignments()[topic] - K()] <-
+        meta.theta[,assignments()[topic] - K()] + theta[,topic]
+    }
+
+    for (meta.topic in seq(length(assignments()) - K())) {
+      rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta[,meta.topic],
+                                                decreasing=TRUE)[1:10]]
+    }
+
+    return(rv)
+  })
+
+  documents <- reactive({
+    topic <- as.integer(input$topic.selected)
+
+    rv <- ""
+    for (doc in top.documents()[[topic]]) {
+      rv <- paste(rv, "<p class=\"document-summary\">",
+                  substr(doc, start=1, stop=100),
+                  "...</p>")
+    }
+    return(rv)
+  })
+
+  top.documents <- reactive({
+    # TODO: this will need to be updated for hierarchy
+    rv <- list()
+    theta <- data()$model$theta
+    meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
+    for (topic in seq(K())) {
+      rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:10]]
+
+      meta.theta[,assignments()[topic] - K()] <-
+        meta.theta[,assignments()[topic] - K()] + theta[,topic]
+    }
+
+    for (meta.topic in seq(length(assignments()) - K())) {
+      rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta[,meta.topic],
+                                                decreasing=TRUE)[1:10]]
+    }
+
+    return(rv)
+  })
+
+  output$topic.documents <- renderUI({
+    # print('hi')
+    req(input$topic.selected)
+    # print(input$topic.selected)
+
+    rv <- paste("<div class=\"topic-bar document-container\">",
+                documents(),
+                "</div>")
+
+    # print(rv)
+
+    return(HTML(rv))
   })
 }
 
