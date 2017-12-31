@@ -169,35 +169,62 @@ function(input, output, session) {
     return(HTML(out.string))
   })
 
+  max.theta <- reactive({
+
+  })
+
+  meta.theta <- reactive({
+    theta <- data()$model$theta
+    mtheta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
+    for (topic in seq(K())) {
+      # rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:10]]
+
+      mtheta[,assignments()[topic] - K()] <-
+        mtheta[,assignments()[topic] - K()] + theta[,topic]
+    }
+
+    return(mtheta)
+  })
+
   top.documents <- reactive({
     rv <- list()
     theta <- data()$model$theta
-    meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
+    # meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
     for (topic in seq(K())) {
       rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:10]]
 
-      meta.theta[,assignments()[topic] - K()] <-
-        meta.theta[,assignments()[topic] - K()] + theta[,topic]
+      # meta.theta[,assignments()[topic] - K()] <-
+      #   meta.theta[,assignments()[topic] - K()] + theta[,topic]
     }
 
     for (meta.topic in seq(length(assignments()) - K())) {
-      rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta[,meta.topic],
+      rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta()[,meta.topic],
                                                 decreasing=TRUE)[1:10]]
     }
 
     return(rv)
   })
 
-  documents <- reactive({
+  thetas.selected <- reactive({
+    rv <- list()
+    topic.theta <- data()$model$theta
     topic <- as.integer(input$topic.selected)
 
-    rv <- ""
-    for (doc in top.documents()[[topic]]) {
-      rv <- paste(rv, "<p class=\"document-summary\">",
-                  substr(doc, start=1, stop=100),
-                  "...</p>")
+    if (topic <= K()) {
+      # sorted <- sort.list(topic.theta[,topic], decreasing=TRUE)
+
+      # NOTE(tfs): I'm not very familiar with the way R does things,
+      #            but the above line does not produce values between 0 and 1.
+      #            The following line is really ugly and I'm sure is not the
+      #            best way to do this.
+      sorted <- topic.theta[,topic][order(topic.theta[,topic], decreasing=TRUE)]
+    } else {
+      # sorted <- sort.list(meta.theta()[,topic-K()], decreasing=TRUE)
+
+      sorted <- meta.theta()[,topic-K()][order(meta.theta()[,topic-K()], decreasing=TRUE)]
     }
-    return(rv)
+
+    return(sorted)
   })
 
   top.documents <- reactive({
@@ -220,16 +247,32 @@ function(input, output, session) {
     return(rv)
   })
 
+  # Top documents for selected topic/group
+  documents <- reactive({
+    topic <- as.integer(input$topic.selected)
+    docs <- top.documents()[[topic]]
+    thetas <- thetas.selected()
+    rv <- ""
+    # for (doc in top.documents()[[topic]]) {
+    for (i in 1:length(top.documents()[[topic]])) {
+      rv <- paste(rv, "<div class=\"document-summary\">",
+                  "<div class=\"document-summary-fill\" style=\"width:",
+                  paste(as.integer(thetas[i] * 100), "%;", sep=""),
+                  "\"></div>",
+                  "<p class=\"document-summary-contents\">",
+                  substr(docs[i], start=1, stop=95),
+                  "...</p>",
+                  "</div>")
+    }
+    return(rv)
+  })
+
   output$topic.documents <- renderUI({
-    # print('hi')
     req(input$topic.selected)
-    # print(input$topic.selected)
 
     rv <- paste("<div class=\"topic-bar document-container\">",
                 documents(),
                 "</div>")
-
-    # print(rv)
 
     return(HTML(rv))
   })

@@ -39,7 +39,7 @@ HTMLWidgets.widget({
     name: "topicBubbles",
     type: "output",
 
-    PAGE_MARGIN: 30,
+    PAGE_MARGIN: 10,
     DIAMETER: null,
     FONT_SIZE: 11,
 
@@ -98,7 +98,8 @@ HTMLWidgets.widget({
         // Set depth-to-color mapping function.
         self.colorMap = d3.scaleLinear()
             .domain([-2, 2])
-            .range(["hsl(155,30%,82%)", "hsl(155,66%,25%)"])
+            // .range(["hsl(155,30%,82%)", "hsl(155,66%,25%)"])
+            .range(["hsl(215,100%,80%)", "hsl(215,70%,50%)"])
             .interpolate(d3.interpolateHcl);
     },
 
@@ -213,7 +214,7 @@ HTMLWidgets.widget({
             .on("mouseover", function (d) {
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id,
                     isRoot = self.isRootNode(d);
-                Shiny.onInputChange("active", isRoot ? displayID : d.data.id);
+                Shiny.onInputChange("topic.selected", isRoot ? displayID : d.data.id);
                 if (isRoot || self.isGroupInFocus(d)) {
                     return;
                 }
@@ -221,7 +222,7 @@ HTMLWidgets.widget({
             })
             .on("mouseout", function (d) {
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id;
-                Shiny.onInputChange("active", displayID);
+                Shiny.onInputChange("topic.selected", displayID);
                 if (self.isRootNode(d)) {
                     return;
                 }

@@ -169,7 +169,7 @@ span#kmeans-initialization-row2 .form-group label {
 
 #init-message {
     display: inline-block;
-    color: red;
+    color: blue;
     margin-bottom: 10px;
     width: 100%;
 }
@@ -284,7 +284,25 @@ span#kmeans-initialization-row2 .form-group label {
 
 .document-summary {
     border-bottom: 1px solid black;
+    padding: 0px;
+    overflow: hidden;
+    height: 50px;
+    position: relative;
+}
+
+.document-summary-fill {
+    background-color: var(--left-bar-bg-color, gray);
+    opacity: 0.45;
+    position: absolute;
+    left: 0px;
+    height: 100%;
+    border-right: 1px solid black;
+}
+
+.document-summary-contents {
     padding: 5px;
+    position: absolute;
+    left: 0px;
 }
 
 
