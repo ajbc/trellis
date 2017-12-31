@@ -33,7 +33,7 @@ $(document).ready(function() {
 
 $(document).on("shiny:sessioninitialized", function(event) {
 	Shiny.onInputChange("topics", "");
-	Shiny.onInputChange("topic.selected", 1);
+	Shiny.onInputChange("topic.selected", "");
 });
 
 

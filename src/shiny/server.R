@@ -58,7 +58,7 @@ function(input, output, session) {
     # session$sendCustomMessage(type = "initData", data())
     session$sendCustomMessage(type="processingFile", "")
     req(data())
-    req(documents())
+    req(bubbles.data())
     shinyjs::hide(selector=".initial")
     shinyjs::show(selector=".left-content")
     shinyjs::show(selector=".main-content")
@@ -98,9 +98,8 @@ function(input, output, session) {
   })
 
   topic.title <- reactive({
-    req(input$topic.selected)
     if (input$topic.selected == "")
-      return()
+      return("None Selected")
 
     topic <- as.integer(input$topic.selected)
     if (topic <= K())
@@ -169,10 +168,6 @@ function(input, output, session) {
     return(HTML(out.string))
   })
 
-  max.theta <- reactive({
-
-  })
-
   meta.theta <- reactive({
     theta <- data()$model$theta
     mtheta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
@@ -206,9 +201,12 @@ function(input, output, session) {
   })
 
   thetas.selected <- reactive({
-    rv <- list()
     topic.theta <- data()$model$theta
     topic <- as.integer(input$topic.selected)
+
+    if (is.na(topic)) {
+      return(list())
+    }
 
     if (topic <= K()) {
       # sorted <- sort.list(topic.theta[,topic], decreasing=TRUE)
@@ -227,29 +225,34 @@ function(input, output, session) {
     return(sorted)
   })
 
-  top.documents <- reactive({
-    # TODO: this will need to be updated for hierarchy
-    rv <- list()
-    theta <- data()$model$theta
-    meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
-    for (topic in seq(K())) {
-      rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:10]]
+  # top.documents <- reactive({
+  #   # TODO: this will need to be updated for hierarchy
+  #   rv <- list()
+  #   theta <- data()$model$theta
+  #   meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
+  #   for (topic in seq(K())) {
+  #     rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:10]]
 
-      meta.theta[,assignments()[topic] - K()] <-
-        meta.theta[,assignments()[topic] - K()] + theta[,topic]
-    }
+  #     meta.theta[,assignments()[topic] - K()] <-
+  #       meta.theta[,assignments()[topic] - K()] + theta[,topic]
+  #   }
 
-    for (meta.topic in seq(length(assignments()) - K())) {
-      rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta[,meta.topic],
-                                                decreasing=TRUE)[1:10]]
-    }
+  #   for (meta.topic in seq(length(assignments()) - K())) {
+  #     rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta[,meta.topic],
+  #                                               decreasing=TRUE)[1:10]]
+  #   }
 
-    return(rv)
-  })
+  #   return(rv)
+  # })
 
   # Top documents for selected topic/group
   documents <- reactive({
     topic <- as.integer(input$topic.selected)
+
+    if (is.na(topic)) {
+      return("")
+    }
+
     docs <- top.documents()[[topic]]
     thetas <- thetas.selected()
     rv <- ""
@@ -268,9 +271,11 @@ function(input, output, session) {
   })
 
   output$topic.documents <- renderUI({
-    req(input$topic.selected)
-
-    rv <- paste("<div class=\"topic-bar document-container\">",
+    # req(input$topic.selected)
+    rv <- paste("<h4 id=\"left-document-tab-cluster-title\">",
+                topic.title(),
+                "</h4>",
+                "<div class=\"topic-bar document-container\">",
                 documents(),
                 "</div>")
 
