@@ -14,11 +14,12 @@ htmlTemplate("template.html",
                width = "90%"),
     inputInitialKmeans = checkboxInput("topic.initialize", "Initialize with KMeans",
                     value = TRUE, width="auto"),
-    inputNumClusters = numericInput('num.clusters', "Number of clusters", value=10),
+    inputNumClusters = numericInput("num.clusters", "Number of clusters", value=10),
     inputStartButton = actionButton("topic.start", "Start"),
     outputDataName = textOutput("topic.chosenName"), # I want to know if there's a better way to organize this naming. More angular-like?
     inputExportButton = actionButton("export", "Export"),
     inputSaveButton = downloadButton("download", "Save"),
-    outputTopicSummaries = htmlOutput('topic.summary', class="summary"),
-    outputDocuments = htmlOutput('topic.documents', class="summary")
+    outputTopicSummaries = htmlOutput("topic.summary", class="summary"),
+    outputDocuments = htmlOutput("topic.documents", class="summary"),
+    outputBubbles = topicBubblesOutput("bubbles")
 )

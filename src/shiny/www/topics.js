@@ -4,9 +4,6 @@ var selectedLeftTab = "Document";
 var data = null;
 
 $(document).ready(function() {
-	Shiny.onInputChange("topics", "");
-	Shiny.onInputChange("topic.selected", 1);
-	
 	$("#help-button").click(function(event) {
 		event.preventDefault();
 		toggleHelpButton();
@@ -31,6 +28,12 @@ $(document).ready(function() {
 		event.preventDefault();
 		selectDocumentTab();
 	});
+});
+
+
+$(document).on("shiny:sessioninitialized", function(event) {
+	Shiny.onInputChange("topics", "");
+	Shiny.onInputChange("topic.selected", 1);
 });
 
 

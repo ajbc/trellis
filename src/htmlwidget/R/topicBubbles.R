@@ -1,3 +1,4 @@
+#' Previous bubble color: #156946
 #' <Add Title>
 #'
 #' <Add Description>
@@ -9,7 +10,7 @@ topicBubbles <- function(data,
                          width = NULL,
                          height = NULL,
                          elementId = NULL,
-                         bubble.color = "#156946",
+                         bubble.color = "#64afff",
                          text.color = "#FFFFFF") {
     
   # create options
@@ -52,7 +53,7 @@ topicBubbles <- function(data,
 #' @name topicBubbles-shiny
 #'
 #' @export
-topicBubblesOutput <- function(outputId, width = '100%', height = '800px'){
+topicBubblesOutput <- function(outputId, width = '100%', height = '100%'){
   htmlwidgets::shinyWidgetOutput(outputId, 'topicBubbles', width, height, package = 'topicBubbles')
 }
 

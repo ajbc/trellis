@@ -97,6 +97,17 @@ function(input, output, session) {
     return(rv)
   })
 
+  topic.title <- reactive({
+    req(input$topic.selected)
+    if (input$topic.selected == "")
+      return()
+
+    topic <- as.integer(input$topic.selected)
+    if (topic <= K())
+      return(titles()[topic])
+    return(cluster.titles()[topic-K()])
+  })
+
   assignments <- reactive({
     if (is.null(data()))
       return(c())
@@ -222,6 +233,58 @@ function(input, output, session) {
 
     return(HTML(rv))
   })
+
+  # TODO: this may not work for deeper hierarchy; needs to be checked once implemented
+  cluster.titles <- reactive({
+    if (is.null(data()))
+      return(c())
+
+    marginals <- matrix(0, nrow=n.nodes(), ncol=ncol(beta()))
+    weights <- colSums(data()$model$theta)
+    for (node in seq(length(assignments()), 1)) {
+      val <- 0
+      if (assignments()[node] == 0)
+        val <- 0
+      else if (node <= K())
+        val <- beta()[node,] * weights[node]
+      else
+        val <- marginals[node - K(),]
+      marginals[assignments()[node]-K(),] <- marginals[assignments()[node]-K(),] + val
+    }
+
+    rv <- c()
+    for (cluster in seq(n.nodes())) {
+      title <- paste(data()$out$vocab[order(marginals[cluster,],
+                                            decreasing=TRUE)][seq(5)], collapse=" ")
+
+      rv <- c(rv, title)
+
+      title <- paste(data()$out$vocab[order(marginals[cluster,],
+                                            decreasing=TRUE)][seq(20)], collapse=" ")
+      vals <- marginals[cluster, order(marginals[cluster,], decreasing=TRUE)[seq(20)]]
+    }
+
+    return(rv)
+
+    #TODO: add on reset
+    #document.getElementById("topics").value = "";
+    #write assignemnts to topics text file
+  })
+
+  bubbles.data <- reactive({
+    if (is.null(data()))
+      return(NULL)
+
+    #parent.id, topic.id, weight, title
+    rv <- data.frame(parentID=c(rep(0, input$num.clusters), kmeans.fit()$cluster + K()),
+                     nodeID=c(seq(K()+1,K()+input$num.clusters), seq(K())),
+                     weight=c(rep(0, input$num.clusters), colSums(data()$model$theta)),
+                     title=c(isolate(cluster.titles()), titles()))
+
+    return(rv)
+  })
+
+  output$bubbles <- renderTopicBubbles({ topicBubbles(bubbles.data()) })
 }
 
 # function(input, output, session) {

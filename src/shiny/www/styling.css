@@ -3,11 +3,11 @@
  *                    Defined values                      *
  *                                                        *
  **********************************************************/
-/*
+
 :root {
-    --left-bar-bg-color: #fff;
-    --left-bar-tab-bg-color: gray;
-}*/
+    --left-bar-bg-color: #64afff;
+    --left-bar-tab-bg-color: #7dafff;
+}
 
 
 
@@ -221,13 +221,14 @@ span#kmeans-initialization-row2 .form-group label {
     border-bottom-width: 2px;
     padding-bottom: 25px;
     padding-top: 10px;
-    background-color: lightgray;
+    /*background-color: lightgray;*/
+    background-color: var(--left-bar-bg-color, gray);
 }
 
 
 .left-bar-tab {
-    /*background-color: var(--left-bar-tab-bg-color, gray);*/
-    background-color: lightgray;
+    background-color: var(--left-bar-tab-bg-color, gray);
+    /*background-color: lightgray;*/
     text-align: center;
     box-sizing: border-box;
     width: 50%;
