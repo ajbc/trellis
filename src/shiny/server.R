@@ -75,13 +75,33 @@ function(input, output, session) {
   K <- reactive({
     if (is.null(data()))
       return(NULL)
-    return(nrow(beta()))  
+    return(nrow(beta()))
   })
 
-  kmeans.fit <- reactive({
-    if (is.null(beta()))
+  initial.kmeansFit <- reactive({
+    if (is.null(beta())) {
       return(NULL)
-    return(kmeans(beta(), input$num.clusters))
+    }
+
+    if (input$initialize.kmeans) {
+      return(kmeans(beta(), input$initial.numClusters))
+    } else {
+      return(NULL)
+    }
+
+  })
+
+  observeEvent(input$runtimeCluster, {
+    req(data())
+
+    # TODO(tfs): This is the rough structure I want, but should use direct children only
+    if (input$topic.selected == "") {
+      newFit <- kmeans(beta(), input$runtime.numClusters)
+    } else {
+      newFit <- kmeans(beta(), input$runtime.numClusters)
+    }
+
+    session$sendCustomMessage(type = "runtimeCluster", msg)
   })
 
   titles <- reactive({
@@ -107,14 +127,30 @@ function(input, output, session) {
     return(cluster.titles()[topic-K()])
   })
 
+  # TODO(tfs): New structure proposal, to help with reclustering:
+  #            kmeans fits on backend send messages to frontend,
+  #            restructure the nodes and update a string on frontend,
+  #            linked as an input field. assignments then essentially
+  #            just reflects this input field.
+  # TODO(tfs): This will need to be updated for reclustering
   assignments <- reactive({
-    if (is.null(data()))
+    if (is.null(data())) {
       return(c())
+    }
 
-    fit <- kmeans.fit()
+    fit <- initial.kmeansFit()
 
+    # if (input$topics == "") {
+    #   return(c(fit$cluster + K(), rep(0, input$initial.numClusters)))
+    # }
+
+    # NOTE(tfs): SHOULD only occur on initialization
     if (input$topics == "") {
-      return(c(fit$cluster + K(), rep(0, input$num.clusters)))
+      if (input$initialize.kmeans) {
+        return(c(fit$cluster + K(), rep(0, input$initial.numClusters)))
+      } else {
+        return(c(rep(0, K())))
+      }
     }
 
     node.ids <- c()
@@ -137,26 +173,67 @@ function(input, output, session) {
 
     ids <- parent.ids[order(node.ids)]
 
-    # NOTE(tfs; 2017-10-12): If num.clusters was updated on the UI after
+    # NOTE(tfs; 2017-10-12): If initial.numClusters was updated on the UI after
     #      nodes were manually assigned, input$topics will not be empty.
     #      However, the length of assignments in input$topics will
-    #      correspond to the previous num.clusters, resulting in a
+    #      correspond to the previous initial.numClusters, resulting in a
     #      crash unless we verify before returning here.
-    if (length(ids) != (K() + input$num.clusters)) {
-      return(c(fit$cluster + K(), rep(0, input$num.clusters)))
+    if (length(ids) != (K() + input$initial.numClusters)) {
+      return(c(fit$cluster + K(), rep(0, input$initial.numClusters)))
     }
 
     return(ids)
   })
 
+  # Full storage of child IDs for each node (0 is root)
+  children <- reactive({
+    req(assignments())
+    childmap <- list()
+
+    # for (i in seq(length(assignments()))) {
+    #   childmap[[i]] <- c()
+    # }
+
+    for (ch in seq(length(assignments()))) {
+      p <- assignments()[ch]
+      if (p == 0) {
+        if ("root" %in% childmap) {
+          childmap$root <- append(childmap$root, ch)
+        } else {
+          childmap$root <- c(ch) 
+        }
+      } else {
+        if (p <= length(childmap) && !is.null(childmap[[p]])) {
+          childmap[[p]] <- append(childmap[[p]], ch)
+        } else {
+          childmap[[p]] <- c(ch)
+        }
+      }
+    }
+
+    return(childmap)
+  })
+
+  selected.children <- reactive({
+    req(children())
+    parentNode <- as.integer(input$topic.selected)
+    if (is.na(parentNode)) {
+      return(children()$root)
+    } else {
+      return(children()[[parentNode]])
+    }
+  })
+
   n.nodes <- reactive({
-    if (is.null(data()))
+    if (is.null(data())) {
       return(0)
+    }
 
-    if (input$topics == "")
-      return(input$num.clusters)
+    # NOTE(tfs): Restructured assignments(), will now be always list each node
+    # if (input$topics == "")
+    #   return(input$initial.numClusters)
 
-    return(length(assignments())-K())
+    return(length(assignments()) - K())
   })
 
   output$topic.summary <- renderUI({
@@ -168,14 +245,53 @@ function(input, output, session) {
     return(HTML(out.string))
   })
 
+  leaf.ids <- reactive({
+    req(assignments())
+    leafmap <- list()
+
+    # Leaf set = original K() topics
+    for (ch in seq(K())) {
+      itrID <- ch
+
+      p <- assignments()[itrID]
+      while (p > 0) {
+        if (p <= length(leafmap) && !is.null(leafmap[[p]])) {
+          leafmap[[p]] <- append(leafmap[[p]], ch)
+        } else {
+          leafmap[[p]] <- c(ch)
+        }
+
+        itrID <- p
+
+        p <- assignments()[itrID]
+      }
+    }
+
+    return(leafmap)
+  })
+
+  # TODO(tfs): This will need to be updated for hierarchical kmeans, I believe
   meta.theta <- reactive({
     theta <- data()$model$theta
-    mtheta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
-    for (topic in seq(K())) {
-      # rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:10]]
+    mtheta <- matrix(0, nrow=nrow(theta), ncol=n.nodes())
+    
+    if (n.nodes() <= 0) {
+      return(mtheta)
+    }
 
-      mtheta[,assignments()[topic] - K()] <-
-        mtheta[,assignments()[topic] - K()] + theta[,topic]
+    # for (topic in seq(K())) {
+    #   # rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:10]]
+
+    #   mtheta[,assignments()[topic] - K()] <-
+    #     mtheta[,assignments()[topic] - K()] + theta[,topic]
+    # }
+
+    for (clusterID in seq(K()+1, length(assignments()))) {
+      leaves <- leaf.ids()[[clusterID]]
+
+      for (leafID in leaves) {
+        mtheta[,clusterID-K()] <- mtheta[,clusterID-K()] + theta[,leafID]
+      }
     }
 
     return(mtheta)
@@ -192,9 +308,11 @@ function(input, output, session) {
       #   meta.theta[,assignments()[topic] - K()] + theta[,topic]
     }
 
-    for (meta.topic in seq(length(assignments()) - K())) {
-      rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta()[,meta.topic],
-                                                decreasing=TRUE)[1:10]]
+    if (n.nodes() > 0) {
+      for (meta.topic in seq(length(assignments()) - K())) {
+        rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta()[,meta.topic],
+                                                  decreasing=TRUE)[1:10]]
+      }
     }
 
     return(rv)
@@ -284,8 +402,13 @@ function(input, output, session) {
 
   # TODO: this may not work for deeper hierarchy; needs to be checked once implemented
   cluster.titles <- reactive({
-    if (is.null(data()))
+    if (is.null(data())) {
       return(c())
+    }
+
+    if (n.nodes() <= 0) {
+      return(c())
+    }
 
     marginals <- matrix(0, nrow=n.nodes(), ncol=ncol(beta()))
     weights <- colSums(data()$model$theta)
@@ -320,15 +443,38 @@ function(input, output, session) {
   })
 
   bubbles.data <- reactive({
-    if (is.null(data()))
+    if (is.null(data())) {
       return(NULL)
+    }
 
-    #parent.id, topic.id, weight, title
-    rv <- data.frame(parentID=c(rep(0, input$num.clusters), kmeans.fit()$cluster + K()),
-                     nodeID=c(seq(K()+1,K()+input$num.clusters), seq(K())),
-                     weight=c(rep(0, input$num.clusters), colSums(data()$model$theta)),
-                     title=c(isolate(cluster.titles()), titles()))
+    # # parent.id, topic.id, weight, title
+    # rv1 <- data.frame(parentID=c(rep(0, input$initial.numClusters), initial.kmeansFit()$cluster + K()),
+    #                  nodeID=c(seq(K()+1,K()+input$initial.numClusters), seq(K())),
+    #                  weight=c(rep(0, input$initial.numClusters), colSums(data()$model$theta)),
+    #                  title=c(isolate(cluster.titles()), titles()))
 
+    # rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl)
+    pid <- c()
+    nid <- c()
+
+    if (length(assignments()) > K()) {
+      for (ch in seq(K()+1,length(assignments()))) {
+        p <- assignments()[ch]
+        pid <- append(pid, p)
+        nid <- append(nid, ch)
+      }
+    }
+
+    for (ch in seq(K())) {
+      p <- assignments()[ch]
+      pid <- append(pid, p)
+      nid <- append(nid, ch)
+    }
+
+    wgt <- c(rep(0, length(assignments()) - K()), colSums(data()$model$theta))
+    ttl <- c(isolate(cluster.titles()), titles())
+
+    rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl)
     return(rv)
   })
 

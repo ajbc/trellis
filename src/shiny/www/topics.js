@@ -134,6 +134,10 @@ Shiny.addCustomMessageHandler("processingFile", function(msg) {
 	$("#init-message").removeClass("inplace-hidden-message");
 });
 
+Shiny.addCustomMessageHandler("initializeClusters", function(msg) {
+	console.log(msg);
+});
+
 
 // Shiny.addCustomMessageHandler("initialized", function(msg) {
 	// alert(msg);

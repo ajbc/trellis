@@ -412,7 +412,6 @@ HTMLWidgets.widget({
             })
             .each(function (d) {
                 if (!d.data.terms) {
-                    console.log(d);
                     return;
                 }
                 var sel = d3.select(this),

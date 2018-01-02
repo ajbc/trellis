@@ -27,7 +27,7 @@
             <span id="kmeans-initialization-inputs">
                 {{ inputInitialKmeans }}
                 <span id="kmeans-initialization-row2">
-                    {{ inputNumClusters }}
+                    {{ inputNumStartClusters }}
                     {{ inputStartButton }}
                 </span>
             </span>
@@ -60,9 +60,17 @@
 
             <div id="left-bar-content-container">
                 <div id="left-bar-topic-content" class="left-bar-content hidden-left-bar-content">
-                    <h3>Topics</h3>
+                    <div id="topic-controls-container">
+                        <span id="title-update-control">
+                            {{ inputTitleUpdateText }}
+                            {{ inputTitleUpdateButton }}
+                        </span>
 
-                    {{ outputTopicSummaries }}
+                        <span id="runtime-kmeans-control">
+                            {{ inputNumNewClusters }}
+                            {{ inputClusterButton }}
+                        </span>
+                    </div>
 
                 </div>
 
