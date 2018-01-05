@@ -41,7 +41,7 @@
             </div>
         </div>
 
-        <div class="left-content initial-hidden shinyjs-hide">
+        <div id="left-bar" class="left-content initial-hidden shinyjs-hide">
             <div id="left-bar-controls">
                 <h3 id="chosen-dataset-name">
                     {{ outputDataName }}
@@ -83,13 +83,13 @@
             </div>
         </div>
 
-        <div class="main-content initial-hidden shinyjs-hide">
+        <div id="main-panel" class="main-content initial-hidden shinyjs-hide">
             <!-- Controls -->
-            <div id="download-button-container">
+            <div id="download-button-container" class="main-control">
                 {{ inputSaveButton }}
             </div>
 
-            <div id="export-button-container">
+            <div id="export-button-container" class="main-control">
                 {{ inputExportButton }}
             </div>
 
@@ -98,7 +98,7 @@
                 Probably should wait until we have actual instructions/interactions to generate this copy
             </div>
 
-            <div id="help-button-container">
+            <div id="help-button-container" class="main-control">
                 <button id="help-button">?</button>
             </div>
 

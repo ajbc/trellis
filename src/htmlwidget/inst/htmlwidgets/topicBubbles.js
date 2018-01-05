@@ -40,6 +40,7 @@ HTMLWidgets.widget({
     type: "output",
 
     PAGE_MARGIN: 10,
+    TOP_MARGIN: 75,
     DIAMETER: null,
     FONT_SIZE: 11,
 
@@ -73,11 +74,12 @@ HTMLWidgets.widget({
     initialize: function (el, width, height) {
         var self = this,
             NODE_PADDING = 20,
-            SVG_R = width / 2,
-            D3PACK_W = width - self.PAGE_MARGIN;
+            SHORT_EDGE = Math.min(width, height - self.TOP_MARGIN),
+            SVG_R = SHORT_EDGE / 2,
+            D3PACK_W = SHORT_EDGE - self.PAGE_MARGIN;
 
         self.el = el;
-        self.DIAMETER = width;
+        self.DIAMETER = SHORT_EDGE;
 
         // Create `svg` and root `g` elements.
         self.g = d3.select(el)
@@ -118,12 +120,14 @@ HTMLWidgets.widget({
      * root-node element.
      */
     resize: function (el, width, height) {
+        console.log(el, width, height);
         var self = this,
-            SVG_R = width / 2;
+            SHORT_EDGE = Math.min(width, height - self.TOP_MARGIN),
+            SVG_R = SHORT_EDGE / 2;
 
         // Update state corresponding to new width
         self.el = el;
-        self.DIAMETER = width;
+        self.DIAMETER = SHORT_EDGE;
         
         // Modify width and height of existing svg element
         var svgElement = d3.select("#bubbles-svg")

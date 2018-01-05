@@ -1,9 +1,25 @@
 var showingHelp = false; // This is probably just terrible AND not needed
 var selectedView = "Bubbles";
+var selectedViewTab
 var selectedLeftTab = "Document";
 var data = null;
+var exportMode = false;
+var LEFT_BAR_WIDTH = 300;
+var activeWidget;
+
+var bubbleWidget;
+var treeWidget;
+var widgets = {};
 
 $(document).ready(function() {
+	// Leave a little buffer for max width
+	$("#main-panel").css({ "max-width": ($(window).width() - (LEFT_BAR_WIDTH + 5)) + "px"});
+	$(window).resize(function(event) {
+		if (!exportMode) {
+			$("#main-panel").css({ "max-width": ($(window).width() - (LEFT_BAR_WIDTH + 5)) + "px"});
+		}
+	});
+
 	$("#help-button").click(function(event) {
 		event.preventDefault();
 		toggleHelpButton();
@@ -34,6 +50,43 @@ $(document).ready(function() {
 $(document).on("shiny:sessioninitialized", function(event) {
 	Shiny.onInputChange("topics", "");
 	Shiny.onInputChange("topic.selected", "");
+
+	Shiny.addCustomMessageHandler("initData", function(msg) {
+		alert("Please");
+		initializeData(msg);
+	});
+
+	Shiny.addCustomMessageHandler("startInit", function(msg) {
+		alert(msg);
+	});
+
+	Shiny.addCustomMessageHandler("parsed", function(msg) {
+		alert(msg);
+	});
+
+	Shiny.addCustomMessageHandler("processingFile", function(msg) {
+		$("#topic\\.start").attr("disabled", true);
+		$("#init-message").removeClass("inplace-hidden-message");
+	});
+
+	Shiny.addCustomMessageHandler("initializeClusters", function(msg) {
+		console.log(msg);
+	});
+
+	Shiny.addCustomMessageHandler("toggleExportMode", toggleExportMode);
+
+	for (var i = 0; i < HTMLWidgets.widgets.length; i++) {
+		switch (HTMLWidgets.widgets[i].name) {
+			case "topicBubbles":
+				bubbleWidget = HTMLWidgets.widgets[i];
+				break;
+		}
+	}
+
+	treeWidget = { resize: function (el, w, h) { console.log(el, w, h); } };
+
+	widgets["Bubbles"] = bubbleWidget;
+	widgets["Tree"] = treeWidget;
 });
 
 
@@ -116,27 +169,32 @@ function initializeData(initData) {
 };
 
 
-Shiny.addCustomMessageHandler("initData", function(msg) {
-	alert("Please");
-	initializeData(msg);
-});
-
-Shiny.addCustomMessageHandler("startInit", function(msg) {
-	alert(msg);
-});
-
-Shiny.addCustomMessageHandler("parsed", function(msg) {
-	alert(msg);
-});
-
-Shiny.addCustomMessageHandler("processingFile", function(msg) {
-	$("#topic\\.start").attr("disabled", true);
-	$("#init-message").removeClass("inplace-hidden-message");
-});
-
-Shiny.addCustomMessageHandler("initializeClusters", function(msg) {
-	console.log(msg);
-});
+function toggleExportMode(msg) {
+	console.log(exportMode);
+	if (exportMode) {
+		$("#left-bar").removeClass("left-content-export-mode");
+		// $("#main-panel").removeClass("main-content-export-mode");
+		exportMode = false;
+		var newWidth = Math.min($(window).width() - (LEFT_BAR_WIDTH + 5), 0.7 * $(window).width());
+		$("#main-panel").animate({ "width": newWidth }, 500, function() {
+			// $("#main-panel").removeClass("main-content-export-mode");
+			$("#main-panel").css({ "max-width": ($(window).width() - (LEFT_BAR_WIDTH + 5)) + "px"});
+			$("#main-panel").css({ "width": "70vw" });
+			// widgets[selectedView].resize($(""));
+			$(window).trigger("resize");
+		});
+	} else {
+		$("#left-bar").addClass("left-content-export-mode");
+		// $("#main-panel").addClass("main-content-export-mode");
+		exportMode = true;
+		$("#main-panel").css({ "max-width": "unset" });
+		$("#main-panel").animate({ "width": "100vw" }, 500, function() {
+			// $("#main-panel").addClass("main-content-export-mode");
+			// bubbleWidget.resize();
+			$(window).trigger("resize"); // Not the cleanest solution, but seems to work
+		});
+	}
+}
 
 
 // Shiny.addCustomMessageHandler("initialized", function(msg) {

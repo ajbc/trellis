@@ -65,6 +65,11 @@ function(input, output, session) {
   })
 
 
+  observeEvent(input$export, {
+    session$sendCustomMessage("toggleExportMode", "")
+  })
+
+
   beta <- reactive({
     if (is.null(data()))
       return(NULL)
