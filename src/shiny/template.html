@@ -89,8 +89,24 @@
                 {{ inputSaveButton }}
             </div>
 
-            <div id="export-button-container" class="main-control">
-                {{ inputExportButton }}
+            <div id="export-buttons">
+                <div id="export-button-container" class="main-control export-control">
+                    {{ inputEnterExportButton }}
+                </div>
+
+                <span id="export-mode-control-container" class="export-mode-control hidden">
+                    <span id="export-svg-container" class="main-control export-control">
+                        <button id="export-svg-button" class="btn btn-primary">.SVG</button>
+                    </span>
+
+                    <span id="export-pdf-container" class="main-control export-control">
+                        <button id="export-pdf-button" class="btn btn-primary">.PDF</button>
+                    </span>
+
+                    <span id="export-cancel-container" class="main-control export-control">
+                        {{ inputExitExportButton }}
+                    </span>
+                </span>
             </div>
 
             <div id="help-box" class="hidden-popup">

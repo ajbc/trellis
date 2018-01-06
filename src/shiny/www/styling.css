@@ -104,6 +104,11 @@ svg {
     margin: auto;
 }
 
+.hidden {
+    display: none;
+    visibility: hidden;
+}
+
 
 /**********************************************************
  *                                                        *
@@ -449,6 +454,15 @@ d#main-panel.main-content-export-mode {
     position: relative;
 }
 
+#export-mode-control-container {
+    float: right;
+    margin-top: 10px;
+    margin-right: 15px;
+}
+
+.export-control btn {
+    width: 42px;
+}
 
 
 /**********************************************************

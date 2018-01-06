@@ -44,6 +44,11 @@ $(document).ready(function() {
 		event.preventDefault();
 		selectDocumentTab();
 	});
+
+	$("#export-cancel-button").click(function(event) {
+		event.preventDefault();
+		Shiny.onInputChange("toggleExportMode")
+	});
 });
 
 
@@ -69,11 +74,8 @@ $(document).on("shiny:sessioninitialized", function(event) {
 		$("#init-message").removeClass("inplace-hidden-message");
 	});
 
-	Shiny.addCustomMessageHandler("initializeClusters", function(msg) {
-		console.log(msg);
-	});
-
-	Shiny.addCustomMessageHandler("toggleExportMode", toggleExportMode);
+	Shiny.addCustomMessageHandler("enterExportMode", enterExportMode);
+	Shiny.addCustomMessageHandler("exitExportMode", exitExportMode);
 
 	for (var i = 0; i < HTMLWidgets.widgets.length; i++) {
 		switch (HTMLWidgets.widgets[i].name) {
@@ -169,10 +171,30 @@ function initializeData(initData) {
 };
 
 
-function toggleExportMode(msg) {
-	console.log(exportMode);
+function enterExportMode(msg) {
+	if (exportMode) {
+		return;
+	} else {
+		$("#left-bar").addClass("left-content-export-mode");
+		$("#export-button-container").addClass("hidden");
+		$(".export-mode-control").removeClass("hidden");
+		// $("#main-panel").addClass("main-content-export-mode");
+		exportMode = true;
+		$("#main-panel").css({ "max-width": "unset" });
+		$("#main-panel").animate({ "width": "100vw" }, 500, function() {
+			// $("#main-panel").addClass("main-content-export-mode");
+			// bubbleWidget.resize();
+			$(window).trigger("resize"); // Not the cleanest solution, but seems to work
+		});
+	}
+}
+
+
+function exitExportMode(msg) {
 	if (exportMode) {
 		$("#left-bar").removeClass("left-content-export-mode");
+		$("#export-button-container").removeClass("hidden");
+		$(".export-mode-control").addClass("hidden");
 		// $("#main-panel").removeClass("main-content-export-mode");
 		exportMode = false;
 		var newWidth = Math.min($(window).width() - (LEFT_BAR_WIDTH + 5), 0.7 * $(window).width());
@@ -184,15 +206,7 @@ function toggleExportMode(msg) {
 			$(window).trigger("resize");
 		});
 	} else {
-		$("#left-bar").addClass("left-content-export-mode");
-		// $("#main-panel").addClass("main-content-export-mode");
-		exportMode = true;
-		$("#main-panel").css({ "max-width": "unset" });
-		$("#main-panel").animate({ "width": "100vw" }, 500, function() {
-			// $("#main-panel").addClass("main-content-export-mode");
-			// bubbleWidget.resize();
-			$(window).trigger("resize"); // Not the cleanest solution, but seems to work
-		});
+		return;
 	}
 }
 

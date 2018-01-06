@@ -56,7 +56,7 @@ function(input, output, session) {
     # session$sendCustomMessage("parsed", "JSONIFIED")
     # session$sendCustomMessage(type = "startInit", "Parsing File")
     # session$sendCustomMessage(type = "initData", data())
-    session$sendCustomMessage(type="processingFile", "")
+    # session$sendCustomMessage(type="processingFile", "")
     req(data())
     req(bubbles.data())
     shinyjs::hide(selector=".initial")
@@ -65,8 +65,13 @@ function(input, output, session) {
   })
 
 
-  observeEvent(input$export, {
-    session$sendCustomMessage("toggleExportMode", "")
+  observeEvent(input$enterExportMode, {
+    session$sendCustomMessage("enterExportMode", "")
+  })
+
+
+  observeEvent(input$exitExportMode, {
+    session$sendCustomMessage("exitExportMode", "")  
   })
 
 
@@ -371,7 +376,6 @@ function(input, output, session) {
   # Top documents for selected topic/group
   documents <- reactive({
     topic <- as.integer(input$topic.selected)
-    print(topic)
 
     if (is.na(topic)) {
       return("")
@@ -396,7 +400,6 @@ function(input, output, session) {
 
   output$topic.documents <- renderUI({
     # req(input$topic.selected)
-    print("test")
     rv <- paste("<h4 id=\"left-document-tab-cluster-title\">",
                 topic.title(),
                 "</h4>",
