@@ -101,9 +101,9 @@ function(input, output, session) {
 
     # TODO(tfs): This is the rough structure I want, but should use direct children only
     if (input$topic.selected == "") {
-      newFit <- kmeans(beta(), input$runtime.numClusters)
+      newFit <- kmeans(beta(), isolate(input$runtime.numClusters))
     } else {
-      newFit <- kmeans(beta(), input$runtime.numClusters)
+      newFit <- kmeans(beta(), isolate(input$runtime.numClusters))
     }
 
     session$sendCustomMessage(type = "runtimeCluster", msg)
@@ -371,6 +371,7 @@ function(input, output, session) {
   # Top documents for selected topic/group
   documents <- reactive({
     topic <- as.integer(input$topic.selected)
+    print(topic)
 
     if (is.na(topic)) {
       return("")
@@ -395,6 +396,7 @@ function(input, output, session) {
 
   output$topic.documents <- renderUI({
     # req(input$topic.selected)
+    print("test")
     rv <- paste("<h4 id=\"left-document-tab-cluster-title\">",
                 topic.title(),
                 "</h4>",

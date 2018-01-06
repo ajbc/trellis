@@ -218,6 +218,7 @@ HTMLWidgets.widget({
             .on("mouseover", function (d) {
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id,
                     isRoot = self.isRootNode(d);
+                console.log("in", isRoot, displayID);
                 Shiny.onInputChange("topic.selected", isRoot ? displayID : d.data.id);
                 if (isRoot || self.isGroupInFocus(d)) {
                     return;
@@ -226,6 +227,7 @@ HTMLWidgets.widget({
             })
             .on("mouseout", function (d) {
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id;
+                console.log("out", displayID)
                 Shiny.onInputChange("topic.selected", displayID);
                 if (self.isRootNode(d)) {
                     return;
