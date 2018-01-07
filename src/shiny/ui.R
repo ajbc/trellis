@@ -19,7 +19,7 @@ htmlTemplate("template.html",
     outputDataName = textOutput("topic.chosenName"), # I want to know if there's a better way to organize this naming. More angular-like?
     inputEnterExportButton = actionButton("enterExportMode", "Export"),
     inputExitExportButton = actionButton("exitExportMode", "Cancel", class="btn-danger"),
-    inputSaveButton = downloadButton("download", "Save"),
+    inputSaveButton = downloadButton("download.data", "Save"),
     outputTopicSummaries = htmlOutput("topic.summary", class="summary"),
     outputDocuments = htmlOutput("topic.documents", class="summary"),
     inputTitleUpdateText = textInput("topic.customTitle", ""),

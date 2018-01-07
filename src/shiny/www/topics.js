@@ -6,10 +6,16 @@ var data = null;
 var exportMode = false;
 var LEFT_BAR_WIDTH = 300;
 var activeWidget;
+var activeSelector;
 
 var bubbleWidget;
 var treeWidget;
 var widgets = {};
+
+var BUBBLE_SELECTOR = "svg#bubbles-svg";
+var TREE_SELECTOR = "svg#tree-svg";
+
+var selectors = {};
 
 $(document).ready(function() {
 	// Leave a little buffer for max width
@@ -45,9 +51,14 @@ $(document).ready(function() {
 		selectDocumentTab();
 	});
 
-	$("#export-cancel-button").click(function(event) {
+	// $("#export-cancel-button").click(function(event) {
+	// 	event.preventDefault();
+	// 	Shiny.onInputChange("toggleExportMode")
+	// });
+
+	$("#export-svg-button").click(function(event) {
 		event.preventDefault();
-		Shiny.onInputChange("toggleExportMode")
+		downloadActiveWidgetAsSVG();
 	});
 });
 
@@ -89,6 +100,15 @@ $(document).on("shiny:sessioninitialized", function(event) {
 
 	widgets["Bubbles"] = bubbleWidget;
 	widgets["Tree"] = treeWidget;
+
+	selectors["Bubbles"] = BUBBLE_SELECTOR;
+	selectors["Tree"] = TREE_SELECTOR;
+
+	activeWidget = widgets["Bubbles"];
+
+	// This is probably a terrible way of selecting the appropriate svg element
+	activeSelector = selectors["Bubbles"];
+	Shiny.onInputChange("selectedView", "Bubbles");
 });
 
 
@@ -121,6 +141,9 @@ function selectBubbles() {
 	$("#tree-view").addClass("hidden-view");
 	$("#bubbles-selector").attr("disabled", "disabled");
 	$("#tree-selector").removeAttr("disabled");
+	activeWidget = widgets["Bubbles"];
+	activeSelector = selectors["Bubbles"];
+	Shiny.onInputChange("selectedView", "Bubbles");
 };
 
 
@@ -136,6 +159,9 @@ function selectTree() {
 	$("#bubbles-view").addClass("hidden-view");
 	$("#tree-selector").attr("disabled", "disabled");
 	$("#bubbles-selector").removeAttr("disabled");
+	activeWidget = widgets["Tree"];
+	activeSelector = widgets["Tree"];
+	Shiny.onInputChange("selectedView", "Tree");
 };
 
 
@@ -208,6 +234,23 @@ function exitExportMode(msg) {
 	} else {
 		return;
 	}
+}
+
+
+function downloadActiveWidgetAsSVG() {
+	// Should probably be using 'let', but I don't think it's been fully adopted yet
+	var serializer = new XMLSerializer();
+	var sourceString = serializer.serializeToString($(activeSelector)[0]);
+
+	// Ref: https://stackoverflow.com/questions/2483919/how-to-save-svg-canvas-to-local-filesystem
+	$("body").append("<a id=\"tmp-download-link\" class=\"hidden\"></a>");
+	$("#tmp-download-link").attr("href", "data:image/svg+xml;utf8," + sourceString)
+			.attr("download", selectedView + ".svg")
+			.attr("target", "_blank");
+	$("#tmp-download-link")[0].click();
+	$("a#tmp-download-link").remove();
+
+	// Shiny.onInputChange("svgString", sourceString);
 }
 
 

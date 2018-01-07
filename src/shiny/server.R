@@ -9,13 +9,17 @@ library(topicBubbles)
 options(shiny.maxRequestSize=1e4*1024^2)
 
 function(input, output, session) {
-  output$topic.chosenName <- reactive({
+  chosenDataName <- reactive({
     chosen <- input$topic.datasetName
     if (chosen != "") {
       return(chosen)
     } else {
       return("Dataset")
     }
+  })
+
+  output$topic.chosenName <- reactive({
+    return(chosenDataName())
   })
 
   # FOR REFERENCE
@@ -73,6 +77,15 @@ function(input, output, session) {
   observeEvent(input$exitExportMode, {
     session$sendCustomMessage("exitExportMode", "")  
   })
+
+
+  # output$downloadSVG = downloadHandler(
+  #   filename = function () { paste(paste(chosenDataName(), input$selectedView, sep="_"), "svg", sep=".") },
+  #   content = function (file) {
+  #     outString <- input$svgString
+  #     write(out, file=file, row.names=FALSE, quote=FALSE)
+  #   }
+  # )
 
 
   beta <- reactive({
