@@ -8,6 +8,10 @@ library(topicBubbles)
 
 options(shiny.maxRequestSize=1e4*1024^2)
 
+# Always check whether the entry exists before accessing.
+#        Simpler than updating whenever clustering/nodes/etc. change
+manual.titles <- list()
+
 function(input, output, session) {
   chosenDataName <- reactive({
     chosen <- input$topic.datasetName
@@ -102,6 +106,7 @@ function(input, output, session) {
   K <- reactive({
     if (is.null(data()))
       return(NULL)
+
     return(nrow(beta()))
   })
 
@@ -150,8 +155,11 @@ function(input, output, session) {
     }
 
     topic <- as.integer(input$topic.active)
-    if (topic <= K())
+    if (topic <= K()) {
       return(titles()[topic])
+
+      print(titles()[topic])
+    }
     return(cluster.titles()[topic-K()])
   })
 
@@ -444,6 +452,49 @@ function(input, output, session) {
     return(HTML(ostr))
   })
 
+  observeEvent(input$updateTitle, {
+    topic <- as.integer(input$topic.selected)
+    print(input$topic.selected)
+    print(topic)
+    print(input$topic.customTitle)
+
+    newTitle <- input$topic.customTitle
+    if (is.null(newTitle)) {
+      newTitle = ""
+    }
+
+    print(newTitle)
+
+    manual.titles[[topic]] <- newTitle
+  })
+
+  all.titles <- reactive({
+    rv <- c()
+
+    n <- length(assignments())
+
+    ttl <- c(titles(), cluster.titles())
+
+    # NOTE(tfs): topicBubbles expects c(cluster.titles(), titles())
+    #            We therefore must modulo-shift the index when accessing manual.tites,
+    #            because manual.titles is organized based on ids
+    for (i in seq(n)) {
+      mtIndex <- ((i + K()) %% n) + 1 # Add 1 because R 1-indexes
+
+      if (mtIndex > length(manual.titles) || is.null(manual.titles[[mtIndex]])) {
+        if (!is.null(ttl[[mtIndex]])) {
+          rv <- append(rv, ttl[[mtIndex]])
+        } else {
+          rv <- append(rv, "") 
+        }
+      } else {
+        rv <- append(rv, manual.titles[[mtIndex]])
+      }
+    }
+
+    return(rv)
+  })
+
   # TODO: this may not work for deeper hierarchy; needs to be checked once implemented
   cluster.titles <- reactive({
     if (is.null(data())) {
@@ -501,8 +552,10 @@ function(input, output, session) {
     pid <- c()
     nid <- c()
 
-    if (length(assignments()) > K()) {
-      for (ch in seq(K()+1,length(assignments()))) {
+    n <- length(assignments())
+
+    if (n > K()) {
+      for (ch in seq(K()+1,n)) {
         p <- assignments()[ch]
         pid <- append(pid, p)
         nid <- append(nid, ch)
@@ -515,10 +568,9 @@ function(input, output, session) {
       nid <- append(nid, ch)
     }
 
-    wgt <- c(rep(0, length(assignments()) - K()), colSums(data()$model$theta))
-    ttl <- c(isolate(cluster.titles()), titles())
+    wgt <- c(rep(0, n - K()), colSums(data()$model$theta))
 
-    rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl)
+    rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=all.titles())
     return(rv)
   })
 

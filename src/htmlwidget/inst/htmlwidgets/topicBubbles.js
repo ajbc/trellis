@@ -501,6 +501,9 @@ HTMLWidgets.widget({
         var self = this,
             oldVal = self.sourceD;
         self.sourceD = newVal;
+        console.log("hi!!!");
+        console.log(self);
+        console.log(self.sourceD);
         if (oldVal) {
             self.setLabelVisibility(oldVal);
             self.setCircleFill(oldVal);
@@ -509,6 +512,7 @@ HTMLWidgets.widget({
             self.setLabelVisibility(self.sourceD);
             self.setCircleFill(self.sourceD);
             Shiny.onInputChange("topic.selected", self.sourceD.data.id);
+            Shiny.onInputChange("topic.active", self.sourceD.data.id);
         } else {
             Shiny.onInputChange("topic.selected", "");
         }

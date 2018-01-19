@@ -13,6 +13,8 @@ var LEFT_BAR_WIDTH = 300;
 var activeWidget;
 var activeSelector;
 
+// NOTE(tfs): These aren't actually set correctly at all. HTMLWidgets.widgets
+//            does not give the actual instance we care about.
 var bubbleWidget;
 var treeWidget;
 var widgets = {};
