@@ -217,7 +217,7 @@ HTMLWidgets.widget({
             .on("mouseover", function (d) {
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id,
                     isRoot = self.isRootNode(d);
-                Shiny.onInputChange("topic.selected", isRoot ? displayID : d.data.id);
+                Shiny.onInputChange("topic.active", isRoot ? displayID : d.data.id);
                 if (isRoot || self.isGroupInFocus(d)) {
                     return;
                 }
@@ -225,7 +225,7 @@ HTMLWidgets.widget({
             })
             .on("mouseout", function (d) {
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id;
-                Shiny.onInputChange("topic.selected", displayID);
+                Shiny.onInputChange("topic.active", displayID);
                 if (self.isRootNode(d)) {
                     return;
                 }
@@ -508,6 +508,9 @@ HTMLWidgets.widget({
         if (newVal) {
             self.setLabelVisibility(self.sourceD);
             self.setCircleFill(self.sourceD);
+            Shiny.onInputChange("topic.selected", self.sourceD.data.id);
+        } else {
+            Shiny.onInputChange("topic.selected", "");
         }
     },
 

@@ -61,15 +61,19 @@
             <div id="left-bar-content-container">
                 <div id="left-bar-topic-content" class="left-bar-content hidden-left-bar-content">
                     <div id="topic-controls-container">
-                        <span id="title-update-control">
-                            {{ inputTitleUpdateText }}
-                            {{ inputTitleUpdateButton }}
-                        </span>
+                        {{ outputTopicTabTitle }}
 
-                        <span id="runtime-kmeans-control">
-                            {{ inputNumNewClusters }}
-                            {{ inputClusterButton }}
-                        </span>
+                        <div id="topic-controls-inputs-container" class="hidden">
+                            <div id="title-update-control" class="input-group">
+                                {{ inputTitleUpdateText }}
+                                {{ inputTitleUpdateButton }}
+                            </div>
+
+                            <div id="runtime-kmeans-control" class="input-group">
+                                {{ inputNumNewClusters }}
+                                {{ inputClusterButton }}
+                            </div>
+                        </div>
                     </div>
 
                 </div>

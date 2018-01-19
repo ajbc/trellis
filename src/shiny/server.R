@@ -22,11 +22,6 @@ function(input, output, session) {
     return(chosenDataName())
   })
 
-  # FOR REFERENCE
-  # observe({
-  #     shinyjs::toggleState("submit", !is.null(input$name) && input$name != "")
-  #   })
-
   # isolate(input$topic.file) # Really not sure how best to isolate these yet? Probably not necessary as everything should hide anyway
   data <- reactive({
     inFile <- input$topic.file
@@ -60,7 +55,7 @@ function(input, output, session) {
     # session$sendCustomMessage("parsed", "JSONIFIED")
     # session$sendCustomMessage(type = "startInit", "Parsing File")
     # session$sendCustomMessage(type = "initData", data())
-    # session$sendCustomMessage(type="processingFile", "")
+    session$sendCustomMessage(type="processingFile", "")
     req(data())
     req(bubbles.data())
     shinyjs::hide(selector=".initial")
@@ -76,6 +71,15 @@ function(input, output, session) {
 
   observeEvent(input$exitExportMode, {
     session$sendCustomMessage("exitExportMode", "")  
+  })
+
+
+  observeEvent(input$topic.selected, {
+    session$sendCustomMessage("topicSelected", input$topic.selected)
+  })
+
+  observeEvent(input$topic.active, {
+    session$sendCustomMessage("topicSelected", input$topic.selected)
   })
 
 
@@ -118,13 +122,13 @@ function(input, output, session) {
     req(data())
 
     # TODO(tfs): This is the rough structure I want, but should use direct children only
-    if (input$topic.selected == "") {
+    if (input$topic.active == "") {
       newFit <- kmeans(beta(), isolate(input$runtime.numClusters))
     } else {
       newFit <- kmeans(beta(), isolate(input$runtime.numClusters))
     }
 
-    session$sendCustomMessage(type = "runtimeCluster", msg)
+    session$sendCustomMessage(type = "runtimeCluster", newFit)
   })
 
   titles <- reactive({
@@ -140,9 +144,21 @@ function(input, output, session) {
     return(rv)
   })
 
-  topic.title <- reactive({
-    if (input$topic.selected == "")
-      return("None Selected")
+  topic.doctab.title <- reactive({
+    if (input$topic.active == "") {
+      return("Please Hover or Select a Topic")
+    }
+
+    topic <- as.integer(input$topic.active)
+    if (topic <= K())
+      return(titles()[topic])
+    return(cluster.titles()[topic-K()])
+  })
+
+  topic.topictab.title <- reactive ({
+    if (input$topic.selected == "") {
+      return("Please Select a Topic")
+    }
 
     topic <- as.integer(input$topic.selected)
     if (topic <= K())
@@ -239,7 +255,7 @@ function(input, output, session) {
 
   selected.children <- reactive({
     req(children())
-    parentNode <- as.integer(input$topic.selected)
+    parentNode <- as.integer(input$topic.active)
     if (is.na(parentNode)) {
       return(children()$root)
     } else {
@@ -259,12 +275,12 @@ function(input, output, session) {
     return(length(assignments()) - K())
   })
 
-  output$topic.summary <- renderUI({
+  output$topic.doctab.summary <- renderUI({
     # if (input$active == "")
     #   return()
 
     out.string <- paste("<hr/>\n<h3>Topic Summary</h3>\n",
-                        "<h4>", topic.title(), "</h4>\n", documents())
+                        "<h4>", topic.doctab.title(), "</h4>\n", documents())
     return(HTML(out.string))
   })
 
@@ -325,7 +341,7 @@ function(input, output, session) {
     theta <- data()$model$theta
     # meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
     for (topic in seq(K())) {
-      rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:10]]
+      rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:100]]
 
       # meta.theta[,assignments()[topic] - K()] <-
       #   meta.theta[,assignments()[topic] - K()] + theta[,topic]
@@ -334,7 +350,7 @@ function(input, output, session) {
     if (n.nodes() > 0) {
       for (meta.topic in seq(length(assignments()) - K())) {
         rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta()[,meta.topic],
-                                                  decreasing=TRUE)[1:10]]
+                                                  decreasing=TRUE)[1:100]]
       }
     }
 
@@ -343,7 +359,7 @@ function(input, output, session) {
 
   thetas.selected <- reactive({
     topic.theta <- data()$model$theta
-    topic <- as.integer(input$topic.selected)
+    topic <- as.integer(input$topic.active)
 
     if (is.na(topic)) {
       return(list())
@@ -388,7 +404,7 @@ function(input, output, session) {
 
   # Top documents for selected topic/group
   documents <- reactive({
-    topic <- as.integer(input$topic.selected)
+    topic <- as.integer(input$topic.active)
 
     if (is.na(topic)) {
       return("")
@@ -412,15 +428,20 @@ function(input, output, session) {
   })
 
   output$topic.documents <- renderUI({
-    # req(input$topic.selected)
+    # req(input$topic.active)
     rv <- paste("<h4 id=\"left-document-tab-cluster-title\">",
-                topic.title(),
+                topic.doctab.title(),
                 "</h4>",
                 "<div class=\"topic-bar document-container\">",
                 documents(),
                 "</div>")
 
     return(HTML(rv))
+  })
+
+  output$topicTabTitle <- renderUI({
+    ostr <- paste("<h4 id=\"left-topic-tab-cluster-title\">", topic.topictab.title(), "</h4>")
+    return(HTML(ostr))
   })
 
   # TODO: this may not work for deeper hierarchy; needs to be checked once implemented

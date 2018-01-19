@@ -1,7 +1,12 @@
+var TOPIC_LABEL = "Topic";
+var DOCUMENT_LABEL = "Document";
+var TREE_LABEL = "Tree";
+var BUBBLE_LABEL = "Bubbles";
+
 var showingHelp = false; // This is probably just terrible AND not needed
-var selectedView = "Bubbles";
+var selectedView = BUBBLE_LABEL;
 var selectedViewTab
-var selectedLeftTab = "Document";
+var selectedLeftTab = DOCUMENT_LABEL;
 var data = null;
 var exportMode = false;
 var LEFT_BAR_WIDTH = 300;
@@ -16,6 +21,8 @@ var BUBBLE_SELECTOR = "svg#bubbles-svg";
 var TREE_SELECTOR = "svg#tree-svg";
 
 var selectors = {};
+
+var selectedNodeID = -1;
 
 $(document).ready(function() {
 	// Leave a little buffer for max width
@@ -65,25 +72,16 @@ $(document).ready(function() {
 
 $(document).on("shiny:sessioninitialized", function(event) {
 	Shiny.onInputChange("topics", "");
+	Shiny.onInputChange("topic.active", "");
 	Shiny.onInputChange("topic.selected", "");
-
-	Shiny.addCustomMessageHandler("initData", function(msg) {
-		alert("Please");
-		initializeData(msg);
-	});
-
-	Shiny.addCustomMessageHandler("startInit", function(msg) {
-		alert(msg);
-	});
-
-	Shiny.addCustomMessageHandler("parsed", function(msg) {
-		alert(msg);
-	});
 
 	Shiny.addCustomMessageHandler("processingFile", function(msg) {
 		$("#topic\\.start").attr("disabled", true);
 		$("#init-message").removeClass("inplace-hidden-message");
+		$("#init-message").trigger("shown");
 	});
+
+	Shiny.addCustomMessageHandler("topicSelected", handleTopicSelection);
 
 	Shiny.addCustomMessageHandler("enterExportMode", enterExportMode);
 	Shiny.addCustomMessageHandler("exitExportMode", exitExportMode);
@@ -98,17 +96,17 @@ $(document).on("shiny:sessioninitialized", function(event) {
 
 	treeWidget = { resize: function (el, w, h) { console.log(el, w, h); } };
 
-	widgets["Bubbles"] = bubbleWidget;
-	widgets["Tree"] = treeWidget;
+	widgets[BUBBLE_LABEL] = bubbleWidget;
+	widgets[TREE_LABEL] = treeWidget;
 
-	selectors["Bubbles"] = BUBBLE_SELECTOR;
-	selectors["Tree"] = TREE_SELECTOR;
+	selectors[BUBBLE_LABEL] = BUBBLE_SELECTOR;
+	selectors[TREE_LABEL] = TREE_SELECTOR;
 
-	activeWidget = widgets["Bubbles"];
+	activeWidget = widgets[BUBBLE_LABEL];
 
 	// This is probably a terrible way of selecting the appropriate svg element
-	activeSelector = selectors["Bubbles"];
-	Shiny.onInputChange("selectedView", "Bubbles");
+	activeSelector = selectors[BUBBLE_LABEL];
+	Shiny.onInputChange("selectedView", BUBBLE_LABEL);
 });
 
 
@@ -121,73 +119,113 @@ function toggleHelpButton() {
 	var helpbox = $("#help-box");
 	if (helpbox.hasClass("hidden-popup")) {
 		helpbox.removeClass("hidden-popup");
-		showingHelp = false;
+		showingHelp = true;
+		helpbox.trigger("shown");
 	} else {
 		helpbox.addClass("hidden-popup");
-		showingHelp = true;
+		showingHelp = false;
+		helpbox.trigger("hidden");
 	}
 };
 
 
+// NOTE(tfs): When hiding or showing an element that contains rendered Shiny output,
+//            triggering jQuery "shown" and "hidden" events notifies Shiny to update/
+//            render the content. Otherwise, the content is not updated while
+//            "display: none;" is set. Alternately, set "suspendWhenHidden=FALSE"
+//            using outputOptions on the R side.
+//            Ref: https://groups.google.com/forum/#!topic/shiny-discuss/yxFuGgDOIuM
 function selectBubbles() {
-	if (selectedView == "Bubbles") {
+	if (selectedView === BUBBLE_LABEL) {
 		return;
 	}
 
-	selectedView = "Bubbles";
+	selectedView = BUBBLE_LABEL;
+	
 	$("#bubbles-selector").addClass("selected-view-button");
 	$("#tree-selector").removeClass("selected-view-button");
+	
+	$("#bubbles-view").trigger("show");
 	$("#bubbles-view").removeClass("hidden-view");
+	$("#bubbles-view").trigger("shown");
+
+	$("#tree-view").trigger("hide");
 	$("#tree-view").addClass("hidden-view");
+	$("#tree-view").trigger("hidden");
+	
 	$("#bubbles-selector").attr("disabled", "disabled");
 	$("#tree-selector").removeAttr("disabled");
-	activeWidget = widgets["Bubbles"];
-	activeSelector = selectors["Bubbles"];
-	Shiny.onInputChange("selectedView", "Bubbles");
+	
+	activeWidget = widgets[BUBBLE_LABEL];
+	activeSelector = selectors[BUBBLE_LABEL];
+	Shiny.onInputChange("selectedView", BUBBLE_LABEL);
 };
 
 
 function selectTree() {
-	if (selectedView == "Tree") {
+	if (selectedView === TREE_LABEL) {
 		return;
 	}
 
-	selectedView = "Tree";
+	selectedView = TREE_LABEL;
+	
 	$("#tree-selector").addClass("selected-view-button");
 	$("#bubbles-selector").removeClass("selected-view-button");
+	
+	$("#tree-view").trigger("show");
 	$("#tree-view").removeClass("hidden-view");
+	$("#tree-view").trigger("shown");
+	
+	$("#bubbles-view").trigger("hide");
 	$("#bubbles-view").addClass("hidden-view");
+	$("#bubbles-view").trigger("hidden");
+	
 	$("#tree-selector").attr("disabled", "disabled");
 	$("#bubbles-selector").removeAttr("disabled");
-	activeWidget = widgets["Tree"];
-	activeSelector = widgets["Tree"];
-	Shiny.onInputChange("selectedView", "Tree");
+	
+	activeWidget = widgets[TREE_LABEL];
+	activeSelector = widgets[TREE_LABEL];
+	Shiny.onInputChange("selectedView", TREE_LABEL);
 };
 
 
 function selectTopicTab() {
-	if (selectedLeftTab == "Topic") {
+	if (selectedLeftTab === TOPIC_LABEL) {
 		return;
 	}
 
-	selectedLeftTab = "Topic";
+	selectedLeftTab = TOPIC_LABEL;
+
 	$("#left-bar-topic-tab").addClass("active-left-bar-tab");
 	$("#left-bar-document-tab").removeClass("active-left-bar-tab");
+
+	$("#left-bar-topic-content").trigger("show");
 	$("#left-bar-topic-content").removeClass("hidden-left-bar-content");
+	$("#left-bar-topic-content").trigger("shown");
+
+	$("#left-bar-document-content").trigger("hide");
 	$("#left-bar-document-content").addClass("hidden-left-bar-content");
+	$("#left-bar-document-content").trigger("hidden");
 };
 
 
 function selectDocumentTab() {
-	if (selectedLeftTab == "Document") {
+	if (selectedLeftTab === DOCUMENT_LABEL) {
 		return;
 	}
 
-	selectedLeftTab = "Document";
+	selectedLeftTab = DOCUMENT_LABEL;
+	
 	$("#left-bar-document-tab").addClass("active-left-bar-tab");
 	$("#left-bar-topic-tab").removeClass("active-left-bar-tab");
+	
+	$("#left-bar-document-content").trigger("show");
 	$("#left-bar-document-content").removeClass("hidden-left-bar-content");
+	$("#left-bar-document-content").trigger("shown");
+	
+	$("#left-bar-topic-content").trigger("hide");
 	$("#left-bar-topic-content").addClass("hidden-left-bar-content");
+	$("#left-bar-topic-content").trigger("hidden");
 };
 
 
@@ -251,6 +289,49 @@ function downloadActiveWidgetAsSVG() {
 	$("a#tmp-download-link").remove();
 
 	// Shiny.onInputChange("svgString", sourceString);
+}
+
+
+function handleTopicSelection(selectedID) {
+	var needsCleaning = (selectedID !== selectedNodeID);
+
+	selectedNodeID = selectedID;
+
+	if (selectedID !== "") {
+		activateTopicTabInputs(needsCleaning);
+	} else {
+		deactivateTopicTabInputs();
+	}
+}
+
+
+function activateTopicTabInputs(needsCleaning) {
+	// if (selectedLeftTab !== TOPIC_LABEL) { return; }
+
+	if (needsCleaning) {
+		cleanTopicInputs();
+	}
+
+	$("#topic-controls-inputs-container").trigger("show");
+	$("#topic-controls-inputs-container").removeClass("hidden");
+	$("#topic-controls-inputs-container").trigger("shown");
+}
+
+
+function deactivateTopicTabInputs() {
+	// if (selectedLeftTab !== TOPIC_LABEL) { return; }
+
+	cleanTopicInputs();
+
+	$("#topic-controls-inputs-container").trigger("hide");
+	$("#topic-controls-inputs-container").addClass("hidden");
+	$("#topic-controls-inputs-container").trigger("hidden");
+}
+
+
+function cleanTopicInputs() {
+	$("#topic\.customTitle").val("");
+	$("#runtime\.numClusters").val(parseInt($("#runtime\.numClusters").attr("data-shinyjs-resettable-value")));
 }
 
 

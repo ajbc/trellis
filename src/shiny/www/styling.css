@@ -282,15 +282,18 @@ span#kmeans-initialization-row2 .form-group label {
     height: 100%;
 }
 
+
 #left-bar-content-container {
     overflow: scroll;
 }
 
+
 .document-container {
-    border-top: 1px solid black;
+    /*border-top: 1px solid black;*/
     overflow: scroll;
     height: 65vh;
 }
+
 
 .document-summary {
     border-bottom: 1px solid black;
@@ -299,6 +302,7 @@ span#kmeans-initialization-row2 .form-group label {
     height: 50px;
     position: relative;
 }
+
 
 .document-summary-fill {
     background-color: var(--left-bar-bg-color, gray);
@@ -309,19 +313,23 @@ span#kmeans-initialization-row2 .form-group label {
     border-right: 1px solid black;
 }
 
+
 .document-summary-contents {
     padding: 5px;
     position: absolute;
     left: 0px;
 }
 
+
 #left-document-tab-cluster-title {
     text-align: center;
 }
 
+
 #left-topic-tab-cluster-title {
     text-align: center;
 }
+
 
 #left-bar {
     transition: 0.5s;
@@ -330,11 +338,36 @@ span#kmeans-initialization-row2 .form-group label {
     z-index: 1;
 }
 
+
 .left-content-export-mode {
     transform: translate(-100%, 0px);
 }
 
 
+/*
+#left-document-tab-cluster-title {
+    border-bottom: 1px solid black;
+}
+*/
+
+
+/*
+#left-topic-tab-cluster-title {
+    border-bottom: 1px solid black;
+}
+*/
+
+
+/*
+#topic-controls-inputs-container {
+    border-top: 1px solid black;
+}
+*/
+
+
+.document-summary:first-child {
+    border-top: 1px solid black;
+}
 
 
 /**********************************************************
