@@ -69,6 +69,11 @@ $(document).ready(function() {
 		event.preventDefault();
 		downloadActiveWidgetAsSVG();
 	});
+
+	$("#updateTitle").click(function(event) {
+		event.preventDefault();
+		cleanTopicInputs();
+	});
 });
 
 
@@ -332,8 +337,15 @@ function deactivateTopicTabInputs() {
 
 
 function cleanTopicInputs() {
-	$("#topic\.customTitle").val("");
-	$("#runtime\.numClusters").val(parseInt($("#runtime\.numClusters").attr("data-shinyjs-resettable-value")));
+	// NOTE(tfs): Apparently using jquery to set val()
+	//            doesn't trigger an update to the input field for Shiny
+
+	$("#topic\\.customTitle").val("");
+	Shiny.onInputChange("topic.customTitle", "")
+
+	var defNumClusters = parseInt($("#runtime\\.numClusters").attr("data-shinyjs-resettable-value"))
+	$("#runtime\\.numClusters").val(defNumClusters);
+	Shiny.onInputChange("runtime.numClusters", defNumClusters)
 }
 
 

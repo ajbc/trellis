@@ -156,12 +156,15 @@ function(input, output, session) {
     }
 
     topic <- as.integer(input$topic.active)
-    if (topic <= K()) {
-      return(titles()[topic])
 
-      print(titles()[topic])
-    }
-    return(cluster.titles()[topic-K()])
+    # if (topic <= K()) {
+    #   return(titles()[topic])
+
+    #   print(titles()[topic])
+    # }
+    # return(cluster.titles()[topic-K()])
+
+    return(all.titles()[topic])
   })
 
   topic.topictab.title <- reactive ({
@@ -170,9 +173,12 @@ function(input, output, session) {
     }
 
     topic <- as.integer(input$topic.selected)
-    if (topic <= K())
-      return(titles()[topic])
-    return(cluster.titles()[topic-K()])
+
+    # if (topic <= K())
+    #   return(titles()[topic])
+    # return(cluster.titles()[topic-K()])
+
+    return(all.titles()[topic])
   })
 
   # TODO(tfs): New structure proposal, to help with reclustering:
@@ -456,8 +462,6 @@ function(input, output, session) {
   observeEvent(input$updateTitle, {
     topic <- as.integer(input$topic.selected)
 
-
-
     newTitle <- input$topic.customTitle
     if (is.null(newTitle)) {
       newTitle = ""
@@ -473,24 +477,40 @@ function(input, output, session) {
 
     ttl <- c(titles(), cluster.titles())
 
+    
+    for (i in seq(n)) {
+      # NOTE(tfs): Now separated this into a separate RV, allowing for easier processing
+      # mtIndex <- ((i + K() - 1) %% n) + 1 # Shifts by 1 to allow for modulus while 1-indexing
+
+      if (i > length(stateStore$manual.titles)
+      || is.null(stateStore$manual.titles[[i]])
+      || stateStore$manual.titles[[i]] == "") {
+
+        if (is.null(ttl[[i]])) {
+          rv <- c(rv, "")
+        } else {
+          rv <- c(rv, ttl[[i]]) 
+        }
+      } else {
+        rv <- c(rv, stateStore$manual.titles[[i]])
+      }
+    }
+
+    return(rv)
+  })
+
+  bubbles.titles <- reactive({
+    rv <- c()
+    n <- length(assignments())
+    ttl <- all.titles()
+
     # NOTE(tfs): topicBubbles expects c(cluster.titles(), titles())
     #            We therefore must modulo-shift the index when accessing manual.tites,
     #            because stateStore$manual.titles is organized based on ids
     for (i in seq(n)) {
       mtIndex <- ((i + K() - 1) %% n) + 1 # Shifts by 1 to allow for modulus while 1-indexing
 
-      if (mtIndex > length(stateStore$manual.titles)
-      || is.null(stateStore$manual.titles[[mtIndex]])
-      || stateStore$manual.titles[[mtIndex]] == "") {
-        
-        if (is.null(ttl[[mtIndex]])) {
-          rv <- c(rv, "")
-        } else {
-          rv <- c(rv, ttl[[mtIndex]]) 
-        }
-      } else {
-        rv <- c(rv, stateStore$manual.titles[[mtIndex]])
-      }
+      rv <- c(rv, all.titles()[[mtIndex]])
     }
 
     return(rv)
@@ -569,9 +589,13 @@ function(input, output, session) {
       nid <- append(nid, ch)
     }
 
-    wgt <- c(rep(0, n - K()), colSums(data()$model$theta))
+    if (n > K()) {
+      wgt <- c(rep(0, n - K()), colSums(data()$model$theta))
+    } else {
+      wgt <- c(colSums(data()$model$theta))
+    }
 
-    rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=all.titles())
+    rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=bubbles.titles())
     return(rv)
   })
 
