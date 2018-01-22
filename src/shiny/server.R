@@ -10,9 +10,10 @@ options(shiny.maxRequestSize=1e4*1024^2)
 
 # Always check whether the entry exists before accessing.
 #        Simpler than updating whenever clustering/nodes/etc. change
-manual.titles <- list()
 
 function(input, output, session) {
+  stateStore <- reactiveValues(manual.titles=list())
+
   chosenDataName <- reactive({
     chosen <- input$topic.datasetName
     if (chosen != "") {
@@ -454,18 +455,15 @@ function(input, output, session) {
 
   observeEvent(input$updateTitle, {
     topic <- as.integer(input$topic.selected)
-    print(input$topic.selected)
-    print(topic)
-    print(input$topic.customTitle)
+
+
 
     newTitle <- input$topic.customTitle
     if (is.null(newTitle)) {
       newTitle = ""
     }
 
-    print(newTitle)
-
-    manual.titles[[topic]] <- newTitle
+    stateStore$manual.titles[[topic]] <- newTitle
   })
 
   all.titles <- reactive({
@@ -477,18 +475,21 @@ function(input, output, session) {
 
     # NOTE(tfs): topicBubbles expects c(cluster.titles(), titles())
     #            We therefore must modulo-shift the index when accessing manual.tites,
-    #            because manual.titles is organized based on ids
+    #            because stateStore$manual.titles is organized based on ids
     for (i in seq(n)) {
-      mtIndex <- ((i + K()) %% n) + 1 # Add 1 because R 1-indexes
+      mtIndex <- ((i + K() - 1) %% n) + 1 # Shifts by 1 to allow for modulus while 1-indexing
 
-      if (mtIndex > length(manual.titles) || is.null(manual.titles[[mtIndex]])) {
-        if (!is.null(ttl[[mtIndex]])) {
-          rv <- append(rv, ttl[[mtIndex]])
+      if (mtIndex > length(stateStore$manual.titles)
+      || is.null(stateStore$manual.titles[[mtIndex]])
+      || stateStore$manual.titles[[mtIndex]] == "") {
+        
+        if (is.null(ttl[[mtIndex]])) {
+          rv <- c(rv, "")
         } else {
-          rv <- append(rv, "") 
+          rv <- c(rv, ttl[[mtIndex]]) 
         }
       } else {
-        rv <- append(rv, manual.titles[[mtIndex]])
+        rv <- c(rv, stateStore$manual.titles[[mtIndex]])
       }
     }
 
