@@ -13,6 +13,8 @@ var LEFT_BAR_WIDTH = 300;
 var activeWidget;
 var activeSelector;
 
+var assignments;
+
 // NOTE(tfs): These aren't actually set correctly at all. HTMLWidgets.widgets
 //            does not give the actual instance we care about.
 var bubbleWidget;
@@ -25,6 +27,11 @@ var TREE_SELECTOR = "svg#tree-svg";
 var selectors = {};
 
 var selectedNodeID = -1;
+
+var assignments = "";
+
+var exportable; // TODO(tfs): Remove this when done debugging
+
 
 $(document).ready(function() {
 	// Leave a little buffer for max width
@@ -82,16 +89,17 @@ $(document).on("shiny:sessioninitialized", function(event) {
 	Shiny.onInputChange("topic.active", "");
 	Shiny.onInputChange("topic.selected", "");
 
-	Shiny.addCustomMessageHandler("processingFile", function(msg) {
-		$("#topic\\.start").attr("disabled", true);
-		$("#init-message").removeClass("inplace-hidden-message");
-		$("#init-message").trigger("shown");
-	});
+	Shiny.addCustomMessageHandler("processingFile", processInputFile);
+
+	// Shiny.addCustomMessageHandler("initialAssignments", handleInitialAssignments);
 
 	Shiny.addCustomMessageHandler("topicSelected", handleTopicSelection);
 
 	Shiny.addCustomMessageHandler("enterExportMode", enterExportMode);
 	Shiny.addCustomMessageHandler("exitExportMode", exitExportMode);
+
+	Shiny.addCustomMessageHandler("runtimeCluster", handleRuntimeCluster);
+	Shiny.addCustomMessageHandler("runtimeClusterError", handleRuntimeClusterError);
 
 	for (var i = 0; i < HTMLWidgets.widgets.length; i++) {
 		switch (HTMLWidgets.widgets[i].name) {
@@ -115,6 +123,28 @@ $(document).on("shiny:sessioninitialized", function(event) {
 	activeSelector = selectors[BUBBLE_LABEL];
 	Shiny.onInputChange("selectedView", BUBBLE_LABEL);
 });
+
+
+function processInputFile(msg) {
+	$("#topic\\.start").attr("disabled", true);
+	$("#init-message").removeClass("inplace-hidden-message");
+	$("#init-message").trigger("shown");
+}
+
+
+// function handleInitialAssignments(msg) {
+// 	var assigns = [];
+
+// 	// "child:parent,child:parent,child:parent..."
+// 	for (var i = 0; i < msg.length; i++) {
+// 		var newAssign = i + ":" + msg[i];
+// 		assigns.push(newAssign);
+// 	}
+
+// 	assignments = assigns.join(",");
+
+// 	Shiny.onInputChange("topics", assignments)
+// }
 
 
 function updateData(dataObject) {
@@ -346,6 +376,16 @@ function cleanTopicInputs() {
 	var defNumClusters = parseInt($("#runtime\\.numClusters").attr("data-shinyjs-resettable-value"))
 	$("#runtime\\.numClusters").val(defNumClusters);
 	Shiny.onInputChange("runtime.numClusters", defNumClusters)
+}
+
+
+function handleRuntimeCluster(msg) {
+	exportable = msg;
+}
+
+
+function handleRuntimeClusterError(err) {
+	console.log(err);
 }
 
 

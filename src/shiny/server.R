@@ -12,7 +12,7 @@ options(shiny.maxRequestSize=1e4*1024^2)
 #        Simpler than updating whenever clustering/nodes/etc. change
 
 function(input, output, session) {
-  stateStore <- reactiveValues(manual.titles=list())
+  stateStore <- reactiveValues(manual.titles=list(), assigns=NULL)
 
   chosenDataName <- reactive({
     chosen <- input$topic.datasetName
@@ -45,23 +45,20 @@ function(input, output, session) {
   })
 
   observeEvent(input$topic.start, {
-    # data <- reactive({
-    #   inFile <- input$topic.file
-    #   if (is.null(inFile))
-    #     return(NULL)
-
-    #   load(inFile$datapath)
-
-    #   return(list("model"=model, "out"=out, "processed"=processed, "doc.summaries"=doc.summaries))
-    # })
-
-    # session$sendCustomMessage(type="initialized", "Howdy?")
-    # dataJSON <- toJSON(data())
-    # session$sendCustomMessage("parsed", "JSONIFIED")
-    # session$sendCustomMessage(type = "startInit", "Parsing File")
-    # session$sendCustomMessage(type = "initData", data())
     session$sendCustomMessage(type="processingFile", "")
     req(data())
+
+    if (input$initialize.kmeans) {
+      fit <- initial.kmeansFit()
+      initAssigns <- c(fit$cluster + K(), rep(0, input$initial.numClusters))
+    } else {
+      initAssigns <- c(rep(0, K()))
+    }
+
+    # session$sendCustomMessage(type="initialAssignments", initAssigns)
+
+    stateStore$assigns <- initAssigns
+
     req(bubbles.data())
     shinyjs::hide(selector=".initial")
     shinyjs::show(selector=".left-content")
@@ -97,6 +94,22 @@ function(input, output, session) {
   # )
 
 
+  assignString <- reactive({
+    if (is.null(stateStore$assigns)) {
+      return(NULL)
+    }
+
+    tmpAssigns <- c()
+
+    for (i in seq(length(stateStore$assigns))) {
+      newAssign <- paste(i, stateStore$assigns[[i]], sep=":")
+      tmpAssigns <- append(tmpAssigns, newAssign)
+    }
+
+    return(paste(tmpAssigns, collapse=","))
+  })
+
+
   beta <- reactive({
     if (is.null(data()))
       return(NULL)
@@ -121,20 +134,65 @@ function(input, output, session) {
     } else {
       return(NULL)
     }
+  })
 
+  observeEvent(input$clusterUpdate, {
+    print("TODO: should be more efficient for small/simple changes like shifting a single node")  
   })
 
   observeEvent(input$runtimeCluster, {
     req(data())
 
-    # TODO(tfs): This is the rough structure I want, but should use direct children only
-    if (input$topic.active == "") {
-      newFit <- kmeans(beta(), isolate(input$runtime.numClusters))
-    } else {
-      newFit <- kmeans(beta(), isolate(input$runtime.numClusters))
+    if (is.null(input$topic.selected)) {
+      session$sendCustomMessage(type="runtimeClusterError", "No topic selected")
+      return()
     }
 
-    session$sendCustomMessage(type = "runtimeCluster", newFit)
+    selectedTopic <- as.integer(input$topic.selected)
+
+    numNewClusters <- isolate(input$runtime.numClusters)
+
+    # TODO(tfs): This is the rough structure I want, but should use direct children only
+    # if (input$topic.selected == "") {
+    #   newFit <- kmeans(beta(), isolate(input$runtime.numClusters))
+    # } else {
+    #   if (length(selected.children()) <= numNewClusters) {
+    #     session$sendCustomMessage(type="runtimeClusterError", "Too few children for number of clusters")
+    #     return()
+    #   } else {
+    #     newFit <- kmeans(selected.childBetas(), isolate(input$runtime.numClusters))
+    #   }
+    # }
+
+    # msg = list(childIDs=selected.children(), fit=newFit$cluster)
+
+    # session$sendCustomMessage(type="runtimeCluster", msg)
+
+    # Handle root clustering exacltly the same as non-root clustering.
+    # TODO(tfs): Add a cluster delete function to compensate
+    if (length(selected.children()) <= numNewClusters) {
+      session$sendCustomMessage(type="runtimeClusterError", "Too few children for number of clusters")
+      return()
+    }
+
+    # NOTE(tfs): We probably don't need to isolate here, but I'm not 100% sure how observeEvent works
+    newFit <- kmeans(selected.childBetas(), isolate(input$runtime.numClusters))
+
+    childIDs <- selected.children()
+
+    maxOldID <- max(stateStore$assigns)
+
+    for (i in seq(numNewClusters)) {
+      stateStore$assigns[[i + maxOldID]] = selectedTopic
+    }
+
+    for (i in seq(length(childIDs))) {
+      ch <- childIDs[[i]]
+      pa <- newFit$cluster[[i]] + maxOldID
+      stateStore$assigns[[ch]] = pa
+    }
+
+    session$sendCustomMessage("runtimeClusterFinished", "SUCCESS")
   })
 
   titles <- reactive({
@@ -181,34 +239,12 @@ function(input, output, session) {
     return(all.titles()[topic])
   })
 
-  # TODO(tfs): New structure proposal, to help with reclustering:
-  #            kmeans fits on backend send messages to frontend,
-  #            restructure the nodes and update a string on frontend,
-  #            linked as an input field. assignments then essentially
-  #            just reflects this input field.
-  # TODO(tfs): This will need to be updated for reclustering
-  assignments <- reactive({
-    if (is.null(data())) {
-      return(c())
-    }
-
-    fit <- initial.kmeansFit()
-
-    # if (input$topics == "") {
-    #   return(c(fit$cluster + K(), rep(0, input$initial.numClusters)))
-    # }
-
-    # NOTE(tfs): SHOULD only occur on initialization
-    if (input$topics == "") {
-      if (input$initialize.kmeans) {
-        return(c(fit$cluster + K(), rep(0, input$initial.numClusters)))
-      } else {
-        return(c(rep(0, K())))
-      }
-    }
-
+  observeEvent(input$topics, {
+    if (is.null(input$topics) || input$topics == "" || input$topics == assignString()) { return() }
+    
     node.ids <- c()
     parent.ids <- c()
+    # for (pair in strsplit(input$topics, ',')[[1]]) {
     for (pair in strsplit(input$topics, ',')[[1]]) {
       ids <- strsplit(pair, ":")[[1]]
       node.ids <- c(node.ids, as.integer(ids[[1]]))
@@ -227,29 +263,84 @@ function(input, output, session) {
 
     ids <- parent.ids[order(node.ids)]
 
-    # NOTE(tfs; 2017-10-12): If initial.numClusters was updated on the UI after
-    #      nodes were manually assigned, input$topics will not be empty.
-    #      However, the length of assignments in input$topics will
-    #      correspond to the previous initial.numClusters, resulting in a
-    #      crash unless we verify before returning here.
-    if (length(ids) != (K() + input$initial.numClusters)) {
-      return(c(fit$cluster + K(), rep(0, input$initial.numClusters)))
+    for (i in seq(length(ids))) {
+      stateStore$assigns[[i]] = ids[[i]]
     }
-
-    return(ids)
   })
+
+  # TODO(tfs): New structure proposal, to help with reclustering:
+  #            kmeans fits on backend send messages to frontend,
+  #            restructure the nodes and update a string on frontend,
+  #            linked as an input field. assignments then essentially
+  #            just reflects this input field.
+  # TODO(tfs): This will need to be updated for reclustering
+  # assignments <- reactive({
+  #   if (is.null(data())) {
+  #     return(c())
+  #   }
+
+  #   # # NOTE(tfs): SHOULD only occur on initialization
+  #   # # if (input$topics == "") {
+  #   # if (is.null(assignString()) || assignString() == "") {
+  #   #   if (input$initialize.kmeans) {
+  #   #     fit <- initial.kmeansFit()
+  #   #     initAssigns <- c(fit$cluster + K(), rep(0, input$initial.numClusters))
+  #   #   } else {
+  #   #     initAssigns <- c(rep(0, K()))
+  #   #   }
+
+  #   #   return(initAssigns)
+  #   # }
+
+  #   # node.ids <- c()
+  #   # parent.ids <- c()
+  #   # # for (pair in strsplit(input$topics, ',')[[1]]) {
+  #   # for (pair in strsplit(assignString(), ',')[[1]]) {
+  #   #   ids <- strsplit(pair, ":")[[1]]
+  #   #   node.ids <- c(node.ids, as.integer(ids[[1]]))
+  #   #   parent.ids <- c(parent.ids, as.integer(ids[[2]]))
+  #   # }
+
+  #   # # adjust ids for missing/deleted clusters
+  #   # # TODO: consider a more elegant solution (see also download)
+  #   # for (i in seq(max(parent.ids))) {
+  #   #   # if this id doesn't exist, add a dummy one
+  #   #   if (sum(node.ids==i) == 0) {
+  #   #     node.ids <- c(node.ids, i)
+  #   #     parent.ids <- c(parent.ids, 0)
+  #   #   }
+  #   # }
+
+  #   # ids <- parent.ids[order(node.ids)]
+
+  #   # # NOTE(tfs; 2017-10-12): If initial.numClusters was updated on the UI after
+  #   # #      nodes were manually assigned, input$topics will not be empty.
+  #   # #      However, the length of assignments in input$topics will
+  #   # #      correspond to the previous initial.numClusters, resulting in a
+  #   # #      crash unless we verify before returning here.
+  #   # # NOTE(tfs; 2018-01-22): State should be stored/updated better in input$topics
+  #   # #      after initialization. This should no longer be necessary.
+  #   # # if (length(ids) != (K() + input$initial.numClusters)) {
+  #   # #   return(c(fit$cluster + K(), rep(0, input$initial.numClusters)))
+  #   # # }
+
+  #   # return(ids)
+
+  #   return(stateStore$assigns)
+  # })
 
   # Full storage of child IDs for each node (0 is root)
   children <- reactive({
-    req(assignments())
+    # req(assignments())
+    if (is.null(stateStore$assigns)) { return() }
     childmap <- list()
 
     # for (i in seq(length(assignments()))) {
     #   childmap[[i]] <- c()
     # }
 
-    for (ch in seq(length(assignments()))) {
-      p <- assignments()[ch]
+    for (ch in seq(length(stateStore$assigns))) {
+      p <- stateStore$assigns[ch]
       if (p == 0) {
         if ("root" %in% childmap) {
           childmap$root <- append(childmap$root, ch)
@@ -270,12 +361,18 @@ function(input, output, session) {
 
   selected.children <- reactive({
     req(children())
-    parentNode <- as.integer(input$topic.active)
+    parentNode <- as.integer(input$topic.selected)
     if (is.na(parentNode)) {
       return(children()$root)
     } else {
       return(children()[[parentNode]])
     }
+  })
+
+  selected.childBetas <- reactive({
+    childIDs <- selected.children()
+
+    return(beta()[childIDs,])
   })
 
   n.nodes <- reactive({
@@ -287,7 +384,7 @@ function(input, output, session) {
     # if (input$topics == "")
     #   return(input$initial.numClusters)
 
-    return(length(assignments()) - K())
+    return(max(stateStore$assigns) - K())
   })
 
   output$topic.doctab.summary <- renderUI({
@@ -300,14 +397,14 @@ function(input, output, session) {
   })
 
   leaf.ids <- reactive({
-    req(assignments())
+    if (is.null(stateStore$assigns)) { return() }
     leafmap <- list()
 
     # Leaf set = original K() topics
     for (ch in seq(K())) {
       itrID <- ch
 
-      p <- assignments()[itrID]
+      p <- stateStore$assigns[itrID]
       while (p > 0) {
         if (p <= length(leafmap) && !is.null(leafmap[[p]])) {
           leafmap[[p]] <- append(leafmap[[p]], ch)
@@ -317,7 +414,7 @@ function(input, output, session) {
 
         itrID <- p
 
-        p <- assignments()[itrID]
+        p <- stateStore$assigns[itrID]
       }
     }
 
@@ -340,7 +437,7 @@ function(input, output, session) {
     #     mtheta[,assignments()[topic] - K()] + theta[,topic]
     # }
 
-    for (clusterID in seq(K()+1, length(assignments()))) {
+    for (clusterID in seq(K()+1, length(stateStore$assigns))) {
       leaves <- leaf.ids()[[clusterID]]
 
       for (leafID in leaves) {
@@ -363,7 +460,7 @@ function(input, output, session) {
     }
 
     if (n.nodes() > 0) {
-      for (meta.topic in seq(length(assignments()) - K())) {
+      for (meta.topic in seq(length(stateStore$assigns) - K())) {
         rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta()[,meta.topic],
                                                   decreasing=TRUE)[1:100]]
       }
@@ -473,7 +570,7 @@ function(input, output, session) {
   all.titles <- reactive({
     rv <- c()
 
-    n <- length(assignments())
+    n <- length(stateStore$assigns)
 
     ttl <- c(titles(), cluster.titles())
 
@@ -481,7 +578,6 @@ function(input, output, session) {
     for (i in seq(n)) {
       # NOTE(tfs): Now separated this into a separate RV, allowing for easier processing
       # mtIndex <- ((i + K() - 1) %% n) + 1 # Shifts by 1 to allow for modulus while 1-indexing
-
       if (i > length(stateStore$manual.titles)
       || is.null(stateStore$manual.titles[[i]])
       || stateStore$manual.titles[[i]] == "") {
@@ -500,21 +596,47 @@ function(input, output, session) {
   })
 
   bubbles.titles <- reactive({
-    rv <- c()
-    n <- length(assignments())
+    # rv <- c()
+    # n <- length(stateStore$assigns)
     ttl <- all.titles()
 
     # NOTE(tfs): topicBubbles expects c(cluster.titles(), titles())
     #            We therefore must modulo-shift the index when accessing manual.tites,
     #            because stateStore$manual.titles is organized based on ids
-    for (i in seq(n)) {
-      mtIndex <- ((i + K() - 1) %% n) + 1 # Shifts by 1 to allow for modulus while 1-indexing
+    # for (i in seq(n)) {
+    #   mtIndex <- ((i + K() - 1) %% n) + 1 # Shifts by 1 to allow for modulus while 1-indexing
 
-      rv <- c(rv, all.titles()[[mtIndex]])
-    }
+    #   rv <- c(rv, all.titles()[[mtIndex]])
+    # }
 
-    return(rv)
+    return(ttl)
   })
+
+  # meta.theta <- reactive({
+  #   theta <- data()$model$theta
+  #   mtheta <- matrix(0, nrow=nrow(theta), ncol=n.nodes())
+    
+  #   if (n.nodes() <= 0) {
+  #     return(mtheta)
+  #   }
+
+  #   # for (topic in seq(K())) {
+  #   #   # rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:10]]
+
+  #   #   mtheta[,assignments()[topic] - K()] <-
+  #   #     mtheta[,assignments()[topic] - K()] + theta[,topic]
+  #   # }
+
+  #   for (clusterID in seq(K()+1, length(stateStore$assigns))) {
+  #     leaves <- leaf.ids()[[clusterID]]
+
+  #     for (leafID in leaves) {
+  #       mtheta[,clusterID-K()] <- mtheta[,clusterID-K()] + theta[,leafID]
+  #     }
+  #   }
+
+  #   return(mtheta)
+  # })
 
   # TODO: this may not work for deeper hierarchy; needs to be checked once implemented
   cluster.titles <- reactive({
@@ -526,18 +648,38 @@ function(input, output, session) {
       return(c())
     }
 
+    # TODO(tfs): I think this is where something needs to be fixed for runtime clustering titles to work
     marginals <- matrix(0, nrow=n.nodes(), ncol=ncol(beta()))
     weights <- colSums(data()$model$theta)
-    for (node in seq(length(assignments()), 1)) {
+
+    # for (node in seq(length(stateStore$assigns), 1)) {
+    #   val <- 0
+    #   if (stateStore$assigns[node] == 0)
+    #     val <- 0
+    #   else if (node <= K())
+    #     val <- beta()[node,] * weights[node]
+    #   else
+    #     val <- marginals[node - K(),]
+    #   marginals[stateStore$assigns[node]-K(),] <- marginals[stateStore$assigns[node]-K(),] + val
+    # }
+
+
+    # NOTE(tfs): This is less efficient than building from the base up,
+    #            but there is currently no explicit tree-structured data storage
+    for (i in seq(n.nodes())) {
+      clusterID <- i+K()
+
+      leaves <- leaf.ids()[[clusterID]]
+
       val <- 0
-      if (assignments()[node] == 0)
-        val <- 0
-      else if (node <= K())
-        val <- beta()[node,] * weights[node]
-      else
-        val <- marginals[node - K(),]
-      marginals[assignments()[node]-K(),] <- marginals[assignments()[node]-K(),] + val
+
+      for (leafid in leaves) {
+        val <- beta()[leafid,] * weights[leafid]
+        marginals[clusterID-K(),] <- marginals[clusterID-K(),] + val
+      }
     }
+
+    # REF: meta.theta()[,topicNum]
 
     rv <- c()
     for (cluster in seq(n.nodes())) {
@@ -546,9 +688,9 @@ function(input, output, session) {
 
       rv <- c(rv, title)
 
-      title <- paste(data()$out$vocab[order(marginals[cluster,],
-                                            decreasing=TRUE)][seq(20)], collapse=" ")
-      vals <- marginals[cluster, order(marginals[cluster,], decreasing=TRUE)[seq(20)]]
+      # title <- paste(data()$out$vocab[order(marginals[cluster,],
+                                            # decreasing=TRUE)][seq(20)], collapse=" ")
+      # vals <- marginals[cluster, order(marginals[cluster,], decreasing=TRUE)[seq(20)]]
     }
 
     return(rv)
@@ -570,27 +712,33 @@ function(input, output, session) {
     #                  title=c(isolate(cluster.titles()), titles()))
 
     # rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl)
+    # pid <- c(stateStore$assigns)
     pid <- c()
-    nid <- c()
+    nid <- c(seq(length(stateStore$assigns)))
 
-    n <- length(assignments())
+    n <- length(stateStore$assigns)
 
-    if (n > K()) {
-      for (ch in seq(K()+1,n)) {
-        p <- assignments()[ch]
-        pid <- append(pid, p)
-        nid <- append(nid, ch)
-      }
+    # NOTE(tfs): Can probably just use ``pid <- c(stateStore$assigns)``, but why take chances
+    for (i in seq(length(nid))) {
+      pid <- append(pid, stateStore$assigns[nid[i]])
     }
 
-    for (ch in seq(K())) {
-      p <- assignments()[ch]
-      pid <- append(pid, p)
-      nid <- append(nid, ch)
-    }
+    # if (n > K()) {
+    #   for (ch in seq(K()+1,n)) {
+    #     p <- stateStore$assigns[ch]
+    #     pid <- append(pid, p)
+    #     nid <- append(nid, ch)
+    #   }
+    # }
+
+    # for (ch in seq(K())) {
+    #   p <- stateStore$assigns[ch]
+    #   pid <- append(pid, p)
+    #   nid <- append(nid, ch)
+    # }
 
     if (n > K()) {
-      wgt <- c(rep(0, n - K()), colSums(data()$model$theta))
+      wgt <- c(colSums(data()$model$theta), rep(0, n - K()))
     } else {
       wgt <- c(colSums(data()$model$theta))
     }
@@ -602,227 +750,7 @@ function(input, output, session) {
   output$bubbles <- renderTopicBubbles({ topicBubbles(bubbles.data()) })
 }
 
-# function(input, output, session) {
 
-#   data <- reactive({
-#     inFile <- input$topic.file
-#     if (is.null(inFile))
-#       return(NULL)
 
-#     load(inFile$datapath)
 
-#     return(list("model"=model, "out"=out, "processed"=processed, "doc.summaries"=doc.summaries))
-#   })
 
-#   beta <- reactive({
-#     if (is.null(data()))
-#       return(NULL)
-#     return(exp(data()$model$beta$logbeta[[1]]))
-#   })
-
-#   kmeans.fit <- reactive({
-#     if (is.null(beta()))
-#       return(NULL)
-#     return(kmeans(beta(), input$num.clusters))
-#   })
-
-#   K <- reactive({
-#     if (is.null(data()))
-#       return(0)
-#     return(nrow(beta()))
-#   })
-
-#   titles <- reactive({
-#     rv <- c()
-#     if (is.null(data()))
-#       return(rv)
-
-#     for (k in seq(K())) {
-#       title <- paste(data()$out$vocab[order(beta()[k,], decreasing=TRUE)][seq(5)], collapse=" ")
-#       rv <- c(rv, title)
-#     }
-
-#     return(rv)
-#   })
-
-#   assignments <- reactive({
-#     if (is.null(data()))
-#       return(c())
-
-#     fit <- kmeans.fit()
-
-#     if (input$topics == "") {
-#       return(c(fit$cluster + K(), rep(0, input$num.clusters)))
-#     }
-
-#     node.ids <- c()
-#     parent.ids <- c()
-#     for (pair in strsplit(input$topics, ',')[[1]]) {
-#       ids <- strsplit(pair, ":")[[1]]
-#       node.ids <- c(node.ids, as.integer(ids[[1]]))
-#       parent.ids <- c(parent.ids, as.integer(ids[[2]]))
-#     }
-
-#     # adjust ids for missing/deleted clusters
-#     # TODO: consider a more elegant solution (see also download)
-#     for (i in seq(max(parent.ids))) {
-#       # if this id doesn't exist, add a dummy one
-#       if (sum(node.ids==i) == 0) {
-#         node.ids <- c(node.ids, i)
-#         parent.ids <- c(parent.ids, 0)
-#       }
-#     }
-
-#     ids <- parent.ids[order(node.ids)]
-
-#     # NOTE(tfs; 2017-10-12): If num.clusters was updated on the UI after
-#     #      nodes were manually assigned, input$topics will not be empty.
-#     #      However, the length of assignments in input$topics will
-#     #      correspond to the previous num.clusters, resulting in a
-#     #      crash unless we verify before returning here.
-#     if (length(ids) != (K() + input$num.clusters)) {
-#       return(c(fit$cluster + K(), rep(0, input$num.clusters)))
-#     }
-
-#     return(ids)
-#   })
-
-#   n.nodes <- reactive({
-#     if (is.null(data()))
-#       return(0)
-
-#     if (input$topics == "")
-#       return(input$num.clusters)
-
-#     return(length(assignments())-K())
-#   })
-
-#   # TODO: this may not work for deeper hierarchy; needs to be checked once implemented
-#   cluster.titles <- reactive({
-#     if (is.null(data()))
-#       return(c())
-
-#     marginals <- matrix(0, nrow=n.nodes(), ncol=ncol(beta()))
-#     weights <- colSums(data()$model$theta)
-#     for (node in seq(length(assignments()), 1)) {
-#       val <- 0
-#       if (assignments()[node] == 0)
-#         val <- 0
-#       else if (node <= K())
-#         val <- beta()[node,] * weights[node]
-#       else
-#         val <- marginals[node - K(),]
-#       marginals[assignments()[node]-K(),] <- marginals[assignments()[node]-K(),] + val
-#     }
-
-#     rv <- c()
-#     for (cluster in seq(n.nodes())) {
-#       title <- paste(data()$out$vocab[order(marginals[cluster,],
-#                                             decreasing=TRUE)][seq(5)], collapse=" ")
-
-#       rv <- c(rv, title)
-
-#       title <- paste(data()$out$vocab[order(marginals[cluster,],
-#                                             decreasing=TRUE)][seq(20)], collapse=" ")
-#       vals <- marginals[cluster, order(marginals[cluster,], decreasing=TRUE)[seq(20)]]
-#     }
-
-#     return(rv)
-
-#     #TODO: add on reset
-#     #document.getElementById("topics").value = "";
-#     #write assignemnts to topics text file
-#   })
-
-#   observeEvent(input$topics, {
-#     if (is.null(data()))
-#       return(NULL)
-
-#     session$sendCustomMessage(type = "topics", cluster.titles())
-#   })
-
-#   bubbles.data <- reactive({
-#     if (is.null(data()))
-#       return(NULL)
-
-#     #parent.id, topic.id, weight, title
-#     rv <- data.frame(parentID=c(rep(0, input$num.clusters), kmeans.fit()$cluster + K()),
-#                      nodeID=c(seq(K()+1,K()+input$num.clusters), seq(K())),
-#                      weight=c(rep(0, input$num.clusters), colSums(data()$model$theta)),
-#                      title=c(isolate(cluster.titles()), titles()))
-
-#     return(rv)
-#   })
-
-#   output$bubbles <- renderTopicBubbles({ topicBubbles(bubbles.data(), height=800) })
-
-#   top.documents <- reactive({
-#     # TODO: this will need to be updated for hierarchy
-#     rv <- list()
-#     theta <- data()$model$theta
-#     meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
-#     for (topic in seq(K())) {
-#       rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:10]]
-
-#       meta.theta[,assignments()[topic] - K()] <-
-#         meta.theta[,assignments()[topic] - K()] + theta[,topic]
-#     }
-
-#     for (meta.topic in seq(length(assignments()) - K())) {
-#       rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta[,meta.topic],
-#                                                 decreasing=TRUE)[1:10]]
-#     }
-
-#     return(rv)
-#   })
-
-#   documents <- reactive({
-#     topic <- as.integer(input$active)
-#     rv <- ""
-#     for (doc in top.documents()[[topic]]) {
-#       rv <- paste(rv, "<p>",
-#                   substr(doc, start=1, stop=100),
-#                   "...</p>")
-#     }
-#     return(rv)
-#   })
-
-#   topic.title <- reactive({
-#     if (input$active == "")
-#       return()
-
-#     topic <- as.integer(input$active)
-#     if (topic <= K())
-#       return(titles()[topic])
-#     return(cluster.titles()[topic-K()])
-#   })
-
-#   output$topic.summary <- renderUI({
-#     if (input$active == "")
-#       return()
-
-#     out.string <- paste("<hr/>\n<h3>Topic Summary</h3>\n",
-#                         "<h4>", topic.title(), "</h4>\n", documents())
-#     return(HTML(out.string))
-#   })
-
-#   output$download <- downloadHandler(
-#     filename = "topics.csv",
-#     content = function(file) {
-
-#       out <- data.frame(topic.id=seq(length(assignments())), parent.id=assignments(),
-#                         title=c(titles(), cluster.titles()))
-
-#       # get rid of empty nodes
-#       for (id in rev(out[out$parent.id == 0,]$topic.id)) {
-#         if (nrow(out[out$parent.id == id,]) == 0) {
-#           out[out$parent.id > id,]$parent.id <- out[out$parent.id > id,]$parent.id - 1
-#           out[out$topic.id > id,]$topic.id <- out[out$topic.id > id,]$topic.id - 1
-#           out <- out[-id,]
-#         }
-#       }
-
-#       write.csv(out, file, row.names = FALSE, quote=FALSE)
-#     }
-#   )
-# }

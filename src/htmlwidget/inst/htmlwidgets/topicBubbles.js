@@ -501,9 +501,6 @@ HTMLWidgets.widget({
         var self = this,
             oldVal = self.sourceD;
         self.sourceD = newVal;
-        console.log("hi!!!");
-        console.log(self);
-        console.log(self.sourceD);
         if (oldVal) {
             self.setLabelVisibility(oldVal);
             self.setCircleFill(oldVal);
@@ -580,25 +577,72 @@ HTMLWidgets.widget({
             data = {id: 0, children: [], terms: []},
             srcData = HTMLWidgets.dataframeToD3(x.data);
 
-        // For each data row add to the output tree.
-        srcData.forEach(function (d) {
-            var parent = self.findParent(data, d.parentID, d.nodeID);
+        console.log(x);
+        console.log(srcData);
+        exportable = srcData;
 
-            // Leaf node.
-            if (d.weight === 0) {
-                parent.children.push({
-                    id: d.nodeID,
-                    terms: d.title.split(" "),
-                    children: []
-                });
-            } else if (parent !== null && parent.hasOwnProperty("children")) {
-                parent.children.push({
-                    id: d.nodeID,
-                    terms: d.title.split(" "),
-                    weight: d.weight
-                });
+        // Sort srcData by node ID
+        srcData.sort(function(left, right) {
+            if (left.nodeID < right.nodeID) {
+                return -1;
+            } else if (left.nodeID > right.nodeID) {
+                return 1;
             }
+
+            return 0;
         });
+
+        // Assumes no broken connections, but does NOTE assume that there are no empty IDs
+        var maxID = srcData[srcData.length-1].nodeID;
+
+        // NOTE(tfs): I'm not entirely sure how references work in JS. This could break horribly
+        // NOTE(tfs): When assigning to index out of bounds, JS arrays expand and include undefined entries.
+        nodes = [];
+        nodes[0] = data;
+        for (var i = 0; i < srcData.length; i++) {
+            nodes[srcData[i].nodeID] = {id: srcData[i].nodeID, children: [], terms: []};
+        }
+
+        var rawPoint;
+        var cleanPoint;
+        var parent;
+
+        for (var i = 0; i < srcData.length; i++) {
+            rawPoint = srcData[i];
+            cleanPoint = nodes[rawPoint.nodeID];
+            parent = nodes[rawPoint.parentID];
+
+            if (rawPoint.weight === 0) {
+                parent.children.push(cleanPoint);
+                cleanPoint.terms = rawPoint.title.split(" ");
+            } else if (parent !== null && parent.hasOwnProperty("children")) {
+                parent.children.push(cleanPoint);
+                cleanPoint.terms = rawPoint.title.split(" ");
+                cleanPoint.weight = rawPoint.weight;
+            }
+        }
+
+        // For each data row add to the output tree.
+        // srcData.forEach(function (d) {
+        //     var parent = self.findParent(data, d.parentID, d.nodeID);
+
+        //     // Leaf node.
+        //     if (d.weight === 0) {
+        //         parent.children.push({
+        //             id: d.nodeID,
+        //             terms: d.title.split(" "),
+        //             children: []
+        //         });
+        //     } else if (parent !== null && parent.hasOwnProperty("children")) {
+        //         parent.children.push({
+        //             id: d.nodeID,
+        //             terms: d.title.split(" "),
+        //             weight: d.weight
+        //         });
+        //     }
+        // });
+
+
 
         return data;
     },
@@ -636,6 +680,7 @@ HTMLWidgets.widget({
     },
 
     /* Helper function to add hierarchical structure to data.
+        TODO(tfs): Make this more efficient, usable for in-order (or any-order) assignments
      */
     findParent: function (branch, parentID, nodeID) {
         var self = this,
@@ -686,7 +731,7 @@ HTMLWidgets.widget({
      */
     aIsChildOfB: function (aD, bD) {
         var result = false;
-        if (bD && bD.data.children) {
+        if (bD && bD.data.children && bD.data.children.length > 0) {
             bD.children.forEach(function (d) {
                 if (d.data.id === aD.data.id) {
                     result = true;
