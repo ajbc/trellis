@@ -101,6 +101,8 @@ $(document).on("shiny:sessioninitialized", function(event) {
 	Shiny.addCustomMessageHandler("runtimeCluster", handleRuntimeCluster);
 	Shiny.addCustomMessageHandler("runtimeClusterError", handleRuntimeClusterError);
 
+	Shiny.addCustomMessageHandler("nodeDeleted", handleNodeDeletion);
+
 	for (var i = 0; i < HTMLWidgets.widgets.length; i++) {
 		switch (HTMLWidgets.widgets[i].name) {
 			case "topicBubbles":
@@ -386,6 +388,13 @@ function handleRuntimeCluster(msg) {
 
 function handleRuntimeClusterError(err) {
 	console.log(err);
+}
+
+
+function handleNodeDeletion(msg) {
+	console.log(msg);
+	Shiny.onInputChange("topic.selected", "");
+	cleanTopicInputs();
 }
 
 

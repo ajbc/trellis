@@ -103,6 +103,9 @@ HTMLWidgets.widget({
             // .range(["hsl(155,30%,82%)", "hsl(155,66%,25%)"])
             .range(["hsl(215,100%,80%)", "hsl(215,70%,50%)"])
             .interpolate(d3.interpolateHcl);
+
+        // Handle Shiny messages
+        Shiny.addCustomMessageHandler("nodeDeleted", function(msg) { self.setSource(null); });
     },
 
     /* Removes all svg elements and then re-renders everything from scratch.

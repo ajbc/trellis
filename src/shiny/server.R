@@ -102,6 +102,7 @@ function(input, output, session) {
     tmpAssigns <- c()
 
     for (i in seq(length(stateStore$assigns))) {
+      if (is.na(stateStore$assigns[[i]])) { next } # Continue
       newAssign <- paste(i, stateStore$assigns[[i]], sep=":")
       tmpAssigns <- append(tmpAssigns, newAssign)
     }
@@ -195,6 +196,26 @@ function(input, output, session) {
     session$sendCustomMessage("runtimeClusterFinished", "SUCCESS")
   })
 
+  observeEvent(input$deleteCluster, {
+    if (is.null(input$topic.selected) || input$topic.selected == "") { return() }
+    topic = input$topic.selected
+
+    if ((topic == 0) || (topic <= K())) { return() }
+
+
+    childIDs <- children()[[topic]]
+
+    if (length(childIDs) > 0) {
+      for (ch in childIDs) {
+        stateStore$assigns[[ch]] = stateStore$assigns[[topic]]
+      }
+    }
+
+    stateStore$assigns[[topic]] <- NA
+
+    session$sendCustomMessage("nodeDeleted", "SUCCESS")
+  })
+
   titles <- reactive({
     rv <- c()
     if (is.null(data()))
@@ -262,6 +283,9 @@ function(input, output, session) {
     }
 
     ids <- parent.ids[order(node.ids)]
+
+    # Clear old settings
+    stateStore$assigns <- c()
 
     for (i in seq(length(ids))) {
       stateStore$assigns[[i]] = ids[[i]]
@@ -341,6 +365,7 @@ function(input, output, session) {
 
     for (ch in seq(length(stateStore$assigns))) {
       p <- stateStore$assigns[ch]
+      if (is.na(p)) { next } # Continue
       if (p == 0) {
         if ("root" %in% childmap) {
           childmap$root <- append(childmap$root, ch)
@@ -375,16 +400,13 @@ function(input, output, session) {
     return(beta()[childIDs,])
   })
 
-  n.nodes <- reactive({
+  node.maxID <- reactive({
     if (is.null(data())) {
       return(0)
     }
 
-    # NOTE(tfs): Restructured assignments(), will now be always list each node
-    # if (input$topics == "")
-    #   return(input$initial.numClusters)
-
-    return(max(stateStore$assigns) - K())
+    # NOTE(tfs): max() returns NA if NA exists
+    return(max(stateStore$assigns[!is.na(stateStore$assigns)]) - K())
   })
 
   output$topic.doctab.summary <- renderUI({
@@ -405,6 +427,7 @@ function(input, output, session) {
       itrID <- ch
 
       p <- stateStore$assigns[itrID]
+      # if (is.na(p)) { next } # Continue
       while (p > 0) {
         if (p <= length(leafmap) && !is.null(leafmap[[p]])) {
           leafmap[[p]] <- append(leafmap[[p]], ch)
@@ -424,9 +447,9 @@ function(input, output, session) {
   # TODO(tfs): This will need to be updated for hierarchical kmeans, I believe
   meta.theta <- reactive({
     theta <- data()$model$theta
-    mtheta <- matrix(0, nrow=nrow(theta), ncol=n.nodes())
+    mtheta <- matrix(0, nrow=nrow(theta), ncol=node.maxID())
     
-    if (n.nodes() <= 0) {
+    if (node.maxID() <= 0) {
       return(mtheta)
     }
 
@@ -459,7 +482,7 @@ function(input, output, session) {
       #   meta.theta[,assignments()[topic] - K()] + theta[,topic]
     }
 
-    if (n.nodes() > 0) {
+    if (node.maxID() > 0) {
       for (meta.topic in seq(length(stateStore$assigns) - K())) {
         rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta()[,meta.topic],
                                                   decreasing=TRUE)[1:100]]
@@ -582,6 +605,8 @@ function(input, output, session) {
       || is.null(stateStore$manual.titles[[i]])
       || stateStore$manual.titles[[i]] == "") {
 
+        if (is.na(stateStore$assigns[[i]])) { next }
+
         if (is.null(ttl[[i]])) {
           rv <- c(rv, "")
         } else {
@@ -614,9 +639,9 @@ function(input, output, session) {
 
   # meta.theta <- reactive({
   #   theta <- data()$model$theta
-  #   mtheta <- matrix(0, nrow=nrow(theta), ncol=n.nodes())
+  #   mtheta <- matrix(0, nrow=nrow(theta), ncol=node.maxID())
     
-  #   if (n.nodes() <= 0) {
+  #   if (node.maxID() <= 0) {
   #     return(mtheta)
   #   }
 
@@ -644,12 +669,12 @@ function(input, output, session) {
       return(c())
     }
 
-    if (n.nodes() <= 0) {
+    if (node.maxID() <= 0) {
       return(c())
     }
 
     # TODO(tfs): I think this is where something needs to be fixed for runtime clustering titles to work
-    marginals <- matrix(0, nrow=n.nodes(), ncol=ncol(beta()))
+    marginals <- matrix(0, nrow=node.maxID(), ncol=ncol(beta()))
     weights <- colSums(data()$model$theta)
 
     # for (node in seq(length(stateStore$assigns), 1)) {
@@ -666,7 +691,7 @@ function(input, output, session) {
 
     # NOTE(tfs): This is less efficient than building from the base up,
     #            but there is currently no explicit tree-structured data storage
-    for (i in seq(n.nodes())) {
+    for (i in seq(node.maxID())) {
       clusterID <- i+K()
 
       leaves <- leaf.ids()[[clusterID]]
@@ -682,7 +707,7 @@ function(input, output, session) {
     # REF: meta.theta()[,topicNum]
 
     rv <- c()
-    for (cluster in seq(n.nodes())) {
+    for (cluster in seq(node.maxID())) {
       title <- paste(data()$out$vocab[order(marginals[cluster,],
                                             decreasing=TRUE)][seq(5)], collapse=" ")
 
@@ -714,13 +739,16 @@ function(input, output, session) {
     # rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl)
     # pid <- c(stateStore$assigns)
     pid <- c()
-    nid <- c(seq(length(stateStore$assigns)))
+    # nid <- c(seq(length(stateStore$assigns)))
+    nid <- c()
 
     n <- length(stateStore$assigns)
 
     # NOTE(tfs): Can probably just use ``pid <- c(stateStore$assigns)``, but why take chances
-    for (i in seq(length(nid))) {
-      pid <- append(pid, stateStore$assigns[nid[i]])
+    for (ch in seq(length(stateStore$assigns))) {
+      if (is.na(stateStore$assigns[[ch]])) { next } # Continue
+      nid <- append(nid, ch)
+      pid <- append(pid, stateStore$assigns[ch])
     }
 
     # if (n > K()) {
@@ -737,10 +765,18 @@ function(input, output, session) {
     #   nid <- append(nid, ch)
     # }
 
-    if (n > K()) {
-      wgt <- c(colSums(data()$model$theta), rep(0, n - K()))
-    } else {
-      wgt <- c(colSums(data()$model$theta))
+    # if (n > K()) {
+    #   wgt <- c(colSums(data()$model$theta), rep(0, n - K()))
+    # } else {
+    #   wgt <- c(colSums(data()$model$theta))
+    # }
+
+    wgt <- c(colSums(data()$model$theta))
+
+    if (length(pid) > length(wgt)) {
+      for (i in seq(length(pid) - length(wgt))) {
+        wgt <- append(wgt, 0)
+      }
     }
 
     rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=bubbles.titles())

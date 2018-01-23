@@ -27,5 +27,6 @@ htmlTemplate("template.html",
     inputTitleUpdateButton = actionButton("updateTitle", "Update", class="btn btn-secondary"),
     inputNumNewClusters = numericInput("runtime.numClusters", "Number of clusters", value=10),
     inputClusterButton = actionButton("runtimeCluster", "Cluster"),
+    inputDeleteCluster = actionButton("deleteCluster", "Delete"),
     outputBubbles = topicBubblesOutput("bubbles")
 )
