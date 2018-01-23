@@ -106,6 +106,7 @@ HTMLWidgets.widget({
 
         // Handle Shiny messages
         Shiny.addCustomMessageHandler("nodeDeleted", function(msg) { self.setSource(null); });
+        Shiny.addCustomMessageHandler("runtimeClusterFinished", function(msg) { self.setSource(null); })
     },
 
     /* Removes all svg elements and then re-renders everything from scratch.
@@ -513,8 +514,10 @@ HTMLWidgets.widget({
             self.setCircleFill(self.sourceD);
             Shiny.onInputChange("topic.selected", self.sourceD.data.id);
             Shiny.onInputChange("topic.active", self.sourceD.data.id);
+            console.log(self.sourceD.data.id);
         } else {
             Shiny.onInputChange("topic.selected", "");
+            console.log("NA");
         }
     },
 

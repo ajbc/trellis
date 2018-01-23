@@ -382,6 +382,7 @@ function cleanTopicInputs() {
 
 
 function handleRuntimeCluster(msg) {
+	Shiny.onInputChange("topic.selected", "");
 	exportable = msg;
 }
 

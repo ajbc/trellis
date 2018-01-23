@@ -94,6 +94,12 @@ function(input, output, session) {
   # )
 
 
+  max.id <- reactive({
+    # NOTE(tfs): max() returns NA if NA exists
+    return(max(stateStore$assigns[!is.na(stateStore$assigns)]))  
+  })
+
+
   assignString <- reactive({
     if (is.null(stateStore$assigns)) {
       return(NULL)
@@ -116,6 +122,33 @@ function(input, output, session) {
       return(NULL)
 
     return(exp(data()$model$beta$logbeta[[1]]))
+  })
+
+  all.beta <- reactive({
+    leaf.beta <- beta()
+    lids <- leaf.ids()
+    weights <- colSums(data()$model$theta)
+
+    ab <- matrix(0, nrow=max.id(), ncol=ncol(leaf.beta))
+
+    for (l in seq(K())) {
+      ab[l,] <- leaf.beta[l,]
+    }
+
+    for (clusterID in seq(K()+1, max.id())) {
+      if (is.na(stateStore$assigns[[clusterID]])) { next }
+
+      val <- 0
+
+      leaves <- leaf.ids()[[clusterID]]
+
+      for (leafid in leaves) {
+        val <- leaf.beta[leafid,] * weights[leafid]
+        ab[clusterID,] <- ab[clusterID,] + val
+      }
+    }
+
+    return(ab)
   })
 
   K <- reactive({
@@ -181,7 +214,7 @@ function(input, output, session) {
 
     childIDs <- selected.children()
 
-    maxOldID <- max(stateStore$assigns)
+    maxOldID <- max.id()
 
     for (i in seq(numNewClusters)) {
       stateStore$assigns[[i + maxOldID]] = selectedTopic
@@ -359,13 +392,15 @@ function(input, output, session) {
     if (is.null(stateStore$assigns)) { return() }
     childmap <- list()
 
+    n <- max.id()
+
     # for (i in seq(length(assignments()))) {
     #   childmap[[i]] <- c()
     # }
 
-    for (ch in seq(length(stateStore$assigns))) {
+    for (ch in seq(n)) {
       p <- stateStore$assigns[ch]
-      if (is.na(p)) { next } # Continue
+      if (is.na(p)) { childmap[[p]] <- NULL }
       if (p == 0) {
         if ("root" %in% childmap) {
           childmap$root <- append(childmap$root, ch)
@@ -381,6 +416,16 @@ function(input, output, session) {
       }
     }
 
+    # print("IIIIIIIIIIIIIIIII")
+
+    # for (ch in seq(K(), n)) {
+    #   p <- stateStore$assigns[ch]
+    #   if (is.na(p)) { next }
+    #   print(paste(toString(ch), paste(childmap[[ch]], collapse=" "), sep=": "))
+    # }
+
+    # print("IIIIIIIIIIIIIIIII")
+
     return(childmap)
   })
 
@@ -394,10 +439,11 @@ function(input, output, session) {
     }
   })
 
+  # TODO(tfs): Adapt beta()[childIDs,], because beta() only provides betas for leaves
   selected.childBetas <- reactive({
     childIDs <- selected.children()
 
-    return(beta()[childIDs,])
+    return(all.beta()[childIDs,])
   })
 
   node.maxID <- reactive({
@@ -405,8 +451,7 @@ function(input, output, session) {
       return(0)
     }
 
-    # NOTE(tfs): max() returns NA if NA exists
-    return(max(stateStore$assigns[!is.na(stateStore$assigns)]) - K())
+    return(max.id() - K())
   })
 
   output$topic.doctab.summary <- renderUI({
@@ -673,21 +718,8 @@ function(input, output, session) {
       return(c())
     }
 
-    # TODO(tfs): I think this is where something needs to be fixed for runtime clustering titles to work
     marginals <- matrix(0, nrow=node.maxID(), ncol=ncol(beta()))
     weights <- colSums(data()$model$theta)
-
-    # for (node in seq(length(stateStore$assigns), 1)) {
-    #   val <- 0
-    #   if (stateStore$assigns[node] == 0)
-    #     val <- 0
-    #   else if (node <= K())
-    #     val <- beta()[node,] * weights[node]
-    #   else
-    #     val <- marginals[node - K(),]
-    #   marginals[stateStore$assigns[node]-K(),] <- marginals[stateStore$assigns[node]-K(),] + val
-    # }
-
 
     # NOTE(tfs): This is less efficient than building from the base up,
     #            but there is currently no explicit tree-structured data storage
@@ -703,8 +735,6 @@ function(input, output, session) {
         marginals[clusterID-K(),] <- marginals[clusterID-K(),] + val
       }
     }
-
-    # REF: meta.theta()[,topicNum]
 
     rv <- c()
     for (cluster in seq(node.maxID())) {
