@@ -596,7 +596,7 @@ HTMLWidgets.widget({
             return 0;
         });
 
-        // Assumes no broken connections, but does NOTE assume that there are no empty IDs
+        // Assumes no broken connections, but does NOT assume that there are no empty IDs
         var maxID = srcData[srcData.length-1].nodeID;
 
         // NOTE(tfs): I'm not entirely sure how references work in JS. This could break horribly
