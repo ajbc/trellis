@@ -150,7 +150,7 @@ HTMLWidgets.widget({
     renderValue: function (el, rawData) {
         // Shiny calls this function before the user uploads any data. We want
         // to just early-return in this case.
-        if (rawData.data == null) {
+        if (rawData.data === null) {
             return;
         }
 
@@ -158,13 +158,17 @@ HTMLWidgets.widget({
             nGroupsChanged;
 
         self.treeData = self.getTreeFromRawData(rawData);
+
+        // TODO(tfs): Check to make sure this is accurate for hierarchical (I don't believe it is)
         nGroupsChanged = self.nGroups !== null
             && self.nGroups !== self.treeData.children.length;
         if (nGroupsChanged) {
-            self.reInitialize();
+            // self.reInitialize();
+            self.nGroups = self.treeData.children.length;
+            self.updateView(true);
         } else {
             self.nGroups = self.treeData.children.length;
-            self.updateView(false);
+            self.updateView(true);
         }
     },
 
@@ -514,10 +518,8 @@ HTMLWidgets.widget({
             self.setCircleFill(self.sourceD);
             Shiny.onInputChange("topic.selected", self.sourceD.data.id);
             Shiny.onInputChange("topic.active", self.sourceD.data.id);
-            console.log(self.sourceD.data.id);
         } else {
             Shiny.onInputChange("topic.selected", "");
-            console.log("NA");
         }
     },
 
@@ -583,10 +585,6 @@ HTMLWidgets.widget({
             data = {id: 0, children: [], terms: []},
             srcData = HTMLWidgets.dataframeToD3(x.data);
 
-        console.log(x);
-        console.log(srcData);
-        exportable = srcData;
-
         // Sort srcData by node ID
         srcData.sort(function(left, right) {
             if (left.nodeID < right.nodeID) {
@@ -603,7 +601,7 @@ HTMLWidgets.widget({
 
         // NOTE(tfs): I'm not entirely sure how references work in JS. This could break horribly
         // NOTE(tfs): When assigning to index out of bounds, JS arrays expand and include undefined entries.
-        nodes = [];
+        var nodes = [];
         nodes[0] = data;
         for (var i = 0; i < srcData.length; i++) {
             nodes[srcData[i].nodeID] = {id: srcData[i].nodeID, children: [], terms: []};
@@ -664,6 +662,9 @@ HTMLWidgets.widget({
             if (!n.children) {
                 return;
             }
+            if (n.weight <= 0 && n.children.length === 0) {
+                return;
+            }
             n.children.forEach(function (childN) {
                 assignments.push(childN.id + ":" + n.id);
             });
@@ -691,7 +692,7 @@ HTMLWidgets.widget({
     findParent: function (branch, parentID, nodeID) {
         var self = this,
             rv = null;
-        if (branch.id == parentID) {
+        if (branch.id === parentID) {
             rv = branch;
         } else if (rv === null && branch.children !== undefined) {
             branch.children.forEach(function (child) {

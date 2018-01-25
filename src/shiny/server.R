@@ -269,13 +269,6 @@ function(input, output, session) {
 
     topic <- as.integer(input$topic.active)
 
-    # if (topic <= K()) {
-    #   return(titles()[topic])
-
-    #   print(titles()[topic])
-    # }
-    # return(cluster.titles()[topic-K()])
-
     return(all.titles()[topic])
   })
 
@@ -298,6 +291,7 @@ function(input, output, session) {
     
     node.ids <- c()
     parent.ids <- c()
+
     # for (pair in strsplit(input$topics, ',')[[1]]) {
     for (pair in strsplit(input$topics, ',')[[1]]) {
       ids <- strsplit(pair, ":")[[1]]
@@ -305,23 +299,14 @@ function(input, output, session) {
       parent.ids <- c(parent.ids, as.integer(ids[[2]]))
     }
 
-    # adjust ids for missing/deleted clusters
-    # TODO: consider a more elegant solution (see also download)
-    for (i in seq(max(parent.ids))) {
-      # if this id doesn't exist, add a dummy one
-      if (sum(node.ids==i) == 0) {
-        node.ids <- c(node.ids, i)
-        parent.ids <- c(parent.ids, 0)
-      }
-    }
-
-    ids <- parent.ids[order(node.ids)]
+    pids <- parent.ids[order(node.ids)]
+    cids <- node.ids[order(node.ids)]
 
     # Clear old settings
     stateStore$assigns <- c()
 
-    for (i in seq(length(ids))) {
-      stateStore$assigns[[i]] = ids[[i]]
+    for (i in seq(length(cids))) {
+      stateStore$assigns[[cids[[i]]]] = pids[[i]]
     }
   })
 
@@ -399,8 +384,10 @@ function(input, output, session) {
     # }
 
     for (ch in seq(n)) {
-      p <- stateStore$assigns[ch]
-      if (is.na(p)) { childmap[[p]] <- NULL }
+      p <- stateStore$assigns[[ch]]
+      if (is.na(p)) { 
+        next
+      }
       if (p == 0) {
         if ("root" %in% childmap) {
           childmap$root <- append(childmap$root, ch)
@@ -415,16 +402,6 @@ function(input, output, session) {
         }
       }
     }
-
-    # print("IIIIIIIIIIIIIIIII")
-
-    # for (ch in seq(K(), n)) {
-    #   p <- stateStore$assigns[ch]
-    #   if (is.na(p)) { next }
-    #   print(paste(toString(ch), paste(childmap[[ch]], collapse=" "), sep=": "))
-    # }
-
-    # print("IIIIIIIIIIIIIIIII")
 
     return(childmap)
   })
@@ -472,7 +449,7 @@ function(input, output, session) {
       itrID <- ch
 
       p <- stateStore$assigns[itrID]
-      # if (is.na(p)) { next } # Continue
+      if (is.na(p) || is.null(p)) { next } # Continue
       while (p > 0) {
         if (p <= length(leafmap) && !is.null(leafmap[[p]])) {
           leafmap[[p]] <- append(leafmap[[p]], ch)
