@@ -409,7 +409,7 @@ function(input, output, session) {
   selected.children <- reactive({
     req(children())
     parentNode <- as.integer(input$topic.selected)
-    if (is.na(parentNode)) {
+    if (is.na(parentNode) || parentNode == 0) {
       return(children()$root)
     } else {
       return(children()[[parentNode]])
@@ -563,7 +563,7 @@ function(input, output, session) {
   documents <- reactive({
     topic <- as.integer(input$topic.active)
 
-    if (is.na(topic)) {
+    if (is.na(topic) || topic == 0) {
       return("")
     }
 

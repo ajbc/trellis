@@ -498,6 +498,26 @@ d#main-panel.main-content-export-mode {
 }
 
 
+.dragged-node {
+    /*opacity: 0.6;*/
+    display: none;
+    visibility: hidden;
+}
+
+
+.dragged-label {
+    /*opacity: 0.6;*/
+    display: none;
+    visibility: hidden;
+}
+
+
+#drag-pointer {
+    fill: red;
+    opacity: 0.6;
+}
+
+
 /**********************************************************
  *                                                        *
  *               Expanded document styling                *

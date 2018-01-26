@@ -46,6 +46,9 @@ HTMLWidgets.widget({
 
     // The first node the user clicks in the move process.
     sourceD: null,
+    draggedNode: null,
+    dragSourceX: 0,
+    dragSourceY: 0,
 
     // Used for things like deciding whether to zoom in or out or whether or not
     // to show a label.
@@ -54,7 +57,7 @@ HTMLWidgets.widget({
 
     // Used to know when the user has changed the number of groups. In this
     // scenario, we just completely re-initialize the widget.
-    nGroups: null,
+    // nGroups: null,
 
     el: null,
     svg: null,
@@ -154,22 +157,23 @@ HTMLWidgets.widget({
             return;
         }
 
-        var self = this,
-            nGroupsChanged;
+        var self = this;
 
         self.treeData = self.getTreeFromRawData(rawData);
 
         // TODO(tfs): Check to make sure this is accurate for hierarchical (I don't believe it is)
-        nGroupsChanged = self.nGroups !== null
-            && self.nGroups !== self.treeData.children.length;
-        if (nGroupsChanged) {
-            // self.reInitialize();
-            self.nGroups = self.treeData.children.length;
-            self.updateView(true);
-        } else {
-            self.nGroups = self.treeData.children.length;
-            self.updateView(true);
-        }
+        // nGroupsChanged = self.nGroups !== null
+        //     && self.nGroups !== self.treeData.children.length;
+        // if (nGroupsChanged) {
+        //     // self.reInitialize();
+        //     self.nGroups = self.treeData.children.length;
+        //     self.updateView(true);
+        // } else {
+        //     self.nGroups = self.treeData.children.length;
+        //     self.updateView(true);
+        // }
+
+        self.updateView(true);
     },
 
     updateView: function (useTransition) {
@@ -192,11 +196,18 @@ HTMLWidgets.widget({
         nodes = self.pack(root).descendants();
         self.nodeInFocus = nodes[0];
 
+        // Ref: https://stackoverflow.com/questions/38599930/d3-version-4-workaround-for-drag-origin
+        var dragHandler = d3.drag()
+            .subject(function (n) { return n; })
+            // .on("start", self.dragStartHandler(self))
+            .on("drag", self.activeDragHandler(self))
+            .on("end", self.dragEndHandler(self));
+
         circles = self.g.selectAll('circle')
             .data(nodes, self.constancy);
 
         circles.enter()
-            .append('circle')
+            .append("circle")
             .attr("class", "node")
             .attr("weight", function (d) {
                 return d.data.weight ? d.data.weight : -1;
@@ -209,19 +220,33 @@ HTMLWidgets.widget({
             })
             .on("click", function (d) {
                 d3.event.stopPropagation();
-                var makeNewGroup = d3.event.shiftKey;
-                nClicks++;
-                if (nClicks === 1) {
-                    timer = setTimeout(function () {
-                        nClicks = 0;
-                        self.zoom(root, d);
-                    }, DBLCLICK_DELAY);
-                } else {
-                    clearTimeout(timer);
-                    nClicks = 0;
-                    self.selectNode(d, makeNewGroup);
-                }
+                // var makeNewGroup = d3.event.shiftKey;
+                // nClicks++;
+                // if (nClicks === 1) {
+                //     timer = setTimeout(function () {
+                //         nClicks = 0;
+                //         self.zoom(root, d);
+                //     }, DBLCLICK_DELAY);
+                // } else {
+                //     clearTimeout(timer);
+                //     nClicks = 0;
+                //     self.selectNode(d, makeNewGroup);
+                // }
+                self.selectNode(d, false);
             })
+            // .on("dragstart", function (d) {
+            //     console.log("yo");
+            //     d3.event.stopPropagation();
+            //     console.log(d);
+            // })
+            // .on("drag", function (d) {
+            //     d3.event.stopPropagation();
+            //     console.log(d.x += d3.event.dx, d.y += d3.event.dy);
+            // })
+            // .on("dragend", function(d) {
+            //     d3.event.stopPropagation();
+            //     console.log("ended");
+            // })
             .on("mouseover", function (d) {
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id,
                     isRoot = self.isRootNode(d);
@@ -238,7 +263,8 @@ HTMLWidgets.widget({
                     return;
                 }
                 self.setLabelVisibility(d, false);
-            });
+            })
+            .call(dragHandler);
 
         text = self.g.selectAll('text')
             .data(nodes, self.constancy);
@@ -265,6 +291,126 @@ HTMLWidgets.widget({
             [root.x, root.y, root.r * 2 + self.PAGE_MARGIN],
             useTransition
         );
+    },
+
+
+    // Returns a callback function, setting drag status to ``status``
+    dragStatusSetter: function (status) {
+        var setterCallback = function (n) {
+            exportable = n;
+            var nodeID = ["#node", n.data.id].join("-");
+            d3.select(nodeID).classed("dragged-node", status);
+            var labelID = ["#label", n.data.id].join("-");
+            d3.select(labelID).classed("dragged-label", status);
+
+            if (!n.hasOwnProperty("children")) { return; }
+
+            n.children.forEach(function (ch) {
+                setterCallback(ch);
+            });
+        }
+
+        return setterCallback;
+    },
+
+
+    // Pass in reference to "self", as the call() method passes a different "this"
+    dragStartHandler: function (selfRef) {
+        var handler = function (n) {
+            d3.event.sourceEvent.stopPropagation();
+
+            // var nodeID = ["#node", n.data.id].join("-");
+
+            d3.select(this).data().forEach(selfRef.dragStatusSetter(true));
+
+            selfRef.draggedNode = n.data.id;
+            // selfRef.dragSourceX = d3.select(this).attr("cx");
+            // selfRef.dragSourceY = d3.select(this).attr("cy");
+            // console.log(n);
+
+            var coords = d3.mouse(this);
+
+            selfRef.dragPointer = selfRef.g.append("circle").attr("id", "drag-pointer").attr("r", 10).raise();
+            d3.select("#drag-pointer").attr("cx", coords[0]).attr("cy", coords[1]);
+        }
+
+        return handler;
+    },
+
+
+    // Pass in reference to "self", as the call() method passes a different "this"
+    activeDragHandler: function (selfRef) {
+        var handler = function (n) {
+            coords = d3.mouse(this);
+
+            if (selfRef.draggedNode === null) {
+                d3.event.sourceEvent.stopPropagation();
+
+                var nodeID = ["#node", n.data.id].join("-");
+
+                d3.select(nodeID).data().forEach(selfRef.dragStatusSetter(true));
+
+                selfRef.draggedNode = n.data.id;
+                // selfRef.dragSourceX = d3.select(this).attr("cx");
+                // selfRef.dragSourceY = d3.select(this).attr("cy");
+                // console.log(n);
+
+                // var coords = d3.mouse(this);
+
+                selfRef.dragPointer = selfRef.g.append("circle").attr("id", "drag-pointer").attr("r", 10).raise();
+                d3.select("#drag-pointer").attr("cx", coords[0]).attr("cy", coords[1]);
+            }
+
+            // console.log(d3.mouse(this), d3.event.x, d3.event.y, d3.event.sourceEvent.x, d3.event.sourceEvent.y);
+            d3.event.sourceEvent.stopPropagation();
+
+            // d3.select(this).attr("cx", n.x).attr("cy", n.y);
+            d3.select("#drag-pointer").attr("cx", coords[0]).attr("cy", coords[1])
+
+            // var labelID = ["#label", this.id.split("-")[1]].join("-");
+
+            // d3.select(labelID).attr("transform", "translate("+n.x+","+n.y+")");
+        }
+
+        return handler;
+    },
+
+    // Pass in reference to "self", as the call() method passes a different "this"
+    dragEndHandler: function (selfRef) {
+        var handler = function (n) {
+            if (selfRef.draggedNode === null) { return; }
+            d3.select("#drag-pointer").remove();
+            d3.event.sourceEvent.stopPropagation();
+            // d3.select(this).classed("dragged-node", false);
+
+            // var labelID = ["#label", this.id.split("-")[1]].join("-");
+            // d3.select(labelID).classed("dragged-label", false);
+
+            d3.select(this).data().forEach(selfRef.dragStatusSetter(false));
+
+            var relocateNode = false;
+
+            // d3.select(this).attr("style", "fill: red");
+
+            // Propagate 1 level, to find the target
+            // if (parseInt(this.id.split("-")[1]) !== parseInt(selfRef.draggedNode)) {
+            //     console.log(this.id, this.id.split("-")[1], parseInt(this.id.split("-")[1]), parseInt(selfRef.draggedNode));
+            // } else {
+            //     console.log(this.id, this.id.split("-")[1], parseInt(this.id.split("-")[1]), parseInt(selfRef.draggedNode));
+            // }
+
+            if (relocateNode) {
+                return;
+            } else {
+                // Snap back to original position if not changing parents
+                // d3.select("#node-"+selfRef.draggedNode).attr("cx", selfRef.dragSourceX).attr("cy", selfRef.dragSourceY);
+                // d3.select("#label-"+selfRef.draggedNode).attr("transform", "translate("+selfRef.dragSourceX+","+selfRef.dragSourceY+")");
+            }
+
+            selfRef.draggedNode = null;
+        }
+
+        return handler;
     },
 
     /* Zoom on click.
@@ -299,6 +445,14 @@ HTMLWidgets.widget({
             });
     },
 
+    setDraggedNode: function (nodeD) {
+        var self = this;
+    },
+
+    releaseDraggedNode: function (nodeD, makeNewGroup) {
+
+    },
+
     selectNode: function (targetD, makeNewGroup) {
         var self = this,
             sourceExists = !!self.sourceD,
@@ -325,10 +479,13 @@ HTMLWidgets.widget({
 
             self.setSource(targetD);
         } else {
-            self.moveOrMerge(targetD, makeNewGroup);
-            self.updateTopicAssignments(function() {
-                self.updateView(true);
-            });
+            // NOTE(tfs): Experimenting with different control schemes
+            // self.moveOrMerge(targetD, makeNewGroup);
+            // self.updateTopicAssignments(function() {
+            //     self.updateView(true);
+            // });
+
+            self.setSource(targetD);
         }
     },
 
@@ -395,10 +552,16 @@ HTMLWidgets.widget({
             text = text.transition().duration(MOVE_DURATION);
         }
 
-        circles.attr("transform", function (d) {
-                var x = (d.x - coords[0]) * k,
-                    y = (d.y - coords[1]) * k;
-                return "translate(" + x + "," + y + ")";
+        // circles.attr("transform", function (d) {
+        //         var x = (d.x - coords[0]) * k,
+        //             y = (d.y - coords[1]) * k;
+        //         return "translate(" + x + "," + y + ")";
+        //     })
+        circles.attr("cx", function (d) {
+                return (d.x - coords[0]) * k;
+            })
+            .attr("cy", function (d) {
+                return (d.y - coords[1]) * k;
             })
             .attr("r", function (d) {
                 return d.r * k;
@@ -415,6 +578,12 @@ HTMLWidgets.widget({
                     y = (d.y - coords[1]) * k;
                 return "translate(" + x + "," + y + ")";
             })
+        // text.attr("x", function (d) {
+        //         return (d.x - coords[0]) * k;
+        //     })
+        //     .attr("y", function (d) {
+        //         return (d.y - coords[1]) * k;
+        //     })
             .attr("display", function (d) {
                 self.setLabelVisibility(d);
             })
