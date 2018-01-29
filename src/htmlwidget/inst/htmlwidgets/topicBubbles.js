@@ -297,7 +297,7 @@ HTMLWidgets.widget({
     // Returns a callback function, setting drag status to ``status``
     dragStatusSetter: function (status) {
         var setterCallback = function (n) {
-            exportable = n;
+            // exportable = n;
             var nodeID = ["#node", n.data.id].join("-");
             d3.select(nodeID).classed("dragged-node", status);
             var labelID = ["#label", n.data.id].join("-");
@@ -351,6 +351,9 @@ HTMLWidgets.widget({
                 d3.select(nodeID).data().forEach(selfRef.dragStatusSetter(true));
 
                 selfRef.draggedNode = n.data.id;
+
+                console.log("Started dragging:", n.data.id);
+
                 // selfRef.dragSourceX = d3.select(this).attr("cx");
                 // selfRef.dragSourceY = d3.select(this).attr("cy");
                 // console.log(n);
@@ -379,35 +382,30 @@ HTMLWidgets.widget({
     dragEndHandler: function (selfRef) {
         var handler = function (n) {
             if (selfRef.draggedNode === null) { return; }
+            
             d3.select("#drag-pointer").remove();
             d3.event.sourceEvent.stopPropagation();
-            // d3.select(this).classed("dragged-node", false);
 
-            // var labelID = ["#label", this.id.split("-")[1]].join("-");
-            // d3.select(labelID).classed("dragged-label", false);
+            // Calculate values for moving/merging nodes
+            var pageX = d3.event.sourceEvent.pageX;
+            var pageY = d3.event.sourceEvent.pageY;
+            var sourceID = selfRef.draggedNode;
+            var target = d3.select(document.elementFromPoint(pageX, pageY)).data()[0];
 
             d3.select(this).data().forEach(selfRef.dragStatusSetter(false));
 
-            var relocateNode = false;
-
-            // d3.select(this).attr("style", "fill: red");
-
-            // Propagate 1 level, to find the target
-            // if (parseInt(this.id.split("-")[1]) !== parseInt(selfRef.draggedNode)) {
-            //     console.log(this.id, this.id.split("-")[1], parseInt(this.id.split("-")[1]), parseInt(selfRef.draggedNode));
-            // } else {
-            //     console.log(this.id, this.id.split("-")[1], parseInt(this.id.split("-")[1]), parseInt(selfRef.draggedNode));
-            // }
-
-            if (relocateNode) {
-                return;
-            } else {
-                // Snap back to original position if not changing parents
-                // d3.select("#node-"+selfRef.draggedNode).attr("cx", selfRef.dragSourceX).attr("cy", selfRef.dragSourceY);
-                // d3.select("#label-"+selfRef.draggedNode).attr("transform", "translate("+selfRef.dragSourceX+","+selfRef.dragSourceY+")");
-            }
-
             selfRef.draggedNode = null;
+
+            // Move or merge if applicable, AFTER having reset draggedNode/etc.
+            if (target) {
+                var targetID = target.data.id;
+                var makeNewGroup = d3.event.shiftKey;
+                console.log(sourceID, targetID);
+                selfRef.moveOrMerge(selfRef, sourceID, targetID, makeNewGroup);
+                selfRef.updateTopicAssignments(selfRef, function() {
+                    self.updateView(true);
+                });
+            }
         }
 
         return handler;
@@ -491,48 +489,56 @@ HTMLWidgets.widget({
 
     /* Move or merge source node with target node.
      */
-    moveOrMerge: function (targetD, makeNewGroup) {
-        var self = this,
-            sourceIsLeaf = self.isLeafNode(self.sourceD),
-            targetIsSource = self.sourceD.data.id === targetD.data.id,
-            mergingNodes = self.sourceD.children && self.sourceD.children.length > 1,
-            sameParentSel = self.sourceD.parent === targetD,
+    moveOrMerge: function (selfRef, sourceID, targetID, makeNewGroup) {
+        var sourceD = d3.select("#node-"+sourceID).data()[0],
+            targetD = d3.select("#node-"+targetID).data()[0],
+            sourceIsLeaf = selfRef.isLeafNode(sourceD),
+            targetIsSource = sourceD.data.id === targetD.data.id,
+            mergingNodes = sourceD.children && sourceD.children.length > 1,
+            sameParentSel = sourceD.parent === targetD,
             oldParentD,
             nsToMove;
 
+        console.log("!!!", sourceD, targetD);
+
         if (targetIsSource || (sameParentSel && !mergingNodes && !makeNewGroup)) {
-            self.setSource(null);
+            // selfRef.setSource(null);
+            console.log("Womp");
             return;
         }
 
         if (makeNewGroup) {
-            oldParentD = self.sourceD.parent;
-            self.createNewGroup(targetD, self.sourceD);
-            self.removeChildDFromParent(self.sourceD);
+            console.log("okay");
+            oldParentD = sourceD.parent;
+            selfRef.createNewGroup(targetD, sourceD);
+            selfRef.removeChildDFromParent(sourceD);
             // Any or all of the source's ancestors might be childless now.
             // Walk up the tree and remove childless nodes.
-            self.removeChildlessNodes(oldParentD);
+            selfRef.removeChildlessNodes(oldParentD);
         } else {
             if (sourceIsLeaf) {
-                nsToMove = [self.sourceD.data];
-                oldParentD = self.sourceD.parent;
+                console.log("Leaf");
+                nsToMove = [sourceD.data];
+                oldParentD = sourceD.parent;
+                console.log(oldParentD, nsToMove);
             } else {
+                console.log("nonleaf");
                 nsToMove = [];
-                self.sourceD.children.forEach(function (d) {
+                sourceD.children.forEach(function (d) {
                     nsToMove.push(d.data);
                 });
-                oldParentD = self.sourceD;
+                oldParentD = sourceD;
             }
 
-            self.updateNsToMove(nsToMove, oldParentD, targetD);
+            selfRef.updateNsToMove(selfRef, nsToMove, oldParentD, targetD);
             if (sourceIsLeaf) {
-                self.removeChildlessNodes(oldParentD);
+                selfRef.removeChildlessNodes(oldParentD);
             } else {
-                self.removeChildDFromParent(self.sourceD);
+                selfRef.removeChildDFromParent(sourceD);
             }
         }
 
-        self.setSource(null);
+        // selfRef.setSource(null);
     },
 
     /* This function "zooms" to center of coordinates. It is important to
@@ -624,12 +630,12 @@ HTMLWidgets.widget({
 
     /* Update node's children depending on whether it is the new or old parent.
      */
-    updateNsToMove: function (nsToMove, oldParentD, newParentD) {
-        var self = this,
-            newChildren = [];
+    updateNsToMove: function (selfRef, nsToMove, oldParentD, newParentD) {
+        var newChildren = [];
 
         // Remove nodes-to-move from old parent.
         if (nsToMove.length === 1) {
+            console.log("Supposedly moving a thing");
             oldParentD.data.children.forEach(function (child) {
                 if (child.id !== nsToMove[0].id) {
                     newChildren.push(child);
@@ -637,6 +643,7 @@ HTMLWidgets.widget({
             });
             oldParentD.data.children = newChildren;
         } else {
+            console.log("Supposedly moving more things");
             // In this scenario, the user selected a group of topics
             // (`oldParent`), and we're moving all of that group's children.
             oldParentD.data.children = [];
@@ -644,6 +651,7 @@ HTMLWidgets.widget({
 
         // Add nodes-to-move to new parent.
         nsToMove.forEach(function (nToMove) {
+            console.log("A thing is being moved");
             newParentD.data.children.push(nToMove);
         });
     },
@@ -823,8 +831,8 @@ HTMLWidgets.widget({
     /* Update the string that informs the Shiny server about the hierarchy of
      * topic assignments
      */
-    updateTopicAssignments: function (callback) {
-        var self = this,
+    updateTopicAssignments: function (selfRef, callback) {
+        var self = selfRef,
             assignments = [],
             EVENT = "topics";
         self.traverseTree(self.treeData, function (n) {
