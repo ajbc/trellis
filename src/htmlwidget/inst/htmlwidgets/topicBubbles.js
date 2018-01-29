@@ -399,8 +399,7 @@ HTMLWidgets.widget({
             // Move or merge if applicable, AFTER having reset draggedNode/etc.
             if (target) {
                 var targetID = target.data.id;
-                var makeNewGroup = d3.event.shiftKey;
-                console.log(sourceID, targetID);
+                var makeNewGroup = d3.event.sourceEvent.shiftKey;
                 selfRef.moveOrMerge(selfRef, sourceID, targetID, makeNewGroup);
                 selfRef.updateTopicAssignments(selfRef, function() {
                     self.updateView(true);
@@ -499,16 +498,12 @@ HTMLWidgets.widget({
             oldParentD,
             nsToMove;
 
-        console.log("!!!", sourceD, targetD);
-
         if (targetIsSource || (sameParentSel && !mergingNodes && !makeNewGroup)) {
             // selfRef.setSource(null);
-            console.log("Womp");
             return;
         }
 
         if (makeNewGroup) {
-            console.log("okay");
             oldParentD = sourceD.parent;
             selfRef.createNewGroup(targetD, sourceD);
             selfRef.removeChildDFromParent(sourceD);
@@ -517,12 +512,9 @@ HTMLWidgets.widget({
             selfRef.removeChildlessNodes(oldParentD);
         } else {
             if (sourceIsLeaf) {
-                console.log("Leaf");
                 nsToMove = [sourceD.data];
                 oldParentD = sourceD.parent;
-                console.log(oldParentD, nsToMove);
             } else {
-                console.log("nonleaf");
                 nsToMove = [];
                 sourceD.children.forEach(function (d) {
                     nsToMove.push(d.data);
@@ -635,7 +627,6 @@ HTMLWidgets.widget({
 
         // Remove nodes-to-move from old parent.
         if (nsToMove.length === 1) {
-            console.log("Supposedly moving a thing");
             oldParentD.data.children.forEach(function (child) {
                 if (child.id !== nsToMove[0].id) {
                     newChildren.push(child);
@@ -643,7 +634,6 @@ HTMLWidgets.widget({
             });
             oldParentD.data.children = newChildren;
         } else {
-            console.log("Supposedly moving more things");
             // In this scenario, the user selected a group of topics
             // (`oldParent`), and we're moving all of that group's children.
             oldParentD.data.children = [];
@@ -651,7 +641,6 @@ HTMLWidgets.widget({
 
         // Add nodes-to-move to new parent.
         nsToMove.forEach(function (nToMove) {
-            console.log("A thing is being moved");
             newParentD.data.children.push(nToMove);
         });
     },
