@@ -96,7 +96,7 @@ function(input, output, session) {
 
   max.id <- reactive({
     # NOTE(tfs): max() returns NA if NA exists
-    return(max(stateStore$assigns[!is.na(stateStore$assigns)]))  
+    return(max(K(), max(stateStore$assigns[!is.na(stateStore$assigns)])))
   })
 
 
@@ -269,6 +269,8 @@ function(input, output, session) {
 
     topic <- as.integer(input$topic.active)
 
+    if (topic == 0) { return("[ROOT]") }
+
     return(all.titles()[topic])
   })
 
@@ -279,9 +281,7 @@ function(input, output, session) {
 
     topic <- as.integer(input$topic.selected)
 
-    # if (topic <= K())
-    #   return(titles()[topic])
-    # return(cluster.titles()[topic-K()])
+    if (topic == 0) { return("[ROOT]") }
 
     return(all.titles()[topic])
   })
@@ -423,6 +423,7 @@ function(input, output, session) {
     return(all.beta()[childIDs,])
   })
 
+  # Returns the highest ID of a cluster, offset by the number of leaf nodes (K())
   node.maxID <- reactive({
     if (is.null(data())) {
       return(0)
@@ -482,7 +483,9 @@ function(input, output, session) {
     #     mtheta[,assignments()[topic] - K()] + theta[,topic]
     # }
 
-    for (clusterID in seq(K()+1, length(stateStore$assigns))) {
+    for (clusterID in seq(K()+1, max.id())) {
+      if (clusterID > length(leaf.ids()) || is.null(leaf.ids()[[clusterID]])) { next }
+      
       leaves <- leaf.ids()[[clusterID]]
 
       for (leafID in leaves) {
@@ -505,7 +508,7 @@ function(input, output, session) {
     }
 
     if (node.maxID() > 0) {
-      for (meta.topic in seq(length(stateStore$assigns) - K())) {
+      for (meta.topic in seq(node.maxID())) {
         rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta()[,meta.topic],
                                                   decreasing=TRUE)[1:100]]
       }
@@ -615,7 +618,8 @@ function(input, output, session) {
   all.titles <- reactive({
     rv <- c()
 
-    n <- length(stateStore$assigns)
+    # n <- length(stateStore$assigns)
+    n <- max.id()
 
     ttl <- c(titles(), cluster.titles())
 
@@ -626,10 +630,10 @@ function(input, output, session) {
       if (i > length(stateStore$manual.titles)
       || is.null(stateStore$manual.titles[[i]])
       || stateStore$manual.titles[[i]] == "") {
-
-        if (is.na(stateStore$assigns[[i]])) { next }
-
-        if (is.null(ttl[[i]])) {
+        if (i > length(ttl) 
+        || is.null(ttl[[i]])
+        || i > length(stateStore$assigns)
+        || is.null(stateStore$assigns[[i]])) {
           rv <- c(rv, "")
         } else {
           rv <- c(rv, ttl[[i]]) 
@@ -641,49 +645,6 @@ function(input, output, session) {
 
     return(rv)
   })
-
-  bubbles.titles <- reactive({
-    # rv <- c()
-    # n <- length(stateStore$assigns)
-    ttl <- all.titles()
-
-    # NOTE(tfs): topicBubbles expects c(cluster.titles(), titles())
-    #            We therefore must modulo-shift the index when accessing manual.tites,
-    #            because stateStore$manual.titles is organized based on ids
-    # for (i in seq(n)) {
-    #   mtIndex <- ((i + K() - 1) %% n) + 1 # Shifts by 1 to allow for modulus while 1-indexing
-
-    #   rv <- c(rv, all.titles()[[mtIndex]])
-    # }
-
-    return(ttl)
-  })
-
-  # meta.theta <- reactive({
-  #   theta <- data()$model$theta
-  #   mtheta <- matrix(0, nrow=nrow(theta), ncol=node.maxID())
-    
-  #   if (node.maxID() <= 0) {
-  #     return(mtheta)
-  #   }
-
-  #   # for (topic in seq(K())) {
-  #   #   # rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:10]]
-
-  #   #   mtheta[,assignments()[topic] - K()] <-
-  #   #     mtheta[,assignments()[topic] - K()] + theta[,topic]
-  #   # }
-
-  #   for (clusterID in seq(K()+1, length(stateStore$assigns))) {
-  #     leaves <- leaf.ids()[[clusterID]]
-
-  #     for (leafID in leaves) {
-  #       mtheta[,clusterID-K()] <- mtheta[,clusterID-K()] + theta[,leafID]
-  #     }
-  #   }
-
-  #   return(mtheta)
-  # })
 
   # TODO: this may not work for deeper hierarchy; needs to be checked once implemented
   cluster.titles <- reactive({
@@ -719,17 +680,9 @@ function(input, output, session) {
                                             decreasing=TRUE)][seq(5)], collapse=" ")
 
       rv <- c(rv, title)
-
-      # title <- paste(data()$out$vocab[order(marginals[cluster,],
-                                            # decreasing=TRUE)][seq(20)], collapse=" ")
-      # vals <- marginals[cluster, order(marginals[cluster,], decreasing=TRUE)[seq(20)]]
     }
 
     return(rv)
-
-    #TODO: add on reset
-    #document.getElementById("topics").value = "";
-    #write assignemnts to topics text file
   })
 
   bubbles.data <- reactive({
@@ -737,46 +690,19 @@ function(input, output, session) {
       return(NULL)
     }
 
-    # # parent.id, topic.id, weight, title
-    # rv1 <- data.frame(parentID=c(rep(0, input$initial.numClusters), initial.kmeansFit()$cluster + K()),
-    #                  nodeID=c(seq(K()+1,K()+input$initial.numClusters), seq(K())),
-    #                  weight=c(rep(0, input$initial.numClusters), colSums(data()$model$theta)),
-    #                  title=c(isolate(cluster.titles()), titles()))
-
-    # rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl)
-    # pid <- c(stateStore$assigns)
     pid <- c()
-    # nid <- c(seq(length(stateStore$assigns)))
     nid <- c()
+    ttl <- c()
 
-    n <- length(stateStore$assigns)
+    # n <- length(stateStore$assigns)
+    n <- max.id()
 
-    # NOTE(tfs): Can probably just use ``pid <- c(stateStore$assigns)``, but why take chances
-    for (ch in seq(length(stateStore$assigns))) {
+    for (ch in seq(n)) {
       if (is.na(stateStore$assigns[[ch]])) { next } # Continue
       nid <- append(nid, ch)
       pid <- append(pid, stateStore$assigns[ch])
+      ttl <- append(ttl, all.titles()[[ch]])
     }
-
-    # if (n > K()) {
-    #   for (ch in seq(K()+1,n)) {
-    #     p <- stateStore$assigns[ch]
-    #     pid <- append(pid, p)
-    #     nid <- append(nid, ch)
-    #   }
-    # }
-
-    # for (ch in seq(K())) {
-    #   p <- stateStore$assigns[ch]
-    #   pid <- append(pid, p)
-    #   nid <- append(nid, ch)
-    # }
-
-    # if (n > K()) {
-    #   wgt <- c(colSums(data()$model$theta), rep(0, n - K()))
-    # } else {
-    #   wgt <- c(colSums(data()$model$theta))
-    # }
 
     wgt <- c(colSums(data()$model$theta))
 
@@ -786,7 +712,7 @@ function(input, output, session) {
       }
     }
 
-    rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=bubbles.titles())
+    rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl)
     return(rv)
   })
 

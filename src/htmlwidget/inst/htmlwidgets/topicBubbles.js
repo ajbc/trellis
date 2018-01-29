@@ -316,17 +316,17 @@ HTMLWidgets.widget({
 
     // Pass in reference to "self", as the call() method passes a different "this"
     dragStartHandler: function (selfRef) {
-        var handler = function (n) {
+        var handler = function (d) {
             d3.event.sourceEvent.stopPropagation();
 
-            // var nodeID = ["#node", n.data.id].join("-");
+            // var nodeID = ["#node", d.data.id].join("-");
 
             d3.select(this).data().forEach(selfRef.dragStatusSetter(true));
 
-            selfRef.draggedNode = n.data.id;
+            selfRef.draggedNode = d.data.id;
             // selfRef.dragSourceX = d3.select(this).attr("cx");
             // selfRef.dragSourceY = d3.select(this).attr("cy");
-            // console.log(n);
+            // console.log(d);
 
             var coords = d3.mouse(this);
 
@@ -340,23 +340,25 @@ HTMLWidgets.widget({
 
     // Pass in reference to "self", as the call() method passes a different "this"
     activeDragHandler: function (selfRef) {
-        var handler = function (n) {
+        var handler = function (d) {
             coords = d3.mouse(this);
+
+            if (selfRef.isRootNode(d)) { return; }
 
             if (selfRef.draggedNode === null) {
                 d3.event.sourceEvent.stopPropagation();
 
-                var nodeID = ["#node", n.data.id].join("-");
+                var nodeID = ["#node", d.data.id].join("-");
 
                 d3.select(nodeID).data().forEach(selfRef.dragStatusSetter(true));
 
-                selfRef.draggedNode = n.data.id;
+                selfRef.draggedNode = d.data.id;
 
-                console.log("Started dragging:", n.data.id);
+                console.log("Started dragging:", d.data.id);
 
                 // selfRef.dragSourceX = d3.select(this).attr("cx");
                 // selfRef.dragSourceY = d3.select(this).attr("cy");
-                // console.log(n);
+                // console.log(d);
 
                 // var coords = d3.mouse(this);
 
@@ -380,7 +382,7 @@ HTMLWidgets.widget({
 
     // Pass in reference to "self", as the call() method passes a different "this"
     dragEndHandler: function (selfRef) {
-        var handler = function (n) {
+        var handler = function (d) {
             if (selfRef.draggedNode === null) { return; }
             
             d3.select("#drag-pointer").remove();
@@ -400,10 +402,13 @@ HTMLWidgets.widget({
             if (target) {
                 var targetID = target.data.id;
                 var makeNewGroup = d3.event.sourceEvent.shiftKey;
-                selfRef.moveOrMerge(selfRef, sourceID, targetID, makeNewGroup);
-                selfRef.updateTopicAssignments(selfRef, function() {
-                    self.updateView(true);
-                });
+                var updateNeeded = selfRef.moveOrMerge(selfRef, sourceID, targetID, makeNewGroup);
+                
+                if (updateNeeded) {
+                    selfRef.updateTopicAssignments(selfRef, function() {
+                        self.updateView(true);
+                    });
+                }
             }
         }
 
@@ -458,7 +463,7 @@ HTMLWidgets.widget({
             targetIsSourceChild;
 
         if (self.isRootNode(targetD) && !sourceExists) {
-            return;
+            self.setSource(targetD);
         } else if (sourceExists) {
             souceSelectedTwice = self.sourceD === targetD;
             targetIsSourceChild = self.aIsChildOfB(targetD, self.sourceD);
@@ -498,18 +503,20 @@ HTMLWidgets.widget({
             oldParentD,
             nsToMove;
 
-        if (targetIsSource || (sameParentSel && !mergingNodes && !makeNewGroup)) {
-            // selfRef.setSource(null);
-            return;
+        if (targetIsSource || (sameParentSel && !makeNewGroup)) {
+            return false;
         }
 
         if (makeNewGroup) {
             oldParentD = sourceD.parent;
             selfRef.createNewGroup(targetD, sourceD);
             selfRef.removeChildDFromParent(sourceD);
+
             // Any or all of the source's ancestors might be childless now.
             // Walk up the tree and remove childless nodes.
             selfRef.removeChildlessNodes(oldParentD);
+
+            return true;
         } else {
             if (sourceIsLeaf) {
                 nsToMove = [sourceD.data];
@@ -528,9 +535,9 @@ HTMLWidgets.widget({
             } else {
                 selfRef.removeChildDFromParent(sourceD);
             }
-        }
 
-        // selfRef.setSource(null);
+            return true;
+        }
     },
 
     /* This function "zooms" to center of coordinates. It is important to
