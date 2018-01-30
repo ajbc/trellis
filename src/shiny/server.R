@@ -63,6 +63,8 @@ function(input, output, session) {
     shinyjs::hide(selector=".initial")
     shinyjs::show(selector=".left-content")
     shinyjs::show(selector=".main-content")
+    shinyjs::show(selector="#document-details-container")
+    session$sendCustomMessage(type="initializeMainView", "")
   })
 
 
@@ -441,6 +443,16 @@ function(input, output, session) {
     return(HTML(out.string))
   })
 
+  output$document.details <- renderUI({
+    topic <- as.integer(input$topic.selected)
+    idx <- as.integer(input$document.details.docid)
+
+    if (is.na(topic) || is.na(idx)) { return() }
+
+    rv <- paste("<p>", top.documents()[[topic]][idx], "</p>")
+    return(HTML(rv))
+  })
+
   leaf.ids <- reactive({
     if (is.null(stateStore$assigns)) { return() }
     leafmap <- list()
@@ -575,29 +587,40 @@ function(input, output, session) {
     rv <- ""
     # for (doc in top.documents()[[topic]]) {
     for (i in 1:length(top.documents()[[topic]])) {
-      rv <- paste(rv, "<div class=\"document-summary\">",
+      rv <- paste(rv, "<div class=\"document-summary\"",
+                  paste("onclick=\"clickDocumentSummary(", toString(i), ")\">", sep=""),
                   "<div class=\"document-summary-fill\" style=\"width:",
                   paste(as.integer(thetas[i] * 100), "%;", sep=""),
                   "\"></div>",
                   "<p class=\"document-summary-contents\">",
-                  substr(docs[i], start=1, stop=95),
+                  substr(docs[i], start=1, stop=75),
                   "...</p>",
                   "</div>")
     }
     return(rv)
   })
 
-  output$topic.documents <- renderUI({
-    # req(input$topic.active)
-    rv <- paste("<h4 id=\"left-document-tab-cluster-title\">",
-                topic.doctab.title(),
-                "</h4>",
-                "<div class=\"topic-bar document-container\">",
-                documents(),
-                "</div>")
 
-    return(HTML(rv))
+  output$topic.document.title <- renderUI({
+    return(HTML(topic.doctab.title()))
   })
+
+
+  output$topic.documents <- renderUI({
+    return(HTML(documents()))
+  })  
+
+  # output$topic.documents <- renderUI({
+  #   # req(input$topic.active)
+  #   rv <- paste("<h4 id=\"left-document-tab-cluster-title\">",
+  #               topic.doctab.title(),
+  #               "</h4>",
+  #               "<div id=\"doctab-document-container\" class=\"topic-bar document-container\">",
+  #               documents(),
+  #               "</div>")
+
+  #   return(HTML(rv))
+  # })
 
   output$topicTabTitle <- renderUI({
     ostr <- paste("<h4 id=\"left-topic-tab-cluster-title\">", topic.topictab.title(), "</h4>")

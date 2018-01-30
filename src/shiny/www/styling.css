@@ -23,6 +23,13 @@
     display: none !important;
 }*/
 
+/* Probably not the best solution, but should guarantee nothing overflows/allows scrolling */
+html {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
 .center {
     text-align: center;
 }
@@ -195,6 +202,7 @@ span#kmeans-initialization-row2 .form-group label {
  *                                                        *
  **********************************************************/
 
+
 .left-content {
     width: 30vw;
     min-width: 300px;
@@ -207,6 +215,7 @@ span#kmeans-initialization-row2 .form-group label {
     border-right-style: solid;
     float: left;
     box-sizing: border-box;
+    overflow: hidden;
 }
 
 
@@ -233,6 +242,11 @@ span#kmeans-initialization-row2 .form-group label {
     padding-top: 10px;
     /*background-color: lightgray;*/
     background-color: var(--left-bar-bg-color, gray);
+}
+
+
+#chosen-dataset-name {
+    height: 28px;
 }
 
 
@@ -291,26 +305,59 @@ span#kmeans-initialization-row2 .form-group label {
 .document-container {
     /*border-top: 1px solid black;*/
     overflow: scroll;
-    height: 65vh;
+    /*height: 65vh;*/
+}
+
+
+#doctab-document-container {
+    height: 50vh;
+    border-top: 1px solid black;
 }
 
 
 .document-summary {
     border-bottom: 1px solid black;
+    /*border-top: 1px solid black;*/
     padding: 0px;
     overflow: hidden;
     height: 50px;
     position: relative;
+    box-sizing: border-box;
+}
+
+/*
+.document-summary:first-child {
+    border-top: 1px solid black;
+}
+*/
+/*
+.document-summary:first-child:hover {
+    border-top: 0px;
+}
+*/
+
+.document-summary:hover {
+    /*border-top: 1px solid black;*/
+    /*border-bottom: 2px solid black;*/
+    /*border-top: 0px solid black;*/
+    /*border-bottom: 0px solid black;*/
+    border-bottom: 1px solid black;
+    border-top: 0px solid black;
 }
 
 
 .document-summary-fill {
     background-color: var(--left-bar-bg-color, gray);
-    opacity: 0.45;
+    opacity: 0.30;
     position: absolute;
     left: 0px;
     height: 100%;
     border-right: 1px solid black;
+}
+
+
+.document-summary:hover .document-summary-fill {
+    opacity: 0.55;
 }
 
 
@@ -323,6 +370,8 @@ span#kmeans-initialization-row2 .form-group label {
 
 #left-document-tab-cluster-title {
     text-align: center;
+    vertical-align: middle;
+    height: 40px;
 }
 
 
@@ -364,11 +413,11 @@ span#kmeans-initialization-row2 .form-group label {
 }
 */
 
-
+/*
 .document-summary:first-child {
     border-top: 1px solid black;
 }
-
+*/
 
 /**********************************************************
  *                                                        *
@@ -552,6 +601,66 @@ d#main-panel.main-content-export-mode {
 
 #help-box.hidden-popup {
     display: none;
+}
+
+
+
+
+/**********************************************************
+ *                                                        *
+ *                   Document Details                     *
+ *                                                        *
+ **********************************************************/
+
+
+#document-details-container {
+    position: absolute;
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    margin: 0px;
+    padding: 0px;
+    left: 0px;
+    top: 0px;
+    z-index: 15;
+    /*background-color: gray;*/
+    /*opacity: 0.5;*/
+}
+
+
+#document-details-offset {
+    width: 100vw;
+    height: 100vh;
+    margin: 0px;
+    padding: 0px;
+    background-color: gray;
+    opacity: 0.5;
+}
+
+
+#document-details-content {
+    background-color: white;
+    opacity: 1.0;
+    box-sizing: border-box;
+    border: 1px solid black;
+    height: 90vh;
+    float: right;
+    right: 0px;
+    top: 0px;
+    width: 60vw;
+    z-index: 20;
+    position: absolute;
+    margin-right: 5vw;
+    margin-top: 5vh;
+    text-align: center;
+    overflow: scroll;
+}
+
+
+#document-details-text {
+    width: 80%;
+    text-align: left;
+    margin: auto;
 }
 
 

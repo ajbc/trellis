@@ -21,6 +21,7 @@ htmlTemplate("template.html",
     inputExitExportButton = actionButton("exitExportMode", "Cancel", class="btn-danger"),
     inputSaveButton = downloadButton("download.data", "Save"),
     outputTopicSummaries = htmlOutput("topic.doctab.summary", class="summary"),
+    outputDocumentTitle = htmlOutput("topic.document.title"),
     outputDocuments = htmlOutput("topic.documents", class="summary"),
     outputTopicTabTitle = htmlOutput("topicTabTitle"),
     inputTitleUpdateText = textInput("topic.customTitle", "", placeholder="New topic title"),
@@ -28,5 +29,6 @@ htmlTemplate("template.html",
     inputNumNewClusters = numericInput("runtime.numClusters", "Number of clusters", value=10),
     inputClusterButton = actionButton("runtimeCluster", "Cluster"),
     inputDeleteCluster = actionButton("deleteCluster", "Delete"),
-    outputBubbles = topicBubblesOutput("bubbles")
+    outputBubbles = topicBubblesOutput("bubbles"),
+    outputDocumentDetails = htmlOutput("document.details")
 )

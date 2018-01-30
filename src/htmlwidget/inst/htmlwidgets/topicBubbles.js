@@ -400,7 +400,12 @@ HTMLWidgets.widget({
 
             // Move or merge if applicable, AFTER having reset draggedNode/etc.
             if (target) {
-                var targetID = target.data.id;
+                if (selfRef.isLeafNode(target)) {
+                    var targetID = target.parent.data.id;
+                } else {
+                    var targetID = target.data.id;
+                }
+
                 var makeNewGroup = d3.event.sourceEvent.shiftKey;
                 var updateNeeded = selfRef.moveOrMerge(selfRef, sourceID, targetID, makeNewGroup);
                 

@@ -85,7 +85,13 @@
                 <div id="left-bar-document-content" class="left-bar-content">
                     <!-- <h3>Documents</h3> -->
 
-                    {{ outputDocuments }}
+                    <h4 id="left-document-tab-cluster-title">
+                        {{ outputDocumentTitle }}
+                    </h4>
+
+                    <div id="doctab-document-container" class="topic-bar document-container">
+                        {{ outputDocuments }}
+                    </div>
 
                 </div>
             </div>
@@ -137,8 +143,16 @@
             </div>
         </div>
 
-        <div class="document-expanded initial-hidden shinyjs-hide">
-            <h3>Expanded Document</h3>
+        <div id="document-details-container" class="document-expanded initial-hidden shinyjs-hide hidden">
+            <div id="document-details-offset"></div>
+
+            <div id="document-details-content">
+                <h4 id="document-details-title" class="centered">Document Summary</h4>
+
+                <div id="document-details-text">
+                    {{ outputDocumentDetails }}
+                </div>
+            </div>
         </div>
 
         <script src="topics.js"></script>

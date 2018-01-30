@@ -36,9 +36,12 @@ var exportable; // TODO(tfs): Remove this when done debugging
 $(document).ready(function() {
 	// Leave a little buffer for max width
 	$("#main-panel").css({ "max-width": ($(window).width() - (LEFT_BAR_WIDTH + 5)) + "px"});
+	$("#document-details-content").css({ "max-width": ($(window).width() - (LEFT_BAR_WIDTH + 5)) + "px"});
 	$(window).resize(function(event) {
 		if (!exportMode) {
 			$("#main-panel").css({ "max-width": ($(window).width() - (LEFT_BAR_WIDTH + 5)) + "px"});
+			$("#document-details-content").css({ "max-width": ($(window).width() - (LEFT_BAR_WIDTH + 5)) + "px"});
+			$("#doctab-document-container").css({ "height": ($(window).height() - $("#doctab-document-container").position().top) });
 		}
 	});
 
@@ -81,6 +84,9 @@ $(document).ready(function() {
 		event.preventDefault();
 		cleanTopicInputs();
 	});
+
+
+	$("#document-details-offset").click(hideDocumentDetails);
 });
 
 
@@ -91,7 +97,7 @@ $(document).on("shiny:sessioninitialized", function(event) {
 
 	Shiny.addCustomMessageHandler("processingFile", processInputFile);
 
-	// Shiny.addCustomMessageHandler("initialAssignments", handleInitialAssignments);
+	Shiny.addCustomMessageHandler("initializeMainView", initializeMainView);
 
 	Shiny.addCustomMessageHandler("topicSelected", handleTopicSelection);
 
@@ -152,6 +158,12 @@ function processInputFile(msg) {
 function updateData(dataObject) {
 	data = dataObject;
 };
+
+
+function initializeMainView(msg) {
+	console.log("hi");
+	$("#doctab-document-container").css({ "height": ($(window).height() - $("#doctab-document-container").position().top) });
+}
 
 
 function toggleHelpButton() {
@@ -365,6 +377,33 @@ function deactivateTopicTabInputs() {
 	$("#topic-controls-inputs-container").trigger("hide");
 	$("#topic-controls-inputs-container").addClass("hidden");
 	$("#topic-controls-inputs-container").trigger("hidden");
+}
+
+
+function clickDocumentSummary(docID) {
+	console.log("yo?");
+	// cleanDocumentDetails();
+	Shiny.onInputChange("document.details.docid", docID);
+	displayDocumentDetails();
+}
+
+
+function cleanDocumentDetails() {
+	$("#document-details-content").html("");
+}
+
+
+function displayDocumentDetails() {
+	$("#document-details-container").trigger("show");
+	$("#document-details-container").removeClass("hidden");
+	$("#document-details-container").trigger("shown");
+}
+
+
+function hideDocumentDetails() {
+	$("#document-details-container").trigger("hide");
+	$("#document-details-container").addClass("hidden");
+	$("#document-details-container").trigger("hidden");
 }
 
 
