@@ -10,6 +10,7 @@ HTMLWidgets.widget({
     PAGE_MARGIN: 10,
     TOP_MARGIN: 75,
     FONT_SIZE: 11,
+    BORDER_MARGIN: 10,
 
     treeData: null,
 
@@ -29,7 +30,8 @@ HTMLWidgets.widget({
             .attr("id", "tree-root")
             // Maybe a transform, see if it can work without
 
-        self.tree = d3.tree().size([height, width]);
+        // TODO(tfs): This is an ugly way of structuring the corrections for margins, should probably restructure
+        self.tree = d3.tree().size([height-(2*self.BORDER_MARGIN)-self.TOP_MARGIN, width-(2*self.BORDER_MARGIN)]);
 
         self.edgeWidthMap = d3.scaleLinear()
                             .domain([0, 100])
@@ -75,13 +77,14 @@ HTMLWidgets.widget({
         var text = self.g.selectAll("text")
             .data(nodes, self.constancy);
 
-        // var paths = self.g.selectAll("path")
-        //     .data(nodes.slice(1), self.constancy);
+        var paths = self.g.selectAll("path")
+            .data(nodes.slice(1), self.constancy);
 
         circles.enter()
             .append("circle")
             .attr("class", "tree-node")
-            .attr("r", 10)
+            .attr("r", 5)
+            .attr("opacity", "0.8")
             .attr("id", function (d) {
                 return "tree-node-" + d.data.id;
             });
@@ -95,22 +98,22 @@ HTMLWidgets.widget({
             });
 
 
-        // paths.enter()
-        //     .append("path")
-        //     .attr("class", "tree-link");
+        paths.enter()
+            .append("path")
+            .attr("class", "tree-link");
 
 
         circles.exit().remove();
         text.exit().remove();
-        // paths.exit().remove();
+        paths.exit().remove();
 
-        self.resizeAndReposition();
+        self.resizeAndReposition({top: self.BORDER_MARGIN, left: self.BORDER_MARGIN});
     },
 
 
 
 
-    resizeAndReposition: function () {
+    resizeAndReposition: function (offset) {
         var self = this,
             circles = self.g.selectAll("circle"),
             paths = self.g.selectAll("path"),
@@ -119,10 +122,10 @@ HTMLWidgets.widget({
         // NOTE(tfs): Flip x and y coordinates to create a horizontal tree.
         //            There is probably a better way to do this.
         circles.attr("cx", function (d) {
-                return d.y;
+                return d.y + offset.left;
             })
             .attr("cy", function (d) {
-                return d.x;
+                return d.x + offset.top;
             })
             .attr("depth", function (d) {
                 return d.depth;
@@ -132,17 +135,18 @@ HTMLWidgets.widget({
         text.attr("transform", function (d) {
                 var x = (d.x) * k,
                     y = (d.y) * k;
-                return "translate(" + x + "," + y + ")";
+                return "translate(" + (x + offset.left) + "," + (y + offset.top) + ")";
             })
 
-        // paths.attr("d", function (d) {
-        //         var source = {x: d.source.x - self.edgeWidthMap(self.findEdgeSource(d)), y: d.source.y};
-        //         var target = {x: d.target.x, y: d.target.y};
-        //         return diagonal({source: source, target: target});
-        //     })
-        //     .attr("stroke-width", function (d) {
-        //         return self.edgeWidthMap(d.target.weight);
-        //     })
+        paths.attr("d", function (d) {
+                // exportable = d;
+                // var source = {x: d.source.x - self.edgeWidthMap(self.findEdgeSource(d)), y: d.source.y};
+                // var target = {x: d.target.x, y: d.target.y};
+                return self.shapePath(d, d.parent);
+            })
+            .attr("stroke-width", function (d) {
+                return self.edgeWidthMap(d.target.weight);
+            })
     },
 
 
@@ -154,26 +158,39 @@ HTMLWidgets.widget({
 
 
 
+
+    // Ref: https://bl.ocks.org/d3noob/43a860bc0024792f8803bba8ca0d5ecd
+    shapePath: function (s, t) {
+
+        // Copied from Ref for now
+        var path = `M ${s.y} ${s.x}
+                    C ${(s.y + t.y) / 2} ${s.x},
+                      ${(s.y + t.y) / 2} ${t.x},
+                      ${t.y} ${t.x}`
+
+
+        return path;
+    },
 
 
     // From: http://bl.ocks.org/shubhgo/80323b7f3881f874c02f
-    findEdgeSource: function (link) {
-        var targetID = link.target.id;
+    // findEdgeSource: function (link) {
+    //     var targetID = link.target.id;
 
-        var numChildren = link.source.children.length;
-        var widthAbove = 0;
+    //     var numChildren = link.source.children.length;
+    //     var widthAbove = 0;
 
-        for (var i = 0; i < numChildren; i++) {
-            if (link.source.children[i].id == targetID) {
-                widthAbove = widthAbove + link.source.children[i].size/2;
-                break;
-            } else {
-                widthAbove = widthAbove + link.source.children[i].size;
-            }
-        }
+    //     for (var i = 0; i < numChildren; i++) {
+    //         if (link.source.children[i].id == targetID) {
+    //             widthAbove = widthAbove + link.source.children[i].size/2;
+    //             break;
+    //         } else {
+    //             widthAbove = widthAbove + link.source.children[i].size;
+    //         }
+    //     }
 
-        return link.source.size/2 - widthAbove;
-    },
+    //     return link.source.size/2 - widthAbove;
+    // },
 
     updateNsToMove: function (selfRef, nsToMove, oldParentD, newParentD) {
         var newChildren = [];
