@@ -11,6 +11,7 @@ HTMLWidgets.widget({
     TOP_MARGIN: 75,
     FONT_SIZE: 11,
     BORDER_MARGIN: 10,
+    CIRCLE_RADIUS: 7,
 
     treeData: null,
 
@@ -90,7 +91,7 @@ HTMLWidgets.widget({
         circles.enter()
             .append("circle")
             .attr("class", "tree-node")
-            .attr("r", 5)
+            .attr("r", self.CIRCLE_RADIUS)
             .attr("opacity", "0.8")
             .attr("id", function (d) {
                 return "tree-node-" + d.data.id;
