@@ -11,14 +11,16 @@ HTMLWidgets.widget({
     TOP_MARGIN: 75,
     FONT_SIZE: 11,
     BORDER_MARGIN: 10,
-    CIRCLE_RADIUS: 7,
+    CIRCLE_RADIUS: 5,
+
+    MIN_EDGE_WIDTH: 1,
+    MAX_EDGE_WIDTH: 10,
 
     treeData: null,
+    maxNodeWeight: 1,
 
     initialize: function (el, width, height) {
-        var self = this,
-            MIN_EDGE_WIDTH = 5,
-            MAX_EDGE_WIDTH = 50;
+        var self = this;
 
         self.el = el;
 
@@ -35,8 +37,8 @@ HTMLWidgets.widget({
         self.tree = d3.tree().size([height-(2*self.BORDER_MARGIN)-self.TOP_MARGIN, width-(2*self.BORDER_MARGIN)]);
 
         self.edgeWidthMap = d3.scaleLinear()
-                            .domain([0, 100])
-                            .range([MIN_EDGE_WIDTH, MAX_EDGE_WIDTH]);
+                            .domain([0, 1])
+                            .range([self.MIN_EDGE_WIDTH, self.MAX_EDGE_WIDTH]);
     },
 
     resize: function (el, width, height) {
@@ -95,7 +97,8 @@ HTMLWidgets.widget({
             .attr("opacity", "0.8")
             .attr("id", function (d) {
                 return "tree-node-" + d.data.id;
-            });
+            })
+            .on("click", self.generateNodeClickHandler(self));
 
 
         text.enter()
@@ -115,17 +118,36 @@ HTMLWidgets.widget({
         text.exit().remove();
         paths.exit().remove();
 
-        self.resizeAndReposition();
+        self.resizeAndReposition(useTransition);
+
+        // Sorts display order so that paths are below circles
+        // Ref: https://stackoverflow.com/questions/28243431/how-can-i-make-an-svg-circle-always-appear-above-my-graph-line-path
+        self.g.selectAll("circle, path").sort(function (left, right) {
+            if (left.type === right.type) {
+                return 0;
+            } else {
+                return left.type === "circle" ? 1 : -1;
+            }
+        });
+
+        circles.raise();
     },
 
 
 
 
-    resizeAndReposition: function () {
+    resizeAndReposition: function (useTransition = false) {
         var self = this,
             circles = self.g.selectAll("circle"),
             paths = self.g.selectAll("path"),
-            text = self.g.selectAll("text");
+            text = self.g.selectAll("text"),
+            MOVE_DURATION = 500;
+
+        if (useTransition) {
+            circles = circles.transition().duration(MOVE_DURATION);
+            paths = paths.transition().duration(MOVE_DURATION);
+            text = text.transition().duration(MOVE_DURATION);
+        }
 
         circles.attr("cx", function (d) {
                 return d.x;
@@ -151,11 +173,20 @@ HTMLWidgets.widget({
                 return self.shapePath(d, d.parent);
             })
             .attr("stroke-width", function (d) {
-                exportable = d;
-                return d.weigth;
+                exportable = self;
+                // return self.edgeWidthMap(d.data.weight / d.parent.data.weight);
+                return self.edgeWidthMap(d.data.weight);
             })
             .attr("fill", "none")
             .attr("stroke", "black");
+
+        self.g.selectAll("circle, path").sort(function (left, right) {
+            if (left.type === right.type) {
+                return 0;
+            } else {
+                return left.type === "circle" ? 1 : -1;
+            }
+        });
     },
 
 
@@ -171,7 +202,7 @@ HTMLWidgets.widget({
     // Ref: https://bl.ocks.org/d3noob/43a860bc0024792f8803bba8ca0d5ecd
     shapePath: function (s, t) {
 
-        // Copied from Ref for now
+        // TODO(tfs): Copied from Ref for now
         var path = `M ${s.x} ${s.y}
                     C ${(s.x + t.x) / 2} ${s.y},
                       ${(s.x + t.x) / 2} ${t.y},
@@ -181,6 +212,52 @@ HTMLWidgets.widget({
         return path;
     },
 
+
+    // Ref: https://bl.ocks.org/d3noob/43a860bc0024792f8803bba8ca0d5ecd
+    collapseNode: function (n) {
+        var self = this;
+        var d = n.data;
+
+        if (d.children && d.children.length > 0) {
+            d.childStore = d.children;
+            d.children = [];
+            d.collapsed = true;
+        }
+
+        d3.select("#tree-node-" + d.id).classed("collapsed-tree-node", true);
+    },
+
+
+    expandNode: function (n) {
+        var self = this;
+        var d = n.data;
+
+        if (d.childStore && d.childStore.length > 0) {
+            d.children = d.childStore;
+            d.childStore = null;
+            d.collapsed = false;
+        }
+
+        d3.select("#tree-node-" + d.id).classed("collapsed-tree-node", false);
+    },
+
+
+    generateNodeClickHandler: function (selfRef) {
+        var toggleNodeCollapseState = function (n) {
+            // NOTE(tfs): I think this avoids wierdness with javascript nulls
+            if (n.data.collapsed === true) {
+                selfRef.expandNode(n);
+            } else {
+                selfRef.collapseNode(n);
+            }
+
+            console.log(n);
+
+            selfRef.updateTreeView(true);
+        }
+
+        return toggleNodeCollapseState;
+    },
 
     // From: http://bl.ocks.org/shubhgo/80323b7f3881f874c02f
     // findEdgeSource: function (link) {
@@ -261,7 +338,7 @@ HTMLWidgets.widget({
      */
     getTreeFromRawData: function (x) {
         var self = this,
-            data = {id: 0, children: [], terms: []},
+            data = { id: 0, children: [], terms: [], weight: 0 },
             srcData = HTMLWidgets.dataframeToD3(x.data);
 
         // Sort srcData by node ID
@@ -283,12 +360,13 @@ HTMLWidgets.widget({
         var nodes = [];
         nodes[0] = data;
         for (var i = 0; i < srcData.length; i++) {
-            nodes[srcData[i].nodeID] = {id: srcData[i].nodeID, children: [], terms: []};
+            nodes[srcData[i].nodeID] = { id: srcData[i].nodeID, children: [], terms: [], weight: 0 };
         }
 
         var rawPoint;
         var cleanPoint;
         var parent;
+        var maxWeight = 0;
 
         for (var i = 0; i < srcData.length; i++) {
             rawPoint = srcData[i];
@@ -304,6 +382,12 @@ HTMLWidgets.widget({
                 cleanPoint.weight = rawPoint.weight;
             }
         }
+
+        // Updates weight properties of nodes
+        self.maxNodeWeight = self.findAndSetWeightRecursive(self, data);
+        self.edgeWidthMap = d3.scaleLinear()
+                                .domain([0, self.maxNodeWeight])
+                                .range([self.MIN_EDGE_WIDTH, self.MAX_EDGE_WIDTH]);
 
         // For each data row add to the output tree.
         // srcData.forEach(function (d) {
@@ -328,6 +412,23 @@ HTMLWidgets.widget({
 
 
         return data;
+    },
+
+
+    // Updates weight properties of nodes in addition to returning weight values
+    findAndSetWeightRecursive: function (selfRef, treeNode) {
+        if (treeNode.children && treeNode.children.length > 0) {
+            var wgt = 0;
+
+            treeNode.children.forEach(function (d) {
+                wgt += selfRef.findAndSetWeightRecursive(selfRef, d);
+            });
+
+            treeNode.weight = wgt;
+            return wgt;
+        } else {
+            return treeNode.weight;
+        }
     },
 
     /* Update the string that informs the Shiny server about the hierarchy of

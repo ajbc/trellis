@@ -567,6 +567,17 @@ d#main-panel.main-content-export-mode {
 }
 
 
+.tree-link {
+    opacity: 0.6;
+}
+
+
+.tree-node {
+    opacity: 1.0;
+    z-index: 15;
+}
+
+
 /**********************************************************
  *                                                        *
  *               Expanded document styling                *
@@ -590,13 +601,15 @@ d#main-panel.main-content-export-mode {
     left: 20vw;
     width: 60vw;
     height: 60vh;
-    background-color: lightgray;
+    background-color: lightblue;
     opacity: 0.8;
     text-align: center;
 
     border-color: black;
     border-style: solid;
     border-width: 2px;
+
+    z-index: 50;
 }
 
 #help-box.hidden-popup {

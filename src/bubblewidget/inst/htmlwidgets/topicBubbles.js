@@ -551,7 +551,7 @@ HTMLWidgets.widget({
      */
     positionAndResizeNodes: function (coords, transition) {
         var self = this,
-            MOVE_DURATION = 1000,
+            MOVE_DURATION = 500,
             k = self.DIAMETER / coords[2],
             circles = self.g.selectAll("circle"),
             text = self.g.selectAll('text');

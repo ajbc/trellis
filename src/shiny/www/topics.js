@@ -235,7 +235,7 @@ function selectTree() {
 	$("#bubbles-selector").removeAttr("disabled");
 	
 	activeWidget = widgets[TREE_LABEL];
-	activeSelector = widgets[TREE_LABEL];
+	activeSelector = selectors[TREE_LABEL];
 	Shiny.onInputChange("selectedView", TREE_LABEL);
 };
 
