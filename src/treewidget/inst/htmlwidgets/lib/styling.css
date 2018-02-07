@@ -1,0 +1,23 @@
+.node {
+    cursor: pointer;
+}
+
+.node:hover {
+    opacity: 0.8;
+    filter: alpha(opacity=80);
+    stroke: #000;
+    stroke-width: 2px;
+}
+
+.label {
+    font: 11px "Helvetica Neue", Helvetica, Arial, sans-serif;
+    text-anchor: middle;
+    text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 -1px 0 #fff;
+}
+
+.label,
+.circle-root,
+.circle-leaf {
+    pointer-events: none;
+}
+

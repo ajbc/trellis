@@ -5,6 +5,7 @@ library(stm)
 library(data.table)
 library(htmlwidgets)
 library(topicBubbles)
+library(topicTree)
 
 options(shiny.maxRequestSize=1e4*1024^2)
 
@@ -740,6 +741,8 @@ function(input, output, session) {
   })
 
   output$bubbles <- renderTopicBubbles({ topicBubbles(bubbles.data()) })
+
+  output$tree <- renderTopicTree({ topicTree(bubbles.data()) })
 }
 
 

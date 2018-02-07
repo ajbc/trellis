@@ -91,7 +91,7 @@ HTMLWidgets.widget({
             .attr("height", self.DIAMETER)
             .attr("id", "bubbles-svg")
             .append("g")
-            .attr("id", "root-node")
+            .attr("id", "bubbles-root")
             .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
 
         // Create persistent `d3.pack` instance with radii accounting for
@@ -124,7 +124,7 @@ HTMLWidgets.widget({
     /* Upon resize event, updates the self.el and self.DIAMETER values.
      * Then selects and modifies the width and height attributes of the
      * existing SVG element, as well as the transform attribute of the
-     * root-node element.
+     * bubbles-root element.
      */
     resize: function (el, width, height) {
         var self = this,
@@ -140,8 +140,8 @@ HTMLWidgets.widget({
             .attr("width", self.DIAMETER)
             .attr("height", self.DIAMETER);
 
-        // Reset the centering of root-node
-        self.g = d3.select("#root-node")
+        // Reset the centering of bubbles-root
+        self.g = d3.select("#bubbles-root")
             .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
 
         // Re-render according to new dimensions, only if data already rendered

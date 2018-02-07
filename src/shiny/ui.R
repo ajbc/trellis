@@ -2,6 +2,7 @@ library(shiny)
 library(shinyjs)
 library(htmlwidgets)
 library(topicBubbles)
+library(topicTree)
 
 htmlTemplate("template.html",
     outputTitleName = titlePanel("Upload Dataset"),
@@ -30,5 +31,6 @@ htmlTemplate("template.html",
     inputClusterButton = actionButton("runtimeCluster", "Cluster"),
     inputDeleteCluster = actionButton("deleteCluster", "Delete"),
     outputBubbles = topicBubblesOutput("bubbles"),
+    outputTree = topicTreeOutput("tree"),
     outputDocumentDetails = htmlOutput("document.details")
 )
