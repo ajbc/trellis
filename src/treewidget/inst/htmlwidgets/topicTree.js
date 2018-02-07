@@ -67,7 +67,14 @@ HTMLWidgets.widget({
                         }),
             nodes = self.tree(treeRoot).descendants();
 
-        nodes.forEach(function(d) { d.y = d.depth * 180 });
+        var offset = { top: self.BORDER_MARGIN, left: self.BORDER_MARGIN };
+
+        nodes.forEach(function(d) {
+            // Flip coordinates
+            var tmpX = (d.depth * 180) + offset.top;
+            d.y = d.x + offset.left;
+            d.x = tmpX;
+        });
 
         // NOTE(tfs): Slightly worried this will wipe out all the bubbles circles,
         // in which case there MAY be a performance dip. Worth keeping an eye on.
@@ -107,35 +114,33 @@ HTMLWidgets.widget({
         text.exit().remove();
         paths.exit().remove();
 
-        self.resizeAndReposition({top: self.BORDER_MARGIN, left: self.BORDER_MARGIN});
+        self.resizeAndReposition();
     },
 
 
 
 
-    resizeAndReposition: function (offset) {
+    resizeAndReposition: function () {
         var self = this,
             circles = self.g.selectAll("circle"),
             paths = self.g.selectAll("path"),
             text = self.g.selectAll("text");
 
-        // NOTE(tfs): Flip x and y coordinates to create a horizontal tree.
-        //            There is probably a better way to do this.
         circles.attr("cx", function (d) {
-                return d.y + offset.left;
+                return d.x;
             })
             .attr("cy", function (d) {
-                return d.x + offset.top;
+                return d.y;
             })
             .attr("depth", function (d) {
                 return d.depth;
             })
 
-        var k = 1;
         text.attr("transform", function (d) {
-                var x = (d.x) * k,
-                    y = (d.y) * k;
-                return "translate(" + (x + offset.left) + "," + (y + offset.top) + ")";
+                var x = (d.x),
+                    y = (d.y);
+                // return "translate(" + (x + offset.left) + "," + (y + offset.top) + ")";
+                return "translate(" + x + "," + y + ")";
             })
 
         paths.attr("d", function (d) {
@@ -145,8 +150,11 @@ HTMLWidgets.widget({
                 return self.shapePath(d, d.parent);
             })
             .attr("stroke-width", function (d) {
-                return self.edgeWidthMap(d.target.weight);
+                exportable = d;
+                return d.weigth;
             })
+            .attr("fill", "none")
+            .attr("stroke", "black");
     },
 
 
@@ -163,10 +171,10 @@ HTMLWidgets.widget({
     shapePath: function (s, t) {
 
         // Copied from Ref for now
-        var path = `M ${s.y} ${s.x}
-                    C ${(s.y + t.y) / 2} ${s.x},
-                      ${(s.y + t.y) / 2} ${t.x},
-                      ${t.y} ${t.x}`
+        var path = `M ${s.x} ${s.y}
+                    C ${(s.x + t.x) / 2} ${s.y},
+                      ${(s.x + t.x) / 2} ${t.y},
+                      ${t.x} ${t.y}`
 
 
         return path;
