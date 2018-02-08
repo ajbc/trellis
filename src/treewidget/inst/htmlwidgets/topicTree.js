@@ -94,7 +94,8 @@ HTMLWidgets.widget({
             .append("circle")
             .attr("class", "tree-node")
             .attr("r", self.CIRCLE_RADIUS)
-            .attr("opacity", "0.8")
+            .attr("opacity", "1.0")
+            .attr("fill", "blue")
             .attr("id", function (d) {
                 return "tree-node-" + d.data.id;
             })
@@ -118,22 +119,33 @@ HTMLWidgets.widget({
         text.exit().remove();
         paths.exit().remove();
 
+        self.raiseAllCircles();
+
         self.resizeAndReposition(useTransition);
 
         // Sorts display order so that paths are below circles
         // Ref: https://stackoverflow.com/questions/28243431/how-can-i-make-an-svg-circle-always-appear-above-my-graph-line-path
-        self.g.selectAll("circle, path").sort(function (left, right) {
-            if (left.type === right.type) {
-                return 0;
-            } else {
-                return left.type === "circle" ? 1 : -1;
-            }
-        });
-
-        circles.raise();
+        // self.g.selectAll("circle, path").sort(function (left, right) {
+        //     if (left.type === right.type) {
+        //         return 0;
+        //     } else {
+        //         return left.type === "circle" ? -1 : 1;
+        //     }
+        // });
     },
 
 
+
+    raiseAllCircles: function () {
+        var self = this,
+            rootElemNode = $("#tree-root")[0];
+
+        self.traverseTree(self.treeData, function (n) {
+            var id = n.id;
+            if (id === 0) { console.log("FOUND 0"); }
+            rootElemNode.appendChild($("#tree-node-"+id)[0]);
+        });
+    },
 
 
     resizeAndReposition: function (useTransition = false) {
@@ -148,16 +160,6 @@ HTMLWidgets.widget({
             paths = paths.transition().duration(MOVE_DURATION);
             text = text.transition().duration(MOVE_DURATION);
         }
-
-        circles.attr("cx", function (d) {
-                return d.x;
-            })
-            .attr("cy", function (d) {
-                return d.y;
-            })
-            .attr("depth", function (d) {
-                return d.depth;
-            })
 
         text.attr("transform", function (d) {
                 var x = (d.x),
@@ -180,13 +182,15 @@ HTMLWidgets.widget({
             .attr("fill", "none")
             .attr("stroke", "black");
 
-        self.g.selectAll("circle, path").sort(function (left, right) {
-            if (left.type === right.type) {
-                return 0;
-            } else {
-                return left.type === "circle" ? 1 : -1;
-            }
-        });
+        circles.attr("cx", function (d) {
+                return d.x;
+            })
+            .attr("cy", function (d) {
+                return d.y;
+            })
+            .attr("depth", function (d) {
+                return d.depth;
+            })
     },
 
 
@@ -243,20 +247,26 @@ HTMLWidgets.widget({
 
 
     generateNodeClickHandler: function (selfRef) {
-        var toggleNodeCollapseState = function (n) {
-            // NOTE(tfs): I think this avoids wierdness with javascript nulls
-            if (n.data.collapsed === true) {
-                selfRef.expandNode(n);
+        var treeNodeClickHandler = function (n) {
+            console.log(d3.event);
+            d3.event.stopPropagation();
+            if (d3.event.ctrlKey) {
+                // NOTE(tfs): I think this avoids wierdness with javascript nulls
+                if (n.data.collapsed === true) {
+                    selfRef.expandNode(n);
+                } else {
+                    selfRef.collapseNode(n);
+                }
+
+                console.log(n);
+
+                selfRef.updateTreeView(true);
             } else {
-                selfRef.collapseNode(n);
+                selfRef.selectNode(n, false);
             }
-
-            console.log(n);
-
-            selfRef.updateTreeView(true);
         }
 
-        return toggleNodeCollapseState;
+        return treeNodeClickHandler;
     },
 
     // From: http://bl.ocks.org/shubhgo/80323b7f3881f874c02f
@@ -587,6 +597,62 @@ HTMLWidgets.widget({
         // should continue so long as each new group is an only child.
         if (groupD.parent) {
             self.removeChildlessNodes(groupD.parent);
+        }
+    },
+
+
+    selectNode: function (targetD, makeNewGroup) {
+        var self = this,
+            sourceExists = !!self.sourceD,
+            souceSelectedTwice,
+            notReallyAMove,
+            targetIsSourceChild;
+
+        if (self.isRootNode(targetD) && !sourceExists) {
+            self.setSource(targetD);
+        } else if (sourceExists) {
+            souceSelectedTwice = self.sourceD === targetD;
+            targetIsSourceChild = self.aIsChildOfB(targetD, self.sourceD);
+            notReallyAMove = self.isLeafNode(self.sourceD)
+                && self.sourceD.parent === targetD
+                && !makeNewGroup;
+        }
+
+        if (souceSelectedTwice) {
+            self.setSource(null);
+        } else if (!sourceExists
+            || self.isLeafNode(targetD)
+            || targetIsSourceChild
+            || notReallyAMove) {
+
+            self.setSource(targetD);
+        } else {
+            // NOTE(tfs): Experimenting with different control schemes
+            // self.moveOrMerge(targetD, makeNewGroup);
+            // self.updateTopicAssignments(function() {
+            //     self.updateView(true);
+            // });
+
+            self.setSource(targetD);
+        }
+    },
+
+    setSource: function (newVal) {
+        var self = this,
+            oldVal = self.sourceD;
+        self.sourceD = newVal;
+        if (oldVal) {
+            // self.setLabelVisibility(oldVal);
+            // self.setCircleFill(oldVal);
+        }
+        if (newVal) {
+            // self.setLabelVisibility(self.sourceD);
+            // self.setCircleFill(self.sourceD);
+            Shiny.onInputChange("topic.selected", self.sourceD.data.id);
+            Shiny.onInputChange("topic.active", self.sourceD.data.id);
+        } else {
+            Shiny.onInputChange("topic.selected", "");
+            Shiny.onInputChange("topic.active", ""); // TODO(tfs): Once hover is enabled on the tree, remove this
         }
     },
 
