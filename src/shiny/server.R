@@ -392,10 +392,11 @@ function(input, output, session) {
         next
       }
       if (p == 0) {
-        if ("root" %in% childmap) {
+        if (!is.null(childmap$root)) {
+          # Root has already been initialized
           childmap$root <- append(childmap$root, ch)
         } else {
-          childmap$root <- c(ch) 
+          childmap$root <- c(ch)
         }
       } else {
         if (p <= length(childmap) && !is.null(childmap[[p]])) {
@@ -413,6 +414,7 @@ function(input, output, session) {
     req(children())
     parentNode <- as.integer(input$topic.selected)
     if (is.na(parentNode) || parentNode == 0) {
+      print(children()$root)
       return(children()$root)
     } else {
       return(children()[[parentNode]])

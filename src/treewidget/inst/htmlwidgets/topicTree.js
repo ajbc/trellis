@@ -11,7 +11,9 @@ HTMLWidgets.widget({
     TOP_MARGIN: 75,
     FONT_SIZE: 11,
     BORDER_MARGIN: 10,
-    CIRCLE_RADIUS: 5,
+    CIRCLE_RADIUS: 7,
+    TERMINAL_NODE_RADIUS: 5,
+    COLLAPSED_NODE_RADIUS: 10,
 
     MIN_EDGE_WIDTH: 1,
     MAX_EDGE_WIDTH: 10,
@@ -93,14 +95,27 @@ HTMLWidgets.widget({
         circles.enter()
             .append("circle")
             .attr("class", "tree-node")
-            .attr("r", self.CIRCLE_RADIUS)
+            // .attr("r", self.CIRCLE_RADIUS)
             .attr("opacity", "1.0")
-            .attr("fill", "blue")
+            // .attr("fill", "blue")
             .attr("id", function (d) {
                 return "tree-node-" + d.data.id;
             })
-            .on("click", self.generateNodeClickHandler(self));
+            .on("click", self.generateNodeClickHandler(self))
+            .on("mouseover", function (d) {
+                d3.event.stopPropagation;
 
+                self.raiseNode(self, d.data.id);
+
+                var displayID = !self.sourceD ? "" : self.sourceD.data.id,
+                    isRoot = self.isRootNode(d);
+                Shiny.onInputChange("topic.active", isRoot ? displayID : d.data.id);
+            })
+            .on("mouseout", function (d) {
+                d3.event.stopPropagation();
+                var displayID = !self.sourceD ? "" : self.sourceD.data.id;
+                Shiny.onInputChange("topic.active", displayID);
+            });
 
         text.enter()
             .append("text")
@@ -136,14 +151,20 @@ HTMLWidgets.widget({
 
 
 
+    // NOTE(tfs): There must be a cleaner way of appraoching this
+    raiseNode: function (selfRef, nodeID) {
+        var rootElemNode = $("#tree-root")[0];
+        rootElemNode.appendChild($("#tree-node-"+nodeID)[0]);
+    },
+
+
     raiseAllCircles: function () {
         var self = this,
             rootElemNode = $("#tree-root")[0];
 
         self.traverseTree(self.treeData, function (n) {
             var id = n.id;
-            if (id === 0) { console.log("FOUND 0"); }
-            rootElemNode.appendChild($("#tree-node-"+id)[0]);
+            self.raiseNode(self, id);
         });
     },
 
@@ -175,7 +196,7 @@ HTMLWidgets.widget({
                 return self.shapePath(d, d.parent);
             })
             .attr("stroke-width", function (d) {
-                exportable = self;
+                // exportable = self;
                 // return self.edgeWidthMap(d.data.weight / d.parent.data.weight);
                 return self.edgeWidthMap(d.data.weight);
             })
@@ -190,6 +211,31 @@ HTMLWidgets.widget({
             })
             .attr("depth", function (d) {
                 return d.depth;
+            })
+            .each(function (d) {
+                var elem = d3.select(this);
+
+                if (d.data.children && d.data.children.length > 0) {
+                    // NOTE(tfs): There is probably a cleaner way to do this
+                    elem.classed("middle-tree-node", true);
+                    elem.classed("terminal-tree-node", false);
+                    elem.classed("collapsed-tree-node", false);
+                    elem.attr("r", self.CIRCLE_RADIUS);
+                } else {
+                    elem.classed("middle-tree-node", false);
+                    if (d.data.collapsed) {
+                        // NOTE(tfs): Might be re-adding this class to some nodes
+                        elem.classed("collapsed-tree-node", true);
+                        elem.classed("terminal-tree-node", false);
+                        elem.attr("r", self.COLLAPSED_NODE_RADIUS);
+                    } else {
+                        elem.classed("terminal-tree-node", true);
+                        elem.classed("collapsed-tree-node", false);
+                        elem.attr("r", self.TERMINAL_NODE_RADIUS);
+                    }
+                }
+
+                exportable = [elem, d];
             })
     },
 
@@ -250,7 +296,9 @@ HTMLWidgets.widget({
         var treeNodeClickHandler = function (n) {
             console.log(d3.event);
             d3.event.stopPropagation();
-            if (d3.event.ctrlKey) {
+
+            // Handle Windows and Mac common behaviors
+            if (d3.event.ctrlKey || d3.event.altKey) {
                 // NOTE(tfs): I think this avoids wierdness with javascript nulls
                 if (n.data.collapsed === true) {
                     selfRef.expandNode(n);
@@ -652,7 +700,7 @@ HTMLWidgets.widget({
             Shiny.onInputChange("topic.active", self.sourceD.data.id);
         } else {
             Shiny.onInputChange("topic.selected", "");
-            Shiny.onInputChange("topic.active", ""); // TODO(tfs): Once hover is enabled on the tree, remove this
+            // Shiny.onInputChange("topic.active", ""); // TODO(tfs): Once hover is enabled on the tree, remove this
         }
     },
 

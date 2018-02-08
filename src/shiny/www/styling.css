@@ -578,6 +578,24 @@ d#main-panel.main-content-export-mode {
 }
 
 
+.middle-tree-node {
+    fill: lightblue;
+}
+
+
+.terminal-tree-node {
+    fill: blue;
+}
+
+.terminal-tree-node:hover {
+    fill: darkblue;
+}
+
+.collapsed-tree-node {
+    fill: red;
+}
+
+
 /**********************************************************
  *                                                        *
  *               Expanded document styling                *
