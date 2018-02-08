@@ -21,6 +21,8 @@ HTMLWidgets.widget({
     treeData: null,
     maxNodeWeight: 1,
 
+    draggedNode: null,
+
     initialize: function (el, width, height) {
         var self = this;
 
@@ -92,6 +94,13 @@ HTMLWidgets.widget({
         var paths = self.g.selectAll("path")
             .data(nodes.slice(1), self.constancy);
 
+        // Ref: https://stackoverflow.com/questions/38599930/d3-version-4-workaround-for-drag-origin
+        var dragHandler = d3.drag()
+            .subject(function (n) { return n; })
+            // .on("start", self.dragStartHandler(self))
+            .on("drag", self.activeDragHandler(self))
+            .on("end", self.dragEndHandler(self));
+
         circles.enter()
             .append("circle")
             .attr("class", "tree-node")
@@ -115,7 +124,8 @@ HTMLWidgets.widget({
                 d3.event.stopPropagation();
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id;
                 Shiny.onInputChange("topic.active", displayID);
-            });
+            })
+            .call(dragHandler);
 
         text.enter()
             .append("text")
@@ -127,7 +137,10 @@ HTMLWidgets.widget({
 
         paths.enter()
             .append("path")
-            .attr("class", "tree-link");
+            .attr("class", "tree-link")
+            .attr("id", function (d) {
+                return "tree-path-" + d.data.id;
+            });
 
 
         circles.exit().remove();
@@ -150,6 +163,134 @@ HTMLWidgets.widget({
     },
 
 
+    // Returns a callback function, setting drag status to ``status``
+    dragStatusSetter: function (status) {
+        var setterCallback = function (n) {
+            // exportable = n;
+            var nodeID = ["#tree-node", n.data.id].join("-");
+            d3.select(nodeID).classed("dragged-node", status);
+            var labelID = ["#tree-label", n.data.id].join("-");
+            d3.select(labelID).classed("dragged-label", status);
+            var pathID = ["#tree-path", n.data.id].join("-");
+            d3.select(pathID).classed("dragged-path", status);
+
+            if (!n.hasOwnProperty("children")) { return; }
+
+            n.children.forEach(function (ch) {
+                setterCallback(ch);
+            });
+        }
+
+        return setterCallback;
+    },
+
+
+    // Pass in reference to "self", as the call() method passes a different "this"
+    dragStartHandler: function (selfRef) {
+        var handler = function (d) {
+            d3.event.sourceEvent.stopPropagation();
+
+            // var nodeID = ["#node", d.data.id].join("-");
+
+            d3.select(this).data().forEach(selfRef.dragStatusSetter(true));
+
+            selfRef.draggedNode = d.data.id;
+            // selfRef.dragSourceX = d3.select(this).attr("cx");
+            // selfRef.dragSourceY = d3.select(this).attr("cy");
+            // console.log(d);
+
+            var coords = d3.mouse(this);
+
+            selfRef.dragPointer = selfRef.g.append("circle").attr("id", "drag-pointer").attr("r", 10).raise();
+            d3.select("#drag-pointer").attr("cx", coords[0]).attr("cy", coords[1]);
+        }
+
+        return handler;
+    },
+
+
+    // Pass in reference to "self", as the call() method passes a different "this"
+    activeDragHandler: function (selfRef) {
+        var handler = function (d) {
+            coords = d3.mouse(this);
+
+            if (selfRef.isRootNode(d)) { return; }
+
+            if (selfRef.draggedNode === null) {
+                d3.event.sourceEvent.stopPropagation();
+
+                var nodeID = ["#tree-node", d.data.id].join("-");
+
+                d3.select(nodeID).data().forEach(selfRef.dragStatusSetter(true));
+
+                selfRef.draggedNode = d.data.id;
+
+                console.log("Started dragging:", d.data.id);
+
+                // selfRef.dragSourceX = d3.select(this).attr("cx");
+                // selfRef.dragSourceY = d3.select(this).attr("cy");
+                // console.log(d);
+
+                // var coords = d3.mouse(this);
+
+                selfRef.dragPointer = selfRef.g.append("circle").attr("id", "drag-pointer").attr("r", 10).raise();
+                d3.select("#drag-pointer").attr("cx", coords[0]).attr("cy", coords[1]);
+            }
+
+            // console.log(d3.mouse(this), d3.event.x, d3.event.y, d3.event.sourceEvent.x, d3.event.sourceEvent.y);
+            d3.event.sourceEvent.stopPropagation();
+
+            // d3.select(this).attr("cx", n.x).attr("cy", n.y);
+            d3.select("#drag-pointer").attr("cx", coords[0]).attr("cy", coords[1])
+
+            // var labelID = ["#label", this.id.split("-")[1]].join("-");
+
+            // d3.select(labelID).attr("transform", "translate("+n.x+","+n.y+")");
+        }
+
+        return handler;
+    },
+
+    // Pass in reference to "self", as the call() method passes a different "this"
+    dragEndHandler: function (selfRef) {
+        var handler = function (d) {
+            if (selfRef.draggedNode === null) { return; }
+            
+            d3.select("#drag-pointer").remove();
+            d3.event.sourceEvent.stopPropagation();
+
+            // Calculate values for moving/merging nodes
+            var pageX = d3.event.sourceEvent.pageX;
+            var pageY = d3.event.sourceEvent.pageY;
+            var sourceID = selfRef.draggedNode;
+            var target = d3.select(document.elementFromPoint(pageX, pageY)).data()[0];
+
+            d3.select(this).data().forEach(selfRef.dragStatusSetter(false));
+
+            selfRef.draggedNode = null;
+
+            // Move or merge if applicable, AFTER having reset draggedNode/etc.
+            if (target) {
+                if (selfRef.isLeafNode(target)) {
+                    var targetID = target.parent.data.id;
+                } else {
+                    var targetID = target.data.id;
+                }
+
+                var makeNewGroup = d3.event.sourceEvent.shiftKey;
+                var updateNeeded = selfRef.moveOrMerge(selfRef, sourceID, targetID, makeNewGroup);
+                
+                if (updateNeeded) {
+                    selfRef.updateTopicAssignments(selfRef, function() {
+                        self.updateView(true);
+                    });
+                }
+            }
+        }
+
+        return handler;
+    },
+
 
     // NOTE(tfs): There must be a cleaner way of appraoching this
     raiseNode: function (selfRef, nodeID) {
@@ -166,6 +307,56 @@ HTMLWidgets.widget({
             var id = n.id;
             self.raiseNode(self, id);
         });
+    },
+
+
+    /* Move or merge source node with target node.
+     */
+    moveOrMerge: function (selfRef, sourceID, targetID, makeNewGroup) {
+        var sourceD = d3.select("#tree-node-"+sourceID).data()[0],
+            targetD = d3.select("#tree-node-"+targetID).data()[0],
+            sourceIsLeaf = selfRef.isLeafNode(sourceD),
+            targetIsSource = sourceD.data.id === targetD.data.id,
+            mergingNodes = sourceD.children && sourceD.children.length > 1,
+            sameParentSel = sourceD.parent === targetD,
+            oldParentD,
+            nsToMove;
+
+        if (targetIsSource || (sameParentSel && !makeNewGroup)) {
+            return false;
+        }
+
+        if (makeNewGroup) {
+            oldParentD = sourceD.parent;
+            selfRef.createNewGroup(targetD, sourceD);
+            selfRef.removeChildDFromParent(sourceD);
+
+            // Any or all of the source's ancestors might be childless now.
+            // Walk up the tree and remove childless nodes.
+            selfRef.removeChildlessNodes(oldParentD);
+
+            return true;
+        } else {
+            if (sourceIsLeaf) {
+                nsToMove = [sourceD.data];
+                oldParentD = sourceD.parent;
+            } else {
+                nsToMove = [];
+                sourceD.children.forEach(function (d) {
+                    nsToMove.push(d.data);
+                });
+                oldParentD = sourceD;
+            }
+
+            selfRef.updateNsToMove(selfRef, nsToMove, oldParentD, targetD);
+            if (sourceIsLeaf) {
+                selfRef.removeChildlessNodes(oldParentD);
+            } else {
+                selfRef.removeChildDFromParent(sourceD);
+            }
+
+            return true;
+        }
     },
 
 

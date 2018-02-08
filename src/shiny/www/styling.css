@@ -561,6 +561,12 @@ d#main-panel.main-content-export-mode {
 }
 
 
+.dragged-path {
+    display: none;
+    visibility: hidden;
+}
+
+
 #drag-pointer {
     fill: red;
     opacity: 0.6;
