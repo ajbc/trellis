@@ -694,9 +694,17 @@ HTMLWidgets.widget({
             if (n.weight <= 0 && n.children.length === 0) {
                 return;
             }
-            n.children.forEach(function (childN) {
-                assignments.push(childN.id + ":" + n.id);
-            });
+
+            if (n.children && n.children.length > 0) {
+                n.children.forEach(function (childN) {
+                    assignments.push(childN.id + ":" + n.id);
+                });
+            } else if (n.childStore && n.childStore.length > 0) {
+                n.childStore.forEach(function (childN) {
+                    assignments.push(childN.id + ":" + n.id);
+                });
+            }
+            exportable = n;
         });
         Shiny.addCustomMessageHandler(EVENT, function (newTopics) {
             self.updateTopicView(newTopics);

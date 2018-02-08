@@ -585,6 +585,7 @@ function(input, output, session) {
       return("")
     }
 
+    print(topic)
     docs <- top.documents()[[topic]]
     thetas <- thetas.selected()
     rv <- ""
