@@ -406,7 +406,13 @@ HTMLWidgets.widget({
             .each(function (d) {
                 var elem = d3.select(this);
 
-                if (d.data.children && d.data.children.length > 0) {
+                if (d.data.collapsed) {
+                    // NOTE(tfs): Might be re-adding this class to some nodes
+                    elem.classed("middle-tree-node", false);
+                    elem.classed("collapsed-tree-node", true);
+                    elem.classed("terminal-tree-node", false);
+                    elem.attr("r", self.COLLAPSED_NODE_RADIUS);
+                } else if (d.data.children && d.data.children.length > 0) {
                     // NOTE(tfs): There is probably a cleaner way to do this
                     elem.classed("middle-tree-node", true);
                     elem.classed("terminal-tree-node", false);
@@ -414,20 +420,13 @@ HTMLWidgets.widget({
                     elem.attr("r", self.CIRCLE_RADIUS);
                 } else {
                     elem.classed("middle-tree-node", false);
-                    if (d.data.collapsed) {
-                        // NOTE(tfs): Might be re-adding this class to some nodes
-                        elem.classed("collapsed-tree-node", true);
-                        elem.classed("terminal-tree-node", false);
-                        elem.attr("r", self.COLLAPSED_NODE_RADIUS);
-                    } else {
-                        elem.classed("terminal-tree-node", true);
-                        elem.classed("collapsed-tree-node", false);
-                        elem.attr("r", self.TERMINAL_NODE_RADIUS);
-                    }
+                    elem.classed("terminal-tree-node", true);
+                    elem.classed("collapsed-tree-node", false);
+                    elem.attr("r", self.TERMINAL_NODE_RADIUS);
                 }
 
                 exportable = [elem, d];
-            })
+            });
     },
 
 
@@ -454,15 +453,41 @@ HTMLWidgets.widget({
     },
 
 
+    setNodeDisplayStatus: function (d, status) {
+        var self = this,
+            id = d.id;
+        d3.select("#tree-node-"+id).classed("hidden-tree-node", status);
+        d3.select("#tree-path-"+id).classed("hidden-tree-path", status);
+        d3.select("#tree-label-"+id).classed("hidden-tree-label", status);
+
+        if (d.children && d.children.length > 0 && !d.collapsed) {
+            d.children.forEach(function (newD) {
+                self.setNodeDisplayStatus(newD, status);
+            });
+        }
+    },
+
+
     // Ref: https://bl.ocks.org/d3noob/43a860bc0024792f8803bba8ca0d5ecd
     collapseNode: function (n) {
         var self = this;
         var d = n.data;
 
+        // if (d.children && d.children.length > 0) {
+        //     d.childStore = d.children;
+        //     d.children = [];
+        //     d.collapsed = true;
+        // }
+
         if (d.children && d.children.length > 0) {
-            d.childStore = d.children;
-            d.children = [];
             d.collapsed = true;
+            // self.traverseTree(d, function (node) {
+            //     if (node.id !== d.id) { self.setNodeDisplayStatus(node.id, true); }
+            // });
+            // self.setNodeDisplayStatus(d, true);
+            d.children.forEach(function (child) {
+                self.setNodeDisplayStatus(child, true);
+            });
         }
 
         d3.select("#tree-node-" + d.id).classed("collapsed-tree-node", true);
@@ -473,10 +498,22 @@ HTMLWidgets.widget({
         var self = this;
         var d = n.data;
 
-        if (d.childStore && d.childStore.length > 0) {
-            d.children = d.childStore;
-            d.childStore = null;
+        // if (d.childStore && d.childStore.length > 0) {
+        //     d.children = d.childStore;
+        //     d.childStore = null;
+        //     d.collapsed = false;
+        // }
+
+        if (d.collapsed) {
             d.collapsed = false;
+            // self.traverseTree(d, function (node) {
+            //     if (node.id !== d.id) { self.setNodeDisplayStatus(node.id, false); }
+            // });
+
+            // self.setNodeDisplayStatus(d, false);
+            d.children.forEach(function (child) {
+                self.setNodeDisplayStatus(child, false);
+            });
         }
 
         d3.select("#tree-node-" + d.id).classed("collapsed-tree-node", false);

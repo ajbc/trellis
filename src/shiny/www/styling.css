@@ -602,6 +602,24 @@ d#main-panel.main-content-export-mode {
 }
 
 
+.hidden-tree-node {
+    display: none;
+    visibility: hidden;
+}
+
+
+.hidden-tree-path {
+    display: none;
+    visibility: hidden;
+}
+
+
+.hidden-tree-text {
+    display: none;
+    visibility: hidden;
+}
+
+
 /**********************************************************
  *                                                        *
  *               Expanded document styling                *
