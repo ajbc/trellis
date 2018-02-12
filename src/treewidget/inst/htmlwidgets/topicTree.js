@@ -42,7 +42,8 @@ HTMLWidgets.widget({
             .attr("width", width)
             .attr("height", height)
             .attr("id", "tree-svg")
-            .call(zoomHandler);
+            .call(zoomHandler)
+            .on("dblclick.zoom", null);
 
         self.g = svg.append("g")
             .attr("id", "tree-root");

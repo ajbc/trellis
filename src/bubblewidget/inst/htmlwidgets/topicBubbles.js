@@ -104,7 +104,8 @@ HTMLWidgets.widget({
             .attr("width", self.DIAMETER)
             .attr("height", self.DIAMETER)
             .attr("id", "bubbles-svg")
-            .call(zoomHandler);
+            .call(zoomHandler)
+            .on("dblclick.zoom", null);
 
         self.g = svg.append("g")
             .attr("id", "bubbles-root")
