@@ -84,15 +84,31 @@ HTMLWidgets.widget({
         self.el = el;
         self.DIAMETER = SHORT_EDGE;
 
+        var zoomHandler = d3.zoom()
+            .scaleExtent([1, 40])
+            .translateExtent([[0,0], [self.DIAMETER, self.DIAMETER]])
+            .on("zoom", self.zoomHandler(self));
+
         // Create `svg` and root `g` elements.
-        self.g = d3.select(el)
+        // self.g = d3.select(el)
+        //     .append("svg")
+        //     .attr("width", self.DIAMETER)
+        //     .attr("height", self.DIAMETER)
+        //     .attr("id", "bubbles-svg")
+        //     .append("g")
+        //     .attr("id", "bubbles-root")
+        //     .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
+
+        var svg = d3.select(el)
             .append("svg")
             .attr("width", self.DIAMETER)
             .attr("height", self.DIAMETER)
             .attr("id", "bubbles-svg")
-            .append("g")
+            .call(zoomHandler);
+
+        self.g = svg.append("g")
             .attr("id", "bubbles-root")
-            .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
+            // .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
 
         // Create persistent `d3.pack` instance with radii accounting for
         // padding.
@@ -110,6 +126,17 @@ HTMLWidgets.widget({
         // Handle Shiny messages
         Shiny.addCustomMessageHandler("nodeDeleted", function(msg) { self.setSource(null); });
         Shiny.addCustomMessageHandler("runtimeClusterFinished", function(msg) { self.setSource(null); })
+    },
+
+
+    zoomHandler: function (selfRef) {
+        var handler = function () {
+            console.log(d3.event);
+            selfRef.g.attr("transform", "translate(" + d3.event.transform.x + "," + d3.event.transform.y + ")" + "scale(" + d3.event.transform.k + ")");
+            d3.event.sourceEvent.stopPropagation();
+        };
+
+        return handler;
     },
 
     /* Removes all svg elements and then re-renders everything from scratch.
@@ -420,44 +447,44 @@ HTMLWidgets.widget({
         return handler;
     },
 
-    /* Zoom on click.
-     */
-    zoom: function (root, d) {
-        var self = this,
-            userClickedSameNodeTwice = self.nodeInFocus === d,
-            userClickedDiffNode = self.nodeInFocus !== d;
-        if (self.isRootNode(d) || userClickedSameNodeTwice) {
-            self.zoomToNode(root);
-        } else if (userClickedDiffNode) {
-            self.zoomToNode(d);
-        }
-    },
+    // /* Zoom on click.
+    //  */
+    // zoom: function (root, d) {
+    //     var self = this,
+    //         userClickedSameNodeTwice = self.nodeInFocus === d,
+    //         userClickedDiffNode = self.nodeInFocus !== d;
+    //     if (self.isRootNode(d) || userClickedSameNodeTwice) {
+    //         self.zoomToNode(root);
+    //     } else if (userClickedDiffNode) {
+    //         self.zoomToNode(d);
+    //     }
+    // },
 
-    /* Zoom to node utility function.
-     */
-    zoomToNode: function (node) {
-        var self = this,
-            ZOOM_DURATION = 500,
-            coords = [node.x, node.y, node.r * 2 + self.PAGE_MARGIN];
-        self.nodeInFocus = node;
-        d3.transition()
-            .duration(ZOOM_DURATION)
-            .tween("zoom", function () {
-                var interp = d3.interpolateZoom(self.currCoords, coords);
-                return function (t) {
-                    // `tween()` will handle the transition for us, so we can
-                    // pass `useTransition = false`.
-                    self.positionAndResizeNodes(interp(t), false);
-                };
-            });
-    },
+    // /* Zoom to node utility function.
+    //  */
+    // zoomToNode: function (node) {
+    //     var self = this,
+    //         ZOOM_DURATION = 500,
+    //         coords = [node.x, node.y, node.r * 2 + self.PAGE_MARGIN];
+    //     self.nodeInFocus = node;
+    //     d3.transition()
+    //         .duration(ZOOM_DURATION)
+    //         .tween("zoom", function () {
+    //             var interp = d3.interpolateZoom(self.currCoords, coords);
+    //             return function (t) {
+    //                 // `tween()` will handle the transition for us, so we can
+    //                 // pass `useTransition = false`.
+    //                 self.positionAndResizeNodes(interp(t), false);
+    //             };
+    //         });
+    // },
 
     setDraggedNode: function (nodeD) {
-        var self = this;
+        return;
     },
 
     releaseDraggedNode: function (nodeD, makeNewGroup) {
-
+        return;
     },
 
     selectNode: function (targetD, makeNewGroup) {
@@ -568,13 +595,13 @@ HTMLWidgets.widget({
         //         return "translate(" + x + "," + y + ")";
         //     })
         circles.attr("cx", function (d) {
-                return (d.x - coords[0]) * k;
+                return d.x;
             })
             .attr("cy", function (d) {
-                return (d.y - coords[1]) * k;
+                return d.y;
             })
             .attr("r", function (d) {
-                return d.r * k;
+                return d.r;
             })
             .attr("depth", function (d) {
                 return d.depth;
@@ -584,8 +611,8 @@ HTMLWidgets.widget({
             });
 
         text.attr("transform", function (d) {
-                var x = (d.x - coords[0]) * k,
-                    y = (d.y - coords[1]) * k;
+                var x = d.x,
+                    y = d.y;
                 return "translate(" + x + "," + y + ")";
             })
         // text.attr("x", function (d) {

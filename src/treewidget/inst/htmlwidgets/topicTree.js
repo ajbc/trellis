@@ -12,7 +12,7 @@ HTMLWidgets.widget({
     FONT_SIZE: 11,
     BORDER_MARGIN: 10,
     CIRCLE_RADIUS: 7,
-    TERMINAL_NODE_RADIUS: 5,
+    TERMINAL_NODE_RADIUS: 4,
     COLLAPSED_NODE_RADIUS: 10,
 
     MIN_EDGE_WIDTH: 1,
@@ -28,22 +28,51 @@ HTMLWidgets.widget({
 
         self.el = el;
 
-        self.g = d3.select(el)
+        // Ref: https://bl.ocks.org/mbostock/34f08d5e11952a80609169b7917d4172
+        // Ref: https://bl.ocks.org/mbostock/4987520
+        // Ref: https://bl.ocks.org/emepyc/7218bc9ea76951d6a78b0c7942e07a00
+        var zoomHandler = d3.zoom()
+            .scaleExtent([1, 40])
+            .translateExtent([[0,0], [Infinity, height]])
+            .on("zoom", self.zoomHandler(self));
+
+
+        var svg = d3.select(el)
             .append("svg")
             .attr("width", width)
             .attr("height", height)
             .attr("id", "tree-svg")
-            .append("g")
-            .attr("id", "tree-root")
+            .call(zoomHandler);
+
+        self.g = svg.append("g")
+            .attr("id", "tree-root");
             // Maybe a transform, see if it can work without
 
         // TODO(tfs): This is an ugly way of structuring the corrections for margins, should probably restructure
-        self.tree = d3.tree().size([height-(2*self.BORDER_MARGIN)-self.TOP_MARGIN, width-(2*self.BORDER_MARGIN)]);
+        // Ref: https://github.com/d3/d3-hierarchy/blob/master/README.md#tree
+        self.tree = d3.tree()
+            .size([height-(2*self.BORDER_MARGIN)-self.TOP_MARGIN, width-(2*self.BORDER_MARGIN)])
+            .separation(function (left, right) {
+                console.log(left, right);
+                return (left.parent.data.id === right.parent.data.id) ? 10 : 15;
+            });
 
         self.edgeWidthMap = d3.scaleLinear()
                             .domain([0, 1])
                             .range([self.MIN_EDGE_WIDTH, self.MAX_EDGE_WIDTH]);
     },
+
+
+    zoomHandler: function (selfRef) {
+        var handler = function () {
+            console.log(d3.event);
+            selfRef.g.attr("transform", "translate(" + d3.event.transform.x + "," + d3.event.transform.y + ")" + "scale(" + d3.event.transform.k + ")");
+            d3.event.sourceEvent.stopPropagation();
+        };
+
+        return handler;
+    },
+
 
     resize: function (el, width, height) {
         console.log("tree resized");
