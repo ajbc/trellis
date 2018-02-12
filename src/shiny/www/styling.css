@@ -614,10 +614,12 @@ d#main-panel.main-content-export-mode {
 }
 
 
-.hidden-tree-text {
+.hidden-tree-label {
     display: none;
     visibility: hidden;
 }
+
+
 
 
 /**********************************************************
