@@ -414,7 +414,6 @@ function(input, output, session) {
     req(children())
     parentNode <- as.integer(input$topic.selected)
     if (is.na(parentNode) || parentNode == 0) {
-      print(children()$root)
       return(children()$root)
     } else {
       return(children()[[parentNode]])
@@ -585,7 +584,6 @@ function(input, output, session) {
       return("")
     }
 
-    print(topic)
     docs <- top.documents()[[topic]]
     thetas <- thetas.selected()
     rv <- ""

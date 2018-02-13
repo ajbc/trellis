@@ -157,11 +157,17 @@ HTMLWidgets.widget({
     resize: function (el, width, height) {
         var self = this,
             SHORT_EDGE = Math.min(width, height - self.TOP_MARGIN),
-            SVG_R = SHORT_EDGE / 2;
+            SVG_R = SHORT_EDGE / 2
+            NODE_PADDING = 20,
+            D3PACK_W = SHORT_EDGE - self.PAGE_MARGIN;
 
         // Update state corresponding to new width
         self.el = el;
         self.DIAMETER = SHORT_EDGE;
+
+        self.pack = d3.pack()
+            .size([D3PACK_W, D3PACK_W])
+            .padding(NODE_PADDING);
         
         // Modify width and height of existing svg element
         var svgElement = d3.select("#bubbles-svg")
@@ -169,8 +175,8 @@ HTMLWidgets.widget({
             .attr("height", self.DIAMETER);
 
         // Reset the centering of bubbles-root
-        self.g = d3.select("#bubbles-root")
-            .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
+        self.g = d3.select("#bubbles-root");
+            // .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
 
         // Re-render according to new dimensions, only if data already rendered
         if (self.treeData !== null) {
@@ -221,6 +227,7 @@ HTMLWidgets.widget({
             .sort(function (a, b) {
                 return b.value - a.value;
             });
+
         nodes = self.pack(root).descendants();
         self.nodeInFocus = nodes[0];
 
