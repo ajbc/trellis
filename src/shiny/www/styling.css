@@ -620,6 +620,18 @@ d#main-panel.main-content-export-mode {
 }
 
 
+.tree-label-background {
+    fill: white;
+    opacity: 0.75;
+}
+
+
+.hidden-tree-label-background {
+    display: none;
+    visibility: hidden;
+}
+
+
 
 
 /**********************************************************

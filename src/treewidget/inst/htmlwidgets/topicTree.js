@@ -14,6 +14,8 @@ HTMLWidgets.widget({
     CIRCLE_RADIUS: 7,
     TERMINAL_NODE_RADIUS: 4,
     COLLAPSED_NODE_RADIUS: 10,
+    FONT_SIZE: 8,
+    TEXT_HEIGHT_OFFSET: 2,
 
     MIN_EDGE_WIDTH: 1,
     MAX_EDGE_WIDTH: 10,
@@ -124,6 +126,9 @@ HTMLWidgets.widget({
         var paths = self.g.selectAll("path")
             .data(nodes.slice(1), self.constancy);
 
+        var rects = self.g.selectAll("rect")
+            .data(nodes, self.constancy);
+
         // Ref: https://stackoverflow.com/questions/38599930/d3-version-4-workaround-for-drag-origin
         var dragHandler = d3.drag()
             .subject(function (n) { return n; })
@@ -173,10 +178,20 @@ HTMLWidgets.widget({
             });
 
 
+        rects.enter()
+            .append("rect")
+            .attr("class", "tree-label-background")
+            .attr("id", function (d) {
+                return "tree-label-background-" + d.data.id;
+            });
+
+
         circles.exit().remove();
         text.exit().remove();
         paths.exit().remove();
+        rects.exit().remove();
 
+        self.raiseAllLabels();
         self.raiseAllCircles();
 
         self.resizeAndReposition(useTransition);
@@ -329,6 +344,13 @@ HTMLWidgets.widget({
     },
 
 
+    raiseLabel: function (selfRef, nodeID) {
+        var rootElemNode = $("#tree-root")[0];
+        rootElemNode.appendChild($("#tree-label-background-"+nodeID)[0]);
+        rootElemNode.appendChild($("#tree-label-"+nodeID)[0]);
+    },
+
+
     raiseAllCircles: function () {
         var self = this,
             rootElemNode = $("#tree-root")[0];
@@ -336,6 +358,17 @@ HTMLWidgets.widget({
         self.traverseTree(self.treeData, function (n) {
             var id = n.id;
             self.raiseNode(self, id);
+        });
+    },
+
+
+    raiseAllLabels: function () {
+        var self = this,
+            rootElemNode = $("#tree-root")[0];
+
+        self.traverseTree(self.treeData, function (n) {
+            var id = n.id;
+            self.raiseLabel(self, id);
         });
     },
 
@@ -395,12 +428,14 @@ HTMLWidgets.widget({
             circles = self.g.selectAll("circle"),
             paths = self.g.selectAll("path"),
             text = self.g.selectAll("text"),
+            rects = self.g.selectAll("rect"),
             MOVE_DURATION = 500;
 
         if (useTransition) {
             circles = circles.transition().duration(MOVE_DURATION);
             paths = paths.transition().duration(MOVE_DURATION);
             text = text.transition().duration(MOVE_DURATION);
+            rects = rects.transition().duration(MOVE_DURATION);
         }
 
         // text.attr("transform", function (d) {
@@ -467,16 +502,15 @@ HTMLWidgets.widget({
                     elem.classed("collapsed-tree-node", false);
                     elem.attr("r", self.TERMINAL_NODE_RADIUS);
                 }
-
-                exportable = [elem, d];
             });
 
         text.attr("x", function (d) {
-                var margin = 2 + (d3.select("#collapsed-tree-node" + d.data.id) ? self.COLLAPSED_NODE_RADIUS : self.TERMINAL_NODE_RADIUS);
+                var margin = 2 + (d3.select("#tree-node-" + d.data.id).classed("termional-tree-node") ? self.TERMINAL_NODE_RADIUS : self.COLLAPSED_NODE_RADIUS);
                 return d.x + margin;
             })
             .attr("y", function (d) {
-                return d.y;
+                // var halfHeight = $("#tree-label-" + d.data.id)[0].getBBox().height / 2;
+                return d.y + self.TEXT_HEIGHT_OFFSET;
             })
             .each(function (d) {
                 var sel = d3.select(this);
@@ -491,13 +525,36 @@ HTMLWidgets.widget({
                 //     return;
                 // }
 
-                if (d.data.collapsed || d3.select("#tree-node-"+d.data.id).classed("terminal-tree-node")) {
+                if (true || d.data.collapsed || d3.select("#tree-node-"+d.data.id).classed("terminal-tree-node")) {
                     var len = d.data.terms.length;
 
                     sel.append("tspan")
                         .text(d.data.terms.join(" "))
-                        .attr("font-size", 8);
+                        .attr("font-size", self.FONT_SIZE);
                 }
+            });
+
+        rects.attr("x", function (d) {
+                var margin = 2 + (d3.select("#tree-node-" + d.data.id).classed("terminal-tree-node") ? self.TERMINAL_NODE_RADIUS : self.COLLAPSED_NODE_RADIUS);
+                return d.x + margin;
+            })
+            .attr("y", function (d) {
+            var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
+                // Add 4 to adjust for margins. Probably a better way to calculate this.
+                return d.y - textheight + 4;
+            })
+            .attr("width", function (d) {
+                var textwidth = $("#tree-label-"+d.data.id)[0].getBBox().width;
+                return textwidth;
+            })
+            .attr("height", function (d) {
+                var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
+                return textheight;
+            })
+            .each(function (d) {
+                var isTerminal = d3.select("#tree-node-" + d.data.id).classed("terminal-tree-node")
+                                || d3.select("#tree-node-" + d.data.id).classed("collapsed-tree-node");
+                d3.select(this).classed("hidden-tree-label-background", isTerminal);
             });
     },
 
@@ -531,6 +588,7 @@ HTMLWidgets.widget({
         d3.select("#tree-node-"+id).classed("hidden-tree-node", status);
         d3.select("#tree-path-"+id).classed("hidden-tree-path", status);
         d3.select("#tree-label-"+id).classed("hidden-tree-label", status);
+        d3.select("#tree-label-background-"+id).classed("hidden-tree-label-background", status);
 
         if (d.children && d.children.length > 0 && !d.collapsed) {
             d.children.forEach(function (newD) {
@@ -815,7 +873,6 @@ HTMLWidgets.widget({
                     assignments.push(childN.id + ":" + n.id);
                 });
             }
-            exportable = n;
         });
         Shiny.addCustomMessageHandler(EVENT, function (newTopics) {
             self.updateTopicView(newTopics);
