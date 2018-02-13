@@ -49,6 +49,12 @@ HTMLWidgets.widget({
     draggedNode: null,
     dragSourceX: 0,
     dragSourceY: 0,
+    scrollOffset: {x: 0, y: 0},
+    scrollOrigin: {x: 0, y: 0},
+
+    // Handlers for d3 events
+    zoomHandler: null,
+    dragHandler: null,
 
     // Used for things like deciding whether to zoom in or out or whether or not
     // to show a label.
@@ -88,6 +94,8 @@ HTMLWidgets.widget({
             .scaleExtent([1, 40])
             .translateExtent([[0,0], [self.DIAMETER, self.DIAMETER]])
             .on("zoom", self.zoomHandler(self));
+
+        self.zoomHandler = zoomHandler;
 
         // Create `svg` and root `g` elements.
         // self.g = d3.select(el)
@@ -132,9 +140,11 @@ HTMLWidgets.widget({
 
     zoomHandler: function (selfRef) {
         var handler = function () {
-            console.log(d3.event);
+            // console.log("zoom event:", d3.event);
             selfRef.g.attr("transform", "translate(" + d3.event.transform.x + "," + d3.event.transform.y + ")" + "scale(" + d3.event.transform.k + ")");
-            d3.event.sourceEvent.stopPropagation();
+            if (d3.event.sourceEvent) {
+                d3.event.sourceEvent.stopPropagation();
+            }
         };
 
         return handler;
@@ -232,11 +242,14 @@ HTMLWidgets.widget({
         self.nodeInFocus = nodes[0];
 
         // Ref: https://stackoverflow.com/questions/38599930/d3-version-4-workaround-for-drag-origin
+        // TODO(tfs): click distance: https://github.com/d3/d3-drag/blob/master/README.md#drag_clickDistance
         var dragHandler = d3.drag()
             .subject(function (n) { return n; })
             // .on("start", self.dragStartHandler(self))
             .on("drag", self.activeDragHandler(self))
             .on("end", self.dragEndHandler(self));
+
+        self.dragHandler = dragHandler;
 
         circles = self.g.selectAll('circle')
             .data(nodes, self.constancy);
@@ -352,21 +365,13 @@ HTMLWidgets.widget({
     // Pass in reference to "self", as the call() method passes a different "this"
     dragStartHandler: function (selfRef) {
         var handler = function (d) {
-            d3.event.sourceEvent.stopPropagation();
+            if (d3.event.sourceEvent.altKey) {
+                selfRef.dragOffset = {x: 0, y: 0};
+                
+                var scrollStartStrings = selfRef.g.attr("trasnform").split("(")[1].split(")")[0].split(",");
 
-            // var nodeID = ["#node", d.data.id].join("-");
-
-            d3.select(this).data().forEach(selfRef.dragStatusSetter(true));
-
-            selfRef.draggedNode = d.data.id;
-            // selfRef.dragSourceX = d3.select(this).attr("cx");
-            // selfRef.dragSourceY = d3.select(this).attr("cy");
-            // console.log(d);
-
-            var coords = d3.mouse(this);
-
-            selfRef.dragPointer = selfRef.g.append("circle").attr("id", "drag-pointer").attr("r", 10).raise();
-            d3.select("#drag-pointer").attr("cx", coords[0]).attr("cy", coords[1]);
+                selfRef.scrollOrigin = { x: parseFloat($.trim(scrollStartStrings[0])), y: parseFloat($.trim(scrollStartStrings[1])) };
+            }
         }
 
         return handler;
@@ -378,38 +383,50 @@ HTMLWidgets.widget({
         var handler = function (d) {
             coords = d3.mouse(this);
 
-            if (selfRef.isRootNode(d)) { return; }
+            if (d3.event.sourceEvent.altKey) {
+                // Handle scrolling
+                selfRef.scrollOffset.x += d3.event.dx;
+                selfRef.scrollOffset.y += d3.event.dy;
 
-            if (selfRef.draggedNode === null) {
+                // var translateString = "translate("+(selfRef.scrollOrigin.x + selfRef.scrollOffset.x);
+                // translateString += ","+(selfRef.scrollOrigin.y + selfRef.scrollOffset.y) + ")";
+
+                // selfRef.g.attr("transform", translateString);
+
+                selfRef.g.call(selfRef.zoomHandler.translateBy, d3.event.dx, d3.event.dy);
+            } else {
+                // Handle node dragging
+                if (selfRef.isRootNode(d)) { return; }
+
+                if (selfRef.draggedNode === null) {
+                    d3.event.sourceEvent.stopPropagation();
+
+                    var nodeID = ["#node", d.data.id].join("-");
+
+                    d3.select(nodeID).data().forEach(selfRef.dragStatusSetter(true));
+
+                    selfRef.draggedNode = d.data.id;
+
+                    // selfRef.dragSourceX = d3.select(this).attr("cx");
+                    // selfRef.dragSourceY = d3.select(this).attr("cy");
+                    // console.log(d);
+
+                    // var coords = d3.mouse(this);
+
+                    selfRef.dragPointer = selfRef.g.append("circle").attr("id", "drag-pointer").attr("r", 10).raise();
+                    d3.select("#drag-pointer").attr("cx", coords[0]).attr("cy", coords[1]);
+                }
+
+                // console.log(d3.mouse(this), d3.event.x, d3.event.y, d3.event.sourceEvent.x, d3.event.sourceEvent.y);
                 d3.event.sourceEvent.stopPropagation();
 
-                var nodeID = ["#node", d.data.id].join("-");
+                // d3.select(this).attr("cx", n.x).attr("cy", n.y);
+                d3.select("#drag-pointer").attr("cx", coords[0]).attr("cy", coords[1])
 
-                d3.select(nodeID).data().forEach(selfRef.dragStatusSetter(true));
+                // var labelID = ["#label", this.id.split("-")[1]].join("-");
 
-                selfRef.draggedNode = d.data.id;
-
-                console.log("Started dragging:", d.data.id);
-
-                // selfRef.dragSourceX = d3.select(this).attr("cx");
-                // selfRef.dragSourceY = d3.select(this).attr("cy");
-                // console.log(d);
-
-                // var coords = d3.mouse(this);
-
-                selfRef.dragPointer = selfRef.g.append("circle").attr("id", "drag-pointer").attr("r", 10).raise();
-                d3.select("#drag-pointer").attr("cx", coords[0]).attr("cy", coords[1]);
+                // d3.select(labelID).attr("transform", "translate("+n.x+","+n.y+")");
             }
-
-            // console.log(d3.mouse(this), d3.event.x, d3.event.y, d3.event.sourceEvent.x, d3.event.sourceEvent.y);
-            d3.event.sourceEvent.stopPropagation();
-
-            // d3.select(this).attr("cx", n.x).attr("cy", n.y);
-            d3.select("#drag-pointer").attr("cx", coords[0]).attr("cy", coords[1])
-
-            // var labelID = ["#label", this.id.split("-")[1]].join("-");
-
-            // d3.select(labelID).attr("transform", "translate("+n.x+","+n.y+")");
         }
 
         return handler;
