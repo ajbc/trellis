@@ -583,36 +583,45 @@ d#main-panel.main-content-export-mode {
     z-index: 15;
 }
 
-
 .middle-tree-node {
     fill: lightblue;
 }
 
+.middle-tree-node:hover, .middle-tree-node.selected {
+    stroke-width: 1px;
+    stroke: black;
+    fill: blue;
+}
 
 .terminal-tree-node {
     fill: blue;
 }
 
-.terminal-tree-node:hover {
+.terminal-tree-node:hover, .terminal-tree-node.selected {
     fill: darkblue;
+    stroke-width: 1px;
+    stroke: black;
 }
 
 .collapsed-tree-node {
     fill: red;
 }
 
+.collapsed-tree-node:hover, .collapsed-tree-node.selected {
+    fill: darkred;
+    stroke-width: 1px;
+    stroke: black;
+}
 
 .hidden-tree-node {
     display: none;
     visibility: hidden;
 }
 
-
 .hidden-tree-path {
     display: none;
     visibility: hidden;
 }
-
 
 .hidden-tree-label {
     display: none;

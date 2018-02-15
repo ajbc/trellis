@@ -50,7 +50,7 @@ HTMLWidgets.widget({
     dragSourceX: 0,
     dragSourceY: 0,
     scrollOffset: {x: 0, y: 0},
-    scrollOrigin: {x: 0, y: 0},
+    scrollOrigin: null,
 
     // Handlers for d3 events
     zoomHandler: null,
@@ -115,6 +115,8 @@ HTMLWidgets.widget({
             .call(zoomHandler)
             .on("dblclick.zoom", null);
 
+        self.svg = svg;
+
         self.g = svg.append("g")
             .attr("id", "bubbles-root")
             // .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
@@ -135,15 +137,21 @@ HTMLWidgets.widget({
         // Handle Shiny messages
         Shiny.addCustomMessageHandler("nodeDeleted", function(msg) { self.setSource(null); });
         Shiny.addCustomMessageHandler("runtimeClusterFinished", function(msg) { self.setSource(null); })
+
+        exportable.bubbleWidget = self;
     },
 
 
     zoomHandler: function (selfRef) {
         var handler = function () {
+            exportable.zoomEvent = d3.event;
+            console.log("transform:", d3.event.transform);
             // console.log("zoom event:", d3.event);
             selfRef.g.attr("transform", "translate(" + d3.event.transform.x + "," + d3.event.transform.y + ")" + "scale(" + d3.event.transform.k + ")");
-            if (d3.event.sourceEvent) {
+            try {
                 d3.event.sourceEvent.stopPropagation();
+            } catch(error) {
+                return;
             }
         };
 
@@ -242,7 +250,6 @@ HTMLWidgets.widget({
         self.nodeInFocus = nodes[0];
 
         // Ref: https://stackoverflow.com/questions/38599930/d3-version-4-workaround-for-drag-origin
-        // TODO(tfs): click distance: https://github.com/d3/d3-drag/blob/master/README.md#drag_clickDistance
         var dragHandler = d3.drag()
             .subject(function (n) { return n; })
             // .on("start", self.dragStartHandler(self))
@@ -384,17 +391,46 @@ HTMLWidgets.widget({
             coords = d3.mouse(this);
 
             if (d3.event.sourceEvent.altKey) {
-                // Handle scrolling
-                selfRef.scrollOffset.x += d3.event.dx;
-                selfRef.scrollOffset.y += d3.event.dy;
 
-                // var translateString = "translate("+(selfRef.scrollOrigin.x + selfRef.scrollOffset.x);
-                // translateString += ","+(selfRef.scrollOrigin.y + selfRef.scrollOffset.y) + ")";
+                console.log("!!!!: ", d3.event);
 
-                // selfRef.g.attr("transform", translateString);
+                if (selfRef.scrollOrigin === null) {
+                    // Set origin, do not update position
+                    selfRef.scrollOrigin = { x: d3.event.sourceEvent.clientX, y: d3.event.sourceEvent.clientY }
+                } else {
+                    // Update based on placed origin and current scale
+                    var oldScale = 1;
+                    if (selfRef.g.attr("transform").indexOf("scale") >= 0) {
+                        // Scale has already been set
+                        oldScale = parseFloat(selfRef.g.attr("transform").split("scale(")[1].split(")")[0]);
+                    }
 
-                selfRef.g.call(selfRef.zoomHandler.translateBy, d3.event.dx, d3.event.dy);
+                    // var dx = d3.event.sourceEvent.clientX - selfRef.scrollOrigin.x;
+                    // var dy = d3.event.sourceEvent.clientY - selfRef.scrollOrigin.y;
+
+                    // // Handle scrolling
+                    // selfRef.scrollOffset.x += d3.event.dx * oldScale;
+                    // selfRef.scrollOffset.y += d3.event.dy * oldScale;
+
+                    // var translateString = "translate("+(selfRef.scrollOrigin.x + selfRef.scrollOffset.x);
+                    // translateString += ","+(selfRef.scrollOrigin.y + selfRef.scrollOffset.y) + ")";
+
+
+                    // var scaleString = "scale(" + oldScale + ")";
+
+                    // // selfRef.g.attr("transform", translateString+scaleString);
+
+                    // selfRef.g.call(selfRef.zoomHandler.translateTo, selfRef.scrollOffset.x, selfRef.scrollOffset.y);
+
+                    // TODO(tfs): Triggering a zoom event seems cleaner, but was running into problems passing dx,dy
+                    // selfRef.svg.call(selfRef.zoomHandler.translateBy, dx * oldScale, dy * oldScale);
+                    selfRef.svg.call(selfRef.zoomHandler.translateBy, d3.event.sourceEvent.movementX / oldScale, d3.event.sourceEvent.movementY / oldScale);
+
+                    selfRef.scrollOrigin = { x: d3.event.sourceEvent.clientX, y: d3.event.sourceEvent.clientY }
+                }
             } else {
+                selfRef.scrollOrigin = null;
+
                 // Handle node dragging
                 if (selfRef.isRootNode(d)) { return; }
 
@@ -435,6 +471,8 @@ HTMLWidgets.widget({
     // Pass in reference to "self", as the call() method passes a different "this"
     dragEndHandler: function (selfRef) {
         var handler = function (d) {
+            selfRef.scrollOrigin = null;
+
             if (selfRef.draggedNode === null) { return; }
             
             d3.select("#drag-pointer").remove();

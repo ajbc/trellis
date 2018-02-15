@@ -51,7 +51,6 @@ HTMLWidgets.widget({
             .attr("id", "tree-root");
             // Maybe a transform, see if it can work without
 
-        // TODO(tfs): This is an ugly way of structuring the corrections for margins, should probably restructure
         // Ref: https://github.com/d3/d3-hierarchy/blob/master/README.md#tree
         self.tree = d3.tree()
             .size([height-(2*self.BORDER_MARGIN)-self.TOP_MARGIN, width-(2*self.BORDER_MARGIN)])
@@ -62,6 +61,8 @@ HTMLWidgets.widget({
         self.edgeWidthMap = d3.scaleLinear()
                             .domain([0, 1])
                             .range([self.MIN_EDGE_WIDTH, self.MAX_EDGE_WIDTH]);
+
+        exportable.treeWidget = self;
     },
 
 
@@ -76,7 +77,38 @@ HTMLWidgets.widget({
 
 
     resize: function (el, width, height) {
-        console.log("tree resized");
+        var self = this;
+            // SHORT_EDGE = Math.min(width, height - self.TOP_MARGIN),
+            // SVG_R = SHORT_EDGE / 2
+            // NODE_PADDING = 20,
+            // D3PACK_W = SHORT_EDGE - self.PAGE_MARGIN;
+
+        // Update state corresponding to new width
+        self.el = el;
+
+        // self.pack = d3.pack()
+        //     .size([D3PACK_W, D3PACK_W])
+        //     .padding(NODE_PADDING);
+
+        self.tree = d3.tree()
+            .size([height-(2*self.BORDER_MARGIN)-self.TOP_MARGIN, width-(2*self.BORDER_MARGIN)])
+            .separation(function (left, right) {
+                return (left.parent.data.id === right.parent.data.id) ? 10 : 15;
+            });
+
+        // Modify width and height of existing svg element
+        var svgElement = d3.select("#tree-svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        // Reset the centering of bubbles-root
+        self.g = d3.select("#tree-root");
+            // .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
+
+        // Re-render according to new dimensions, only if data already rendered
+        if (self.treeData !== null) {
+            self.updateTreeView(false);
+        }
     },
 
     renderValue: function (el, rawData) {
@@ -1052,12 +1084,14 @@ HTMLWidgets.widget({
         if (oldVal) {
             // self.setLabelVisibility(oldVal);
             // self.setCircleFill(oldVal);
+            d3.select("#tree-node-"+oldVal.data.id).classed("selected", false);
         }
         if (newVal) {
             // self.setLabelVisibility(self.sourceD);
             // self.setCircleFill(self.sourceD);
             Shiny.onInputChange("topic.selected", self.sourceD.data.id);
             Shiny.onInputChange("topic.active", self.sourceD.data.id);
+            d3.select("#tree-node-"+self.sourceD.data.id).classed("selected", true);
         } else {
             Shiny.onInputChange("topic.selected", "");
             // Shiny.onInputChange("topic.active", ""); // TODO(tfs): Once hover is enabled on the tree, remove this

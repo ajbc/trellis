@@ -30,7 +30,7 @@ var selectedNodeID = -1;
 
 var assignments = "";
 
-var exportable; // TODO(tfs): Remove this when done debugging
+var exportable = {}; // TODO(tfs): Remove this when done debugging
 
 
 $(document).ready(function() {
@@ -326,6 +326,7 @@ function exitExportMode(msg) {
 }
 
 
+// TODO(tfs): Include styling: https://stackoverflow.com/questions/15181452/how-to-save-export-inline-svg-styled-with-css-from-browser-to-image-file
 function downloadActiveWidgetAsSVG() {
 	// Should probably be using 'let', but I don't think it's been fully adopted yet
 	var serializer = new XMLSerializer();
@@ -422,7 +423,7 @@ function cleanTopicInputs() {
 
 function handleRuntimeCluster(msg) {
 	Shiny.onInputChange("topic.selected", "");
-	exportable = msg;
+	exportable.msg = msg;
 }
 
 
