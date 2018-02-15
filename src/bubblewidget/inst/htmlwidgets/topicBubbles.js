@@ -604,11 +604,22 @@ HTMLWidgets.widget({
 
         if (makeNewGroup) {
             oldParentD = sourceD.parent;
-            selfRef.createNewGroup(targetD, sourceD);
-            selfRef.removeChildDFromParent(sourceD);
+            // selfRef.createNewGroup(targetD, sourceD);
+            // selfRef.removeChildDFromParent(sourceD);
 
-            // Any or all of the source's ancestors might be childless now.
-            // Walk up the tree and remove childless nodes.
+            // // Any or all of the source's ancestors might be childless now.
+            // // Walk up the tree and remove childless nodes.
+            // selfRef.removeChildlessNodes(oldParentD);
+
+            if (!sourceIsLeaf) {
+                nsToMove = [sourceD.data];
+                oldParentD = sourceD.parent;
+                selfRef.updateNsToMove(selfRef, nsToMove, oldParentD, targetD);
+            } else {
+                selfRef.createNewGroup(targetD, sourceD);
+                selfRef.removeChildDFromParent(sourceD);
+            }
+
             selfRef.removeChildlessNodes(oldParentD);
 
             return true;

@@ -121,7 +121,7 @@ HTMLWidgets.widget({
         // Root of a tree structure
         self.treeData = self.getTreeFromRawData(rawData);
 
-        self.updateTreeView(true);
+        self.updateTreeView(false);
     },
 
     updateTreeView: function (useTransition) {
@@ -221,6 +221,7 @@ HTMLWidgets.widget({
         paths.exit().remove();
         rects.exit().remove();
 
+        self.raiseAllRects();
         self.raiseAllLabels();
         self.raiseAllCircles();
 
@@ -372,9 +373,14 @@ HTMLWidgets.widget({
     },
 
 
+    raiseRect: function (selfRef, nodeID) {
+        var rootElemNode = $("#tree-root")[0];
+        rootElemNode.appendChild($("#tree-label-background-"+nodeID)[0]);  
+    },
+
+
     raiseLabel: function (selfRef, nodeID) {
         var rootElemNode = $("#tree-root")[0];
-        rootElemNode.appendChild($("#tree-label-background-"+nodeID)[0]);
         rootElemNode.appendChild($("#tree-label-"+nodeID)[0]);
     },
 
@@ -386,6 +392,17 @@ HTMLWidgets.widget({
         self.traverseTree(self.treeData, function (n) {
             var id = n.id;
             self.raiseNode(self, id);
+        });
+    },
+
+
+    raiseAllRects: function () {
+        var self = this,
+            rootElemNode = $("#tree-root")[0];
+
+        self.traverseTree(self.treeData, function (n) {
+            var id = n.id;
+            self.raiseRect(self, id);
         });
     },
 
@@ -419,11 +436,22 @@ HTMLWidgets.widget({
 
         if (makeNewGroup) {
             oldParentD = sourceD.parent;
-            selfRef.createNewGroup(targetD, sourceD);
-            selfRef.removeChildDFromParent(sourceD);
+            // selfRef.createNewGroup(targetD, sourceD);
+            // selfRef.removeChildDFromParent(sourceD);
 
-            // Any or all of the source's ancestors might be childless now.
-            // Walk up the tree and remove childless nodes.
+            // // Any or all of the source's ancestors might be childless now.
+            // // Walk up the tree and remove childless nodes.
+            // selfRef.removeChildlessNodes(oldParentD);
+
+            if (!sourceIsLeaf) {
+                nsToMove = [sourceD.data];
+                oldParentD = sourceD.parent;
+                selfRef.updateNsToMove(selfRef, nsToMove, oldParentD, targetD);
+            } else {
+                selfRef.createNewGroup(targetD, sourceD);
+                selfRef.removeChildDFromParent(sourceD);
+            }
+
             selfRef.removeChildlessNodes(oldParentD);
 
             return true;
@@ -533,7 +561,8 @@ HTMLWidgets.widget({
             });
 
         text.attr("x", function (d) {
-                var margin = 2 + (d3.select("#tree-node-" + d.data.id).classed("termional-tree-node") ? self.TERMINAL_NODE_RADIUS : self.COLLAPSED_NODE_RADIUS);
+                // var margin = 2 + (d3.select("#tree-node-" + d.data.id).classed("terminal-tree-node") ? self.TERMINAL_NODE_RADIUS : self.COLLAPSED_NODE_RADIUS);
+                var margin = 2 + self.COLLAPSED_NODE_RADIUS;
                 return d.x + margin;
             })
             .attr("y", function (d) {
@@ -563,27 +592,29 @@ HTMLWidgets.widget({
             });
 
         rects.attr("x", function (d) {
-                var margin = 2 + (d3.select("#tree-node-" + d.data.id).classed("terminal-tree-node") ? self.TERMINAL_NODE_RADIUS : self.COLLAPSED_NODE_RADIUS);
-                return d.x + margin;
+                // var margin = 2 + ((d3.select("#tree-node-" + d.data.id).classed("terminal-tree-node") ? self.TERMINAL_NODE_RADIUS : self.COLLAPSED_NODE_RADIUS));
+                // var margin = 2 + (d3.select("#tree-node-" + d.data.id).classed("termional-tree-node") ? self.TERMINAL_NODE_RADIUS : self.COLLAPSED_NODE_RADIUS);
+                var margin = 2 + self.COLLAPSED_NODE_RADIUS;
+                return d.x + margin - 2;
             })
             .attr("y", function (d) {
-            var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
+                var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
                 // Add 4 to adjust for margins. Probably a better way to calculate this.
                 return d.y - textheight + 4;
             })
             .attr("width", function (d) {
                 var textwidth = $("#tree-label-"+d.data.id)[0].getBBox().width;
-                return textwidth;
+                return textwidth + 4;
             })
             .attr("height", function (d) {
                 var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
                 return textheight;
             })
-            .each(function (d) {
-                var isTerminal = d3.select("#tree-node-" + d.data.id).classed("terminal-tree-node")
-                                || d3.select("#tree-node-" + d.data.id).classed("collapsed-tree-node");
-                d3.select(this).classed("hidden-tree-label-background", isTerminal);
-            });
+            // .each(function (d) {
+            //     var isTerminal = d3.select("#tree-node-" + d.data.id).classed("terminal-tree-node")
+            //                     || d3.select("#tree-node-" + d.data.id).classed("collapsed-tree-node");
+            //     d3.select(this).classed("hidden-tree-label-background", isTerminal);
+            // });
     },
 
 
@@ -598,13 +629,8 @@ HTMLWidgets.widget({
 
     // Ref: https://bl.ocks.org/d3noob/43a860bc0024792f8803bba8ca0d5ecd
     shapePath: function (s, t) {
-
-        // TODO(tfs): Copied from Ref for now
-        var path = `M ${s.x} ${s.y}
-                    C ${(s.x + t.x) / 2} ${s.y},
-                      ${(s.x + t.x) / 2} ${t.y},
-                      ${t.x} ${t.y}`
-
+        var path = "M " + s.x + " " + s.y;
+        path += " C " + (s.x + t.x) / 2 + " " + s.y + "," + (s.x + t.x) / 2 + " " + t.y + "," + t.x + " " + t.y;
 
         return path;
     },
