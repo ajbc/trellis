@@ -59,27 +59,39 @@ Check out our [tutorial video](https://youtu.be/ItFgB0pbkBg).
 
 ### File Format
 Upload an `.Rdata` file with three variables:
-- `processed`: output of the `textProcessor` function
-- `out`: output of the `prepDocuments` function
-- `model`: an STM model object
-- `doc.summaries`: a list of summaries for each document; will be used to display documents
+beta, theta, vocab, titles, filenames
+- `beta`: topic-word distributions in a K by V matrix
+- `theta`: document-topic distributions in a D by K matrix
+- `vocab`: the list of all V vocabular terms
+- `titles`: a list of D document titles (could be first 100 characters of the document if no ititles exist)
+- `filenames`: optional list of filenames (should be null otherwise) for each document
 
-See `dat/process.R` or the abbreviated example below.
+Optionally, specify a directory with the original documents to browse.
+
+To generate a single text file of all documents given one document per file, use the `dat/collapse_docs.py` script.  To use, specify first a file containing a list of filenames, and then a the directory fo files.  For example: `python collapse_docs.py wiki_titles.dat wiki`.  The resulting file can be used by `dat/process.R`, as shown below.
 
 #### Example
 ```
 library(stm)
 library(data.table)
 
-data <- as.data.frame(fread("dat/poliblogs2008.csv"))
-processed <- textProcessor(data$documents, metadata = data)
+titles <- as.data.frame(fread("wiki_titles.dat", header=FALSE, col.names=c("title")))
+docs <- as.data.frame(fread("wiki_all.dat", sep='\t', header=FALSE, col.names=c("documents")))
+
+processed <- textProcessor(docs$documents, metadata=titles)
 out <- prepDocuments(processed$documents, processed$vocab, processed$meta)
 model <- stm(documents=out$documents, vocab=out$vocab, K=100, init.type="Spectral")
-doc.summaries <- lapply(data$documents, substr, start=1, stop=300)
 
-save(processed, out, model, doc.summaries, file="dat/poliblogs2008.K100.RData")
+beta <- exp(model$beta$logbeta[[1]])
+theta <- model$theta
+vocab <- out$vocab
+titles <- gsub("_", " ", processed$meta$titles)
+filenames <- processed$meta$titles
+
+save(beta, theta, vocab, titles, filenames, file="wiki.K100.RData")
 ```
-Both `dat/poliblogs2008.csv` and `dat/poliblogs2008.K100.RData` are included as examples.
+
+Both the raw Wikipedia data and `wiki.K100.RData` are incuded as examples.
 
 ### Supported Interactions
 
