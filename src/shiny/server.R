@@ -37,8 +37,9 @@ function(input, output, session) {
     load(inFile$datapath)
 
     # session$sendCustomMessage("parsed", "Parsed");
-    return(list("model"=model, "out"=out, "processed"=processed, "doc.summaries"=doc.summaries))
+    # return(list("model"=model, "out"=out, "processed"=processed, "doc.summaries"=doc.summaries))
     # return(list("out"=out, "processed"=processed, "docSummaries"=doc.summaries))
+    return(list("beta"=beta, "theta"=theta, "filenames"=filenames, "titles"=titles, "vocab"=vocab))
   })
 
   observe({
@@ -124,13 +125,13 @@ function(input, output, session) {
     if (is.null(data()))
       return(NULL)
 
-    return(exp(data()$model$beta$logbeta[[1]]))
+    return(exp(data()$beta))
   })
 
   all.beta <- reactive({
     leaf.beta <- beta()
     lids <- leaf.ids()
-    weights <- colSums(data()$model$theta)
+    weights <- colSums(data()$theta)
 
     ab <- matrix(0, nrow=max.id(), ncol=ncol(leaf.beta))
 
@@ -258,7 +259,7 @@ function(input, output, session) {
       return(rv)
 
     for (k in seq(K())) {
-      title <- paste(data()$out$vocab[order(beta()[k,], decreasing=TRUE)][seq(5)], collapse=" ")
+      title <- paste(data()$vocab[order(beta()[k,], decreasing=TRUE)][seq(5)], collapse=" ")
       rv <- c(rv, title)
     }
 
@@ -483,7 +484,7 @@ function(input, output, session) {
 
   # TODO(tfs): This will need to be updated for hierarchical kmeans, I believe
   meta.theta <- reactive({
-    theta <- data()$model$theta
+    theta <- data()$theta
     mtheta <- matrix(0, nrow=nrow(theta), ncol=node.maxID())
     
     if (node.maxID() <= 0) {
@@ -512,7 +513,7 @@ function(input, output, session) {
 
   top.documents <- reactive({
     rv <- list()
-    theta <- data()$model$theta
+    theta <- data()$theta
     # meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
     for (topic in seq(K())) {
       rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:100]]
@@ -532,7 +533,7 @@ function(input, output, session) {
   })
 
   thetas.selected <- reactive({
-    topic.theta <- data()$model$theta
+    topic.theta <- data()$theta
     topic <- as.integer(input$topic.active)
 
     if (is.na(topic)) {
@@ -559,7 +560,7 @@ function(input, output, session) {
   # top.documents <- reactive({
   #   # TODO: this will need to be updated for hierarchy
   #   rv <- list()
-  #   theta <- data()$model$theta
+  #   theta <- data()$theta
   #   meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
   #   for (topic in seq(K())) {
   #     rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:10]]
@@ -682,7 +683,7 @@ function(input, output, session) {
     }
 
     marginals <- matrix(0, nrow=node.maxID(), ncol=ncol(beta()))
-    weights <- colSums(data()$model$theta)
+    weights <- colSums(data()$theta)
 
     # NOTE(tfs): This is less efficient than building from the base up,
     #            but there is currently no explicit tree-structured data storage
@@ -701,7 +702,7 @@ function(input, output, session) {
 
     rv <- c()
     for (cluster in seq(node.maxID())) {
-      title <- paste(data()$out$vocab[order(marginals[cluster,],
+      title <- paste(data()$vocab[order(marginals[cluster,],
                                             decreasing=TRUE)][seq(5)], collapse=" ")
 
       rv <- c(rv, title)
@@ -729,7 +730,7 @@ function(input, output, session) {
       ttl <- append(ttl, all.titles()[[ch]])
     }
 
-    wgt <- c(colSums(data()$model$theta))
+    wgt <- c(colSums(data()$theta))
 
     if (length(pid) > length(wgt)) {
       for (i in seq(length(pid) - length(wgt))) {
