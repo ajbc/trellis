@@ -39,7 +39,12 @@ function(input, output, session) {
     # session$sendCustomMessage("parsed", "Parsed");
     # return(list("model"=model, "out"=out, "processed"=processed, "doc.summaries"=doc.summaries))
     # return(list("out"=out, "processed"=processed, "docSummaries"=doc.summaries))
-    return(list("beta"=beta, "theta"=theta, "filenames"=filenames, "titles"=titles, "vocab"=vocab))
+    document.location <- NULL
+    if (!is.null(input$document.file.location)) {
+      document.location <- input$document.file.location
+    }
+
+    return(list("beta"=beta, "theta"=theta, "filenames"=filenames, "doc.titles"=titles, "document.location"=document.location, "vocab"=vocab))
   })
 
   observe({
@@ -139,16 +144,18 @@ function(input, output, session) {
       ab[l,] <- leaf.beta[l,]
     }
 
-    for (clusterID in seq(K()+1, max.id())) {
-      if (is.na(stateStore$assigns[[clusterID]])) { next }
+    if (max.id() > K()) {
+      for (clusterID in seq(K()+1, max.id())) {
+        if (is.na(stateStore$assigns[[clusterID]])) { next }
 
-      val <- 0
+        val <- 0
 
-      leaves <- leaf.ids()[[clusterID]]
+        leaves <- leaf.ids()[[clusterID]]
 
-      for (leafid in leaves) {
-        val <- leaf.beta[leafid,] * weights[leafid]
-        ab[clusterID,] <- ab[clusterID,] + val
+        for (leafid in leaves) {
+          val <- leaf.beta[leafid,] * weights[leafid]
+          ab[clusterID,] <- ab[clusterID,] + val
+        }
       }
     }
 
@@ -446,13 +453,34 @@ function(input, output, session) {
     return(HTML(out.string))
   })
 
+  selected.document <- reactive({
+    topic <- as.integer(input$topic.selected)
+    idx <- as.integer(input$document.details.docid)
+
+    if (is.na(topic) || is.na(idx)) { return() }
+
+    fname <- file.path(data()$document.location, data()$filenames[[idx]])
+
+    contents <- tryCatch({
+      readChar(fname, file.info(fname)$size)
+    }, warning = function (w) {
+      print("Warning while loading file")
+      return()
+    }, error = function (w) {
+      print("Error while loading file")
+      return()
+    })
+
+    return(contents)
+  })
+
   output$document.details <- renderUI({
     topic <- as.integer(input$topic.selected)
     idx <- as.integer(input$document.details.docid)
 
     if (is.na(topic) || is.na(idx)) { return() }
 
-    rv <- paste("<p>", top.documents()[[topic]][idx], "</p>")
+    rv <- paste("<p>", selected.document(), "</p>")
     return(HTML(rv))
   })
 
@@ -516,7 +544,8 @@ function(input, output, session) {
     theta <- data()$theta
     # meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
     for (topic in seq(K())) {
-      rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:100]]
+      # rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:100]]
+      rv[[topic]] <- data()$doc.titles[order(theta[,topic], decreasing=TRUE)[1:100]] # Top 100 documents
 
       # meta.theta[,assignments()[topic] - K()] <-
       #   meta.theta[,assignments()[topic] - K()] + theta[,topic]
@@ -524,7 +553,9 @@ function(input, output, session) {
 
     if (node.maxID() > 0) {
       for (meta.topic in seq(node.maxID())) {
-        rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta()[,meta.topic],
+        # rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta()[,meta.topic],
+                                                  # decreasing=TRUE)[1:100]]
+        rv[[meta.topic + K()]] <- data()$doc.titles[order(meta.theta()[,meta.topic],
                                                   decreasing=TRUE)[1:100]]
       }
     }
@@ -597,7 +628,7 @@ function(input, output, session) {
                   "\"></div>",
                   "<p class=\"document-summary-contents\">",
                   substr(docs[i], start=1, stop=75),
-                  "...</p>",
+                  "</p>",
                   "</div>")
     }
     return(rv)

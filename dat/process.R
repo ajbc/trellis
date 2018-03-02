@@ -1,7 +1,7 @@
 library(stm)
 library(data.table)
 
-titles <- as.data.frame(fread("wiki_titles.dat", header=FALSE, col.names=c("title")))
+titles <- as.data.frame(fread("wiki_titles.dat", header=FALSE, col.names=c("title"), encoding="UTF-8"))
 docs <- as.data.frame(fread("wiki_all.dat", sep='\t', header=FALSE, col.names=c("documents")))
 
 processed <- textProcessor(docs$documents, metadata=titles)
@@ -17,10 +17,14 @@ theta <- model$theta
 # the vocabulary for the topic model (V words)
 vocab <- out$vocab
 
-# the titles for the documents
-titles <- gsub("_", " ", processed$meta$titles)
+trim <- function (x) gsub("^(\\s|\\r|\\n|\\t)+|(\\s|\\n|\\r|\\t)+$", "", x)
 
-# the filenames
-filenames <- processed$meta$titles
+# the exact filenames
+filenames <- lapply(titles$title, trim)
+
+maketitle <- function (x) URLdecode(gsub("_", " ", x))
+
+# the space-substituted titles of the documents
+titles <- lapply(filenames, maketitle)
 
 save(beta, theta, vocab, titles, filenames, file="wiki.K100.RData")
