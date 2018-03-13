@@ -51,6 +51,12 @@ function(input, output, session) {
     shinyjs::toggleState("topic.start", !is.null(input$topic.file))
   })
 
+  # TODO(tfs): Not sure how these work
+  # shinyFileChoose(input, 'topic.file', session=session, roots=c(wd=getwd()), filetypes=c('', '.txt', '.RData'))
+  shinyFileChoose(input, 'modelfile', roots=c(home="~"), session=session, restrictions=system.file(package='base'))
+
+  shinyDirChoose(input, 'textlocation', session=session, roots=c(home="~"))
+
   observeEvent(input$topic.start, {
     session$sendCustomMessage(type="processingFile", "")
     req(data())

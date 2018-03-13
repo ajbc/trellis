@@ -3,17 +3,26 @@ library(shinyjs)
 library(htmlwidgets)
 library(topicBubbles)
 library(topicTree)
+library(shinyFiles)
 
 htmlTemplate("template.html",
     outputTitleName = titlePanel("Upload Dataset"),
-    inputFileUpload = fileInput('topic.file', '',
-                 placeholder = "Topic Model (.RData) or saved work (TBD)",
-                 buttonLabel = "Select",
-                 width = "90%"),
-    inputFileLocation  = fileInput('document.file.location', '',
-                 placeholder = "Folder containing original text files (optional)",
-                 buttonLabel = "Select",
-                 width = "90%"),
+    # inputFileUpload = fileInput('topic.file', '',
+    #              placeholder = "Topic Model (.RData) or saved work (TBD)",
+    #              buttonLabel = "Select",
+    #              width = "90%"),
+    # inputFileLocation  = fileInput('document.file.location', '',
+    #              placeholder = "Folder containing original text files (optional)",
+    #              buttonLabel = "Select",
+    #              width = "90%"),
+   
+    # NOTE(tfs): Names with "." in them appear to break shinyFiles
+    inputFileUpload = shinyFilesButton("modelfile", 'Topic Model',
+                      'Topic model or saved work (.RData)',
+                      FALSE),
+    inputFileLocation = shinyDirButton("textlocation", 'Text Files',
+                        'Folder containing original text files (optional)'),
+   
     inputDataName = textInput("topic.datasetName", "",
                placeholder="Name your dataset",
                width = "90%"),
