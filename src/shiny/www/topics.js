@@ -3,20 +3,19 @@ var DOCUMENT_LABEL = "Document";
 var TREE_LABEL = "Tree";
 var BUBBLE_LABEL = "Bubbles";
 
-var showingHelp = false; // This is probably just terrible AND not needed
+var showingHelp = false; // This is probably not needed
 var selectedView = BUBBLE_LABEL;
 var selectedViewTab
 var selectedLeftTab = DOCUMENT_LABEL;
 var data = null;
 var exportMode = false;
 var LEFT_BAR_WIDTH = 300;
-var activeWidget;
 var activeSelector;
 
 var assignments;
 
 // NOTE(tfs): These aren't actually set correctly at all. HTMLWidgets.widgets
-//            does not give the actual instance we care about.
+//            does not give the actual instance we care about (with access to data)
 var bubbleWidget;
 var treeWidget;
 var widgets = {};
@@ -30,9 +29,8 @@ var selectedNodeID = -1;
 
 var assignments = "";
 
-var exportable = {}; // TODO(tfs): Remove this when done debugging
 
-
+// Add listeners once document is ready
 $(document).ready(function() {
 	// Leave a little buffer for max width
 	$("#main-panel").css({ "max-width": ($(window).width() - (LEFT_BAR_WIDTH + 5)) + "px"});
@@ -70,11 +68,6 @@ $(document).ready(function() {
 		selectDocumentTab();
 	});
 
-	// $("#export-cancel-button").click(function(event) {
-	// 	event.preventDefault();
-	// 	Shiny.onInputChange("toggleExportMode")
-	// });
-
 	$("#export-svg-button").click(function(event) {
 		event.preventDefault();
 		downloadActiveWidgetAsSVG();
@@ -85,12 +78,13 @@ $(document).ready(function() {
 		cleanTopicInputs();
 	});
 
-
 	$("#document-details-offset").click(hideDocumentDetails);
 });
 
 
+// Add Shiny listeners once Shiny is ready
 $(document).on("shiny:sessioninitialized", function(event) {
+	// Initialize some shiny inputs
 	Shiny.onInputChange("topics", "");
 	Shiny.onInputChange("topic.active", "");
 	Shiny.onInputChange("topic.selected", "");
@@ -111,30 +105,17 @@ $(document).on("shiny:sessioninitialized", function(event) {
 
 	Shiny.addCustomMessageHandler("clearFileInputs", clearFileInputs);
 
-	for (var i = 0; i < HTMLWidgets.widgets.length; i++) {
-		switch (HTMLWidgets.widgets[i].name) {
-			case "topicBubbles":
-				bubbleWidget = HTMLWidgets.widgets[i];
-				break;
-		}
-	}
-
-	treeWidget = { resize: function (el, w, h) { console.log(el, w, h); } };
-
-	widgets[BUBBLE_LABEL] = bubbleWidget;
-	widgets[TREE_LABEL] = treeWidget;
-
+	// Initialize which view is selected (starts on bubble widget)
 	selectors[BUBBLE_LABEL] = BUBBLE_SELECTOR;
 	selectors[TREE_LABEL] = TREE_SELECTOR;
 
-	activeWidget = widgets[BUBBLE_LABEL];
-
-	// This is probably a terrible way of selecting the appropriate svg element
 	activeSelector = selectors[BUBBLE_LABEL];
 	Shiny.onInputChange("selectedView", BUBBLE_LABEL);
 });
 
 
+// Once "Start" button is pressed, disable "Start" button and display processing message.
+//     Then notify backend it can process input files
 function processInputFile(msg) {
 	console.log("Processing Files")
 	$("#topic\\.start").attr("disabled", true);
@@ -144,31 +125,13 @@ function processInputFile(msg) {
 }
 
 
-// function handleInitialAssignments(msg) {
-// 	var assigns = [];
-
-// 	// "child:parent,child:parent,child:parent..."
-// 	for (var i = 0; i < msg.length; i++) {
-// 		var newAssign = i + ":" + msg[i];
-// 		assigns.push(newAssign);
-// 	}
-
-// 	assignments = assigns.join(",");
-
-// 	Shiny.onInputChange("topics", assignments)
-// }
-
-
-function updateData(dataObject) {
-	data = dataObject;
-};
-
-
+// Switch to main view (from initial panel)
 function initializeMainView(msg) {
 	$("#doctab-document-container").css({ "height": ($(window).height() - $("#doctab-document-container").position().top) });
 };
 
 
+// Set shinyFiles input fields to null (for performance)
 function clearFileInputs(msg) {
 	console.log("Clearing file inputs");
 	Shiny.onInputChange("textlocation-modal", null);
@@ -178,6 +141,7 @@ function clearFileInputs(msg) {
 };
 
 
+// Handle clicking the bottom-right help button (toggling a popup help window)
 function toggleHelpButton() {
 	var helpbox = $("#help-box");
 	if (helpbox.hasClass("hidden-popup")) {
@@ -198,6 +162,7 @@ function toggleHelpButton() {
 //            "display: none;" is set. Alternately, set "suspendWhenHidden=FALSE"
 //            using outputOptions on the R side.
 //            Ref: https://groups.google.com/forum/#!topic/shiny-discuss/yxFuGgDOIuM
+// Select the bubble widget/view
 function selectBubbles() {
 	if (selectedView === BUBBLE_LABEL) {
 		return;
@@ -219,12 +184,12 @@ function selectBubbles() {
 	$("#bubbles-selector").attr("disabled", "disabled");
 	$("#tree-selector").removeAttr("disabled");
 	
-	activeWidget = widgets[BUBBLE_LABEL];
 	activeSelector = selectors[BUBBLE_LABEL];
 	Shiny.onInputChange("selectedView", BUBBLE_LABEL);
 };
 
 
+// Select the tree widget/view
 function selectTree() {
 	if (selectedView === TREE_LABEL) {
 		return;
@@ -246,12 +211,12 @@ function selectTree() {
 	$("#tree-selector").attr("disabled", "disabled");
 	$("#bubbles-selector").removeAttr("disabled");
 	
-	activeWidget = widgets[TREE_LABEL];
 	activeSelector = selectors[TREE_LABEL];
 	Shiny.onInputChange("selectedView", TREE_LABEL);
 };
 
 
+// Select the topic tab on left panel
 function selectTopicTab() {
 	if (selectedLeftTab === TOPIC_LABEL) {
 		return;
@@ -272,6 +237,7 @@ function selectTopicTab() {
 };
 
 
+// Select the document tab on left panel
 function selectDocumentTab() {
 	if (selectedLeftTab === DOCUMENT_LABEL) {
 		return;
@@ -292,12 +258,7 @@ function selectDocumentTab() {
 };
 
 
-function initializeData(initData) {
-	data = initData;
-	console.log(initData);
-};
-
-
+// Hide left panel and adjust controls
 function enterExportMode(msg) {
 	if (exportMode) {
 		return;
@@ -305,31 +266,26 @@ function enterExportMode(msg) {
 		$("#left-bar").addClass("left-content-export-mode");
 		$("#export-button-container").addClass("hidden");
 		$(".export-mode-control").removeClass("hidden");
-		// $("#main-panel").addClass("main-content-export-mode");
 		exportMode = true;
 		$("#main-panel").css({ "max-width": "unset" });
 		$("#main-panel").animate({ "width": "100vw" }, 500, function() {
-			// $("#main-panel").addClass("main-content-export-mode");
-			// bubbleWidget.resize();
 			$(window).trigger("resize"); // Not the cleanest solution, but seems to work
 		});
 	}
 }
 
 
+// Show left panel and adjust controls
 function exitExportMode(msg) {
 	if (exportMode) {
 		$("#left-bar").removeClass("left-content-export-mode");
 		$("#export-button-container").removeClass("hidden");
 		$(".export-mode-control").addClass("hidden");
-		// $("#main-panel").removeClass("main-content-export-mode");
 		exportMode = false;
 		var newWidth = Math.min($(window).width() - (LEFT_BAR_WIDTH + 5), 0.7 * $(window).width());
 		$("#main-panel").animate({ "width": newWidth }, 500, function() {
-			// $("#main-panel").removeClass("main-content-export-mode");
 			$("#main-panel").css({ "max-width": ($(window).width() - (LEFT_BAR_WIDTH + 5)) + "px"});
 			$("#main-panel").css({ "width": "70vw" });
-			// widgets[selectedView].resize($(""));
 			$(window).trigger("resize");
 		});
 	} else {
@@ -339,8 +295,9 @@ function exitExportMode(msg) {
 
 
 // TODO(tfs): Include styling: https://stackoverflow.com/questions/15181452/how-to-save-export-inline-svg-styled-with-css-from-browser-to-image-file
+// Create an svg string for download.
 function downloadActiveWidgetAsSVG() {
-	// Should probably be using 'let', but I don't think it's been fully adopted yet
+	// NOTE(tfs): Should probably be using 'let', but I don't think it's been fully adopted yet
 	var serializer = new XMLSerializer();
 	var sourceString = serializer.serializeToString($(activeSelector)[0]);
 
@@ -351,11 +308,10 @@ function downloadActiveWidgetAsSVG() {
 			.attr("target", "_blank");
 	$("#tmp-download-link")[0].click();
 	$("a#tmp-download-link").remove();
-
-	// Shiny.onInputChange("svgString", sourceString);
 }
 
 
+// Select topic tab on left panel
 function handleTopicSelection(selectedID) {
 	var needsCleaning = (selectedID !== selectedNodeID);
 
@@ -369,9 +325,8 @@ function handleTopicSelection(selectedID) {
 }
 
 
+// If needed, clean and show left panel topic tab controls
 function activateTopicTabInputs(needsCleaning) {
-	// if (selectedLeftTab !== TOPIC_LABEL) { return; }
-
 	if (needsCleaning) {
 		cleanTopicInputs();
 	}
@@ -382,9 +337,8 @@ function activateTopicTabInputs(needsCleaning) {
 }
 
 
+// If needed, clean and hide left panel topic tab controls
 function deactivateTopicTabInputs() {
-	// if (selectedLeftTab !== TOPIC_LABEL) { return; }
-
 	cleanTopicInputs();
 
 	$("#topic-controls-inputs-container").trigger("hide");
@@ -393,19 +347,20 @@ function deactivateTopicTabInputs() {
 }
 
 
+// Notify backend of document click, then display the contents of the document (provided by backend)
 function clickDocumentSummary(docID) {
-	console.log("yo?");
-	// cleanDocumentDetails();
 	Shiny.onInputChange("document.details.docid", docID);
 	displayDocumentDetails();
 }
 
 
+// Remove past html content for document details
 function cleanDocumentDetails() {
 	$("#document-details-content").html("");
 }
 
 
+// Show the div containing document details (title and content)
 function displayDocumentDetails() {
 	$("#document-details-container").trigger("show");
 	$("#document-details-container").removeClass("hidden");
@@ -413,6 +368,7 @@ function displayDocumentDetails() {
 }
 
 
+// Hide div containing document details (title and content)
 function hideDocumentDetails() {
 	$("#document-details-container").trigger("hide");
 	$("#document-details-container").addClass("hidden");
@@ -420,6 +376,7 @@ function hideDocumentDetails() {
 }
 
 
+// Remove values from left panel topic tab controls
 function cleanTopicInputs() {
 	// NOTE(tfs): Apparently using jquery to set val()
 	//            doesn't trigger an update to the input field for Shiny
@@ -433,35 +390,22 @@ function cleanTopicInputs() {
 }
 
 
+// Upon runtime clustering, clear selected topic field
 function handleRuntimeCluster(msg) {
-	Shiny.onInputChange("topic.selected", "");
-	exportable.msg = msg;
-}
-
-
-function handleRuntimeClusterError(err) {
-	console.log(err);
-}
-
-
-function handleNodeDeletion(msg) {
-	console.log(msg);
 	Shiny.onInputChange("topic.selected", "");
 	cleanTopicInputs();
 }
 
 
-// Shiny.addCustomMessageHandler("initialized", function(msg) {
-	// alert(msg);
-	// $(".initial").hide();
-	// $(".initial").css("visibility", "hidden");
-	// $("#left-content").css("visibility", "visible");
-	// $("#main-content").css("visibility", "visible");
-	// $(".initial").addClass("shinyjs-hide");
-	// $("#left-content").removeClass("shinyjs-hide");
-	// $("#main-content").removeClass("shinyjs-hide");
-	// $("#left-content").css("visibility", "visible");
-	// $("#main-content").css("visibility", "visible");
-	// $("#main-content").show();
-	// $("#left-content").show();
-// });
+// Log error during runtime clustering
+function handleRuntimeClusterError(err) {
+	console.log(err);
+}
+
+
+// Upon node deletion, clear selected topic field
+function handleNodeDeletion(msg) {
+	Shiny.onInputChange("topic.selected", "");
+	cleanTopicInputs();
+}
+

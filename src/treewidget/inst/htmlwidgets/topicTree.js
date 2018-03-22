@@ -1,12 +1,50 @@
+//==============================================================================
+// README
+//
+// Throughout this program, there are two types of nodes: raw data and D3 data.
+// The way D3's `hierarchy` functionality works is that it creates a tree from
+// the raw data and places each raw data node on a `data` property of each tree
+// node. In other words:
+//
+//     [D3 node].data === [Raw data node]
+//
+// Any time a node is referenced through D3, for example on a click event, D3
+// will pass you a D3 node. View-related properties, such as the (x, y)
+// coordinates of a node, are on D3 nodes.
+//
+// But relationships between nodes are specified by the raw data. D3 just
+// updates the view when the raw data changes. For example, if you want to merge
+// two nodes, do not touch D3 nodes. Instead, update the raw data and D3 will
+// handle rebinding and removing old nodes. For more on this pattern, see:
+//
+//     https://bl.ocks.org/mbostock/3808218
+//
+// More concretely, use the function `traveseTree` if you want to inspect every
+// raw data node. Then call `update` to update the data binding and view.
+//
+// Because this distinction is subtle and a little confusing, use the following
+// style rules:
+//
+//     - Use "n" to refer to raw data nodes.
+//     - Use "d" to refer to D3 nodes. Note that `d.data === n`.
+//     - Avoid "node" unless referring to the concept, e.g. `isRootNode(d)`.
+//==============================================================================
+
 // REF: http://bl.ocks.org/shubhgo/80323b7f3881f874c02f
 // REF: https://bl.ocks.org/d3noob/43a860bc0024792f8803bba8ca0d5ecd
 // REF: https://bl.ocks.org/d3noob/b024fcce8b4b9264011a1c3e7c7d70dc
 
 
 HTMLWidgets.widget({
+
+
+// Variables global to the `HTMLWidgets` instance.
+//------------------------------------------------------------------------------
+
     name: "topicTree",
     type: "output",
 
+    // Constant values
     PAGE_MARGIN: 10,
     TOP_MARGIN: 75,
     FONT_SIZE: 11,
@@ -20,6 +58,7 @@ HTMLWidgets.widget({
     MIN_EDGE_WIDTH: 1,
     MAX_EDGE_WIDTH: 10,
 
+    // Storage of data
     treeData: null,
     maxNodeWeight: 1,
 
@@ -49,7 +88,6 @@ HTMLWidgets.widget({
 
         self.g = svg.append("g")
             .attr("id", "tree-root");
-            // Maybe a transform, see if it can work without
 
         // Ref: https://github.com/d3/d3-hierarchy/blob/master/README.md#tree
         self.tree = d3.tree()
@@ -61,8 +99,6 @@ HTMLWidgets.widget({
         self.edgeWidthMap = d3.scaleLinear()
                             .domain([0, 1])
                             .range([self.MIN_EDGE_WIDTH, self.MAX_EDGE_WIDTH]);
-
-        exportable.treeWidget = self;
     },
 
 
@@ -78,17 +114,9 @@ HTMLWidgets.widget({
 
     resize: function (el, width, height) {
         var self = this;
-            // SHORT_EDGE = Math.min(width, height - self.TOP_MARGIN),
-            // SVG_R = SHORT_EDGE / 2
-            // NODE_PADDING = 20,
-            // D3PACK_W = SHORT_EDGE - self.PAGE_MARGIN;
 
         // Update state corresponding to new width
         self.el = el;
-
-        // self.pack = d3.pack()
-        //     .size([D3PACK_W, D3PACK_W])
-        //     .padding(NODE_PADDING);
 
         self.tree = d3.tree()
             .size([height-(2*self.BORDER_MARGIN)-self.TOP_MARGIN, width-(2*self.BORDER_MARGIN)])
@@ -103,7 +131,6 @@ HTMLWidgets.widget({
 
         // Reset the centering of bubbles-root
         self.g = d3.select("#tree-root");
-            // .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
 
         // Re-render according to new dimensions, only if data already rendered
         if (self.treeData !== null) {
@@ -145,8 +172,6 @@ HTMLWidgets.widget({
             d.x = tmpX;
         });
 
-        // NOTE(tfs): Slightly worried this will wipe out all the bubbles circles,
-        // in which case there MAY be a performance dip. Worth keeping an eye on.
         var circles = self.g.selectAll("circle")
             .data(nodes, self.constancy);
 
@@ -162,16 +187,13 @@ HTMLWidgets.widget({
         // Ref: https://stackoverflow.com/questions/38599930/d3-version-4-workaround-for-drag-origin
         var dragHandler = d3.drag()
             .subject(function (n) { return n; })
-            // .on("start", self.dragStartHandler(self))
             .on("drag", self.activeDragHandler(self))
             .on("end", self.dragEndHandler(self));
 
         circles.enter()
             .append("circle")
             .attr("class", "tree-node")
-            // .attr("r", self.CIRCLE_RADIUS)
             .attr("opacity", "1.0")
-            // .attr("fill", "blue")
             .attr("id", function (d) {
                 return "tree-node-" + d.data.id;
             })
@@ -226,23 +248,12 @@ HTMLWidgets.widget({
         self.raiseAllCircles();
 
         self.resizeAndReposition(useTransition);
-
-        // Sorts display order so that paths are below circles
-        // Ref: https://stackoverflow.com/questions/28243431/how-can-i-make-an-svg-circle-always-appear-above-my-graph-line-path
-        // self.g.selectAll("circle, path").sort(function (left, right) {
-        //     if (left.type === right.type) {
-        //         return 0;
-        //     } else {
-        //         return left.type === "circle" ? -1 : 1;
-        //     }
-        // });
     },
 
 
     // Returns a callback function, setting drag status to ``status``
     dragStatusSetter: function (status) {
         var setterCallback = function (n) {
-            // exportable = n;
             var nodeID = ["#tree-node", n.data.id].join("-");
             d3.select(nodeID).classed("dragged-node", status);
             var labelID = ["#tree-label", n.data.id].join("-");
@@ -266,14 +277,10 @@ HTMLWidgets.widget({
         var handler = function (d) {
             d3.event.sourceEvent.stopPropagation();
 
-            // var nodeID = ["#node", d.data.id].join("-");
 
             d3.select(this).data().forEach(selfRef.dragStatusSetter(true));
 
             selfRef.draggedNode = d.data.id;
-            // selfRef.dragSourceX = d3.select(this).attr("cx");
-            // selfRef.dragSourceY = d3.select(this).attr("cy");
-            // console.log(d);
 
             var coords = d3.mouse(this);
 
@@ -301,25 +308,13 @@ HTMLWidgets.widget({
 
                 selfRef.draggedNode = d.data.id;
 
-                // selfRef.dragSourceX = d3.select(this).attr("cx");
-                // selfRef.dragSourceY = d3.select(this).attr("cy");
-                // console.log(d);
-
-                // var coords = d3.mouse(this);
-
                 selfRef.dragPointer = selfRef.g.append("circle").attr("id", "drag-pointer").attr("r", 10).raise();
                 d3.select("#drag-pointer").attr("cx", coords[0]).attr("cy", coords[1]);
             }
 
-            // console.log(d3.mouse(this), d3.event.x, d3.event.y, d3.event.sourceEvent.x, d3.event.sourceEvent.y);
             d3.event.sourceEvent.stopPropagation();
 
-            // d3.select(this).attr("cx", n.x).attr("cy", n.y);
             d3.select("#drag-pointer").attr("cx", coords[0]).attr("cy", coords[1])
-
-            // var labelID = ["#label", this.id.split("-")[1]].join("-");
-
-            // d3.select(labelID).attr("transform", "translate("+n.x+","+n.y+")");
         }
 
         return handler;
@@ -494,35 +489,10 @@ HTMLWidgets.widget({
             rects = rects.transition().duration(MOVE_DURATION);
         }
 
-        // text.attr("transform", function (d) {
-        //         var x = (d.x),
-        //             y = (d.y);
-        //         // return "translate(" + (x + offset.left) + "," + (y + offset.top) + ")";
-        //         return "translate(" + x + "," + y + ")";
-        //     })
-
-        // text.selectAll("tspan")
-        //     .attr("y", function () {
-        //         var that = d3.select(this),
-        //             i = +that.attr("data-term-index"),
-        //             len = +that.attr("data-term-len");
-        //         // `- (len / 2) + 0.75` shifts the term down appropriately.
-        //         // `15 * k` spaces them out appropriately.
-        //         return (self.FONT_SIZE * (k / 2) + 3) * 1.2 * (i - (len / 2) + 0.75);
-        //     })
-        //     .style("font-size", function () {
-        //         return (self.FONT_SIZE * (k / 2) + 3) + "px";
-        //     });
-
         paths.attr("d", function (d) {
-                // exportable = d;
-                // var source = {x: d.source.x - self.edgeWidthMap(self.findEdgeSource(d)), y: d.source.y};
-                // var target = {x: d.target.x, y: d.target.y};
                 return self.shapePath(d, d.parent);
             })
             .attr("stroke-width", function (d) {
-                // exportable = self;
-                // return self.edgeWidthMap(d.data.weight / d.parent.data.weight);
                 return self.edgeWidthMap(d.data.weight);
             })
             .attr("fill", "none")
@@ -561,12 +531,10 @@ HTMLWidgets.widget({
             });
 
         text.attr("x", function (d) {
-                // var margin = 2 + (d3.select("#tree-node-" + d.data.id).classed("terminal-tree-node") ? self.TERMINAL_NODE_RADIUS : self.COLLAPSED_NODE_RADIUS);
                 var margin = 2 + self.COLLAPSED_NODE_RADIUS;
                 return d.x + margin;
             })
             .attr("y", function (d) {
-                // var halfHeight = $("#tree-label-" + d.data.id)[0].getBBox().height / 2;
                 return d.y + self.TEXT_HEIGHT_OFFSET;
             })
             .each(function (d) {
@@ -578,10 +546,6 @@ HTMLWidgets.widget({
                     return;
                 }
 
-                // if (!d.data.collapsed || !d.data.children || d.data.children <= 0) {
-                //     return;
-                // }
-
                 if (true || d.data.collapsed || d3.select("#tree-node-"+d.data.id).classed("terminal-tree-node")) {
                     var len = d.data.terms.length;
 
@@ -592,8 +556,6 @@ HTMLWidgets.widget({
             });
 
         rects.attr("x", function (d) {
-                // var margin = 2 + ((d3.select("#tree-node-" + d.data.id).classed("terminal-tree-node") ? self.TERMINAL_NODE_RADIUS : self.COLLAPSED_NODE_RADIUS));
-                // var margin = 2 + (d3.select("#tree-node-" + d.data.id).classed("termional-tree-node") ? self.TERMINAL_NODE_RADIUS : self.COLLAPSED_NODE_RADIUS);
                 var margin = 2 + self.COLLAPSED_NODE_RADIUS;
                 return d.x + margin - 2;
             })
@@ -610,21 +572,7 @@ HTMLWidgets.widget({
                 var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
                 return textheight;
             })
-            // .each(function (d) {
-            //     var isTerminal = d3.select("#tree-node-" + d.data.id).classed("terminal-tree-node")
-            //                     || d3.select("#tree-node-" + d.data.id).classed("collapsed-tree-node");
-            //     d3.select(this).classed("hidden-tree-label-background", isTerminal);
-            // });
     },
-
-
-
-
-
-
-
-
-
 
 
     // Ref: https://bl.ocks.org/d3noob/43a860bc0024792f8803bba8ca0d5ecd
@@ -657,18 +605,8 @@ HTMLWidgets.widget({
         var self = this;
         var d = n.data;
 
-        // if (d.children && d.children.length > 0) {
-        //     d.childStore = d.children;
-        //     d.children = [];
-        //     d.collapsed = true;
-        // }
-
         if (d.children && d.children.length > 0) {
             d.collapsed = true;
-            // self.traverseTree(d, function (node) {
-            //     if (node.id !== d.id) { self.setNodeDisplayStatus(node.id, true); }
-            // });
-            // self.setNodeDisplayStatus(d, true);
             d.children.forEach(function (child) {
                 self.setNodeDisplayStatus(child, true);
             });
@@ -683,19 +621,8 @@ HTMLWidgets.widget({
         var self = this;
         var d = n.data;
 
-        // if (d.childStore && d.childStore.length > 0) {
-        //     d.children = d.childStore;
-        //     d.childStore = null;
-        //     d.collapsed = false;
-        // }
-
         if (d.collapsed) {
             d.collapsed = false;
-            // self.traverseTree(d, function (node) {
-            //     if (node.id !== d.id) { self.setNodeDisplayStatus(node.id, false); }
-            // });
-
-            // self.setNodeDisplayStatus(d, false);
             d.children.forEach(function (child) {
                 self.setNodeDisplayStatus(child, false);
             });
@@ -727,25 +654,6 @@ HTMLWidgets.widget({
 
         return treeNodeClickHandler;
     },
-
-    // From: http://bl.ocks.org/shubhgo/80323b7f3881f874c02f
-    // findEdgeSource: function (link) {
-    //     var targetID = link.target.id;
-
-    //     var numChildren = link.source.children.length;
-    //     var widthAbove = 0;
-
-    //     for (var i = 0; i < numChildren; i++) {
-    //         if (link.source.children[i].id == targetID) {
-    //             widthAbove = widthAbove + link.source.children[i].size/2;
-    //             break;
-    //         } else {
-    //             widthAbove = widthAbove + link.source.children[i].size;
-    //         }
-    //     }
-
-    //     return link.source.size/2 - widthAbove;
-    // },
 
     updateNsToMove: function (selfRef, nsToMove, oldParentD, newParentD) {
         var newChildren = [];
@@ -824,7 +732,6 @@ HTMLWidgets.widget({
         // Assumes no broken connections, but does NOT assume that there are no empty IDs
         var maxID = srcData[srcData.length-1].nodeID;
 
-        // NOTE(tfs): I'm not entirely sure how references work in JS. This could break horribly
         // NOTE(tfs): When assigning to index out of bounds, JS arrays expand and include undefined entries.
         var nodes = [];
         nodes[0] = data;
@@ -857,28 +764,6 @@ HTMLWidgets.widget({
         self.edgeWidthMap = d3.scaleLinear()
                                 .domain([0, self.maxNodeWeight])
                                 .range([self.MIN_EDGE_WIDTH, self.MAX_EDGE_WIDTH]);
-
-        // For each data row add to the output tree.
-        // srcData.forEach(function (d) {
-        //     var parent = self.findParent(data, d.parentID, d.nodeID);
-
-        //     // Leaf node.
-        //     if (d.weight === 0) {
-        //         parent.children.push({
-        //             id: d.nodeID,
-        //             terms: d.title.split(" "),
-        //             children: []
-        //         });
-        //     } else if (parent !== null && parent.hasOwnProperty("children")) {
-        //         parent.children.push({
-        //             id: d.nodeID,
-        //             terms: d.title.split(" "),
-        //             weight: d.weight
-        //         });
-        //     }
-        // });
-
-
 
         return data;
     },
@@ -1093,12 +978,6 @@ HTMLWidgets.widget({
 
             self.setSource(targetD);
         } else {
-            // NOTE(tfs): Experimenting with different control schemes
-            // self.moveOrMerge(targetD, makeNewGroup);
-            // self.updateTopicAssignments(function() {
-            //     self.updateView(true);
-            // });
-
             self.setSource(targetD);
         }
     },
@@ -1108,19 +987,14 @@ HTMLWidgets.widget({
             oldVal = self.sourceD;
         self.sourceD = newVal;
         if (oldVal) {
-            // self.setLabelVisibility(oldVal);
-            // self.setCircleFill(oldVal);
             d3.select("#tree-node-"+oldVal.data.id).classed("selected", false);
         }
         if (newVal) {
-            // self.setLabelVisibility(self.sourceD);
-            // self.setCircleFill(self.sourceD);
             Shiny.onInputChange("topic.selected", self.sourceD.data.id);
             Shiny.onInputChange("topic.active", self.sourceD.data.id);
             d3.select("#tree-node-"+self.sourceD.data.id).classed("selected", true);
         } else {
             Shiny.onInputChange("topic.selected", "");
-            // Shiny.onInputChange("topic.active", ""); // TODO(tfs): Once hover is enabled on the tree, remove this
         }
     },
 

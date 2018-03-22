@@ -61,10 +61,7 @@ HTMLWidgets.widget({
     nodeInFocus: null,
     currCoords: null,
 
-    // Used to know when the user has changed the number of groups. In this
-    // scenario, we just completely re-initialize the widget.
-    // nGroups: null,
-
+    // HTML elements
     el: null,
     svg: null,
 
@@ -97,16 +94,6 @@ HTMLWidgets.widget({
 
         self.zoomHandler = zoomHandler;
 
-        // Create `svg` and root `g` elements.
-        // self.g = d3.select(el)
-        //     .append("svg")
-        //     .attr("width", self.DIAMETER)
-        //     .attr("height", self.DIAMETER)
-        //     .attr("id", "bubbles-svg")
-        //     .append("g")
-        //     .attr("id", "bubbles-root")
-        //     .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
-
         var svg = d3.select(el)
             .append("svg")
             .attr("width", self.DIAMETER)
@@ -119,7 +106,6 @@ HTMLWidgets.widget({
 
         self.g = svg.append("g")
             .attr("id", "bubbles-root")
-            // .attr("transform", "translate(" + SVG_R + "," + SVG_R + ")");
 
         // Create persistent `d3.pack` instance with radii accounting for
         // padding.
@@ -130,23 +116,18 @@ HTMLWidgets.widget({
         // Set depth-to-color mapping function.
         self.colorMap = d3.scaleLinear()
             .domain([-2, 2])
-            // .range(["hsl(155,30%,82%)", "hsl(155,66%,25%)"])
             .range(["hsl(215,100%,80%)", "hsl(215,70%,50%)"])
             .interpolate(d3.interpolateHcl);
 
         // Handle Shiny messages
         Shiny.addCustomMessageHandler("nodeDeleted", function(msg) { self.setSource(null); });
         Shiny.addCustomMessageHandler("runtimeClusterFinished", function(msg) { self.setSource(null); })
-
-        exportable.bubbleWidget = self;
     },
 
 
     zoomHandler: function (selfRef) {
         var handler = function () {
             exportable.zoomEvent = d3.event;
-            console.log("transform:", d3.event.transform);
-            // console.log("zoom event:", d3.event);
             selfRef.g.attr("transform", "translate(" + d3.event.transform.x + "," + d3.event.transform.y + ")" + "scale(" + d3.event.transform.k + ")");
             try {
                 d3.event.sourceEvent.stopPropagation();
@@ -213,18 +194,6 @@ HTMLWidgets.widget({
 
         self.treeData = self.getTreeFromRawData(rawData);
 
-        // TODO(tfs): Check to make sure this is accurate for hierarchical (I don't believe it is)
-        // nGroupsChanged = self.nGroups !== null
-        //     && self.nGroups !== self.treeData.children.length;
-        // if (nGroupsChanged) {
-        //     // self.reInitialize();
-        //     self.nGroups = self.treeData.children.length;
-        //     self.updateView(true);
-        // } else {
-        //     self.nGroups = self.treeData.children.length;
-        //     self.updateView(true);
-        // }
-
         self.updateView(true);
     },
 
@@ -252,7 +221,6 @@ HTMLWidgets.widget({
         // Ref: https://stackoverflow.com/questions/38599930/d3-version-4-workaround-for-drag-origin
         var dragHandler = d3.drag()
             .subject(function (n) { return n; })
-            // .on("start", self.dragStartHandler(self))
             .on("drag", self.activeDragHandler(self))
             .on("end", self.dragEndHandler(self));
 
@@ -275,37 +243,11 @@ HTMLWidgets.widget({
             })
             .on("click", function (d) {
                 d3.event.stopPropagation();
-                // var makeNewGroup = d3.event.shiftKey;
-                // nClicks++;
-                // if (nClicks === 1) {
-                //     timer = setTimeout(function () {
-                //         nClicks = 0;
-                //         self.zoom(root, d);
-                //     }, DBLCLICK_DELAY);
-                // } else {
-                //     clearTimeout(timer);
-                //     nClicks = 0;
-                //     self.selectNode(d, makeNewGroup);
-                // }
                 self.selectNode(d, false);
             })
-            // .on("dragstart", function (d) {
-            //     console.log("yo");
-            //     d3.event.stopPropagation();
-            //     console.log(d);
-            // })
-            // .on("drag", function (d) {
-            //     d3.event.stopPropagation();
-            //     console.log(d.x += d3.event.dx, d.y += d3.event.dy);
-            // })
-            // .on("dragend", function(d) {
-            //     d3.event.stopPropagation();
-            //     console.log("ended");
-            // })
             .on("mouseover", function (d) {
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id,
                     isRoot = self.isRootNode(d);
-                console.log(isRoot ? displayID : d.data.id);
                 Shiny.onInputChange("topic.active", isRoot ? displayID : d.data.id);
                 if (isRoot || self.isGroupInFocus(d)) {
                     return;
@@ -353,7 +295,6 @@ HTMLWidgets.widget({
     // Returns a callback function, setting drag status to ``status``
     dragStatusSetter: function (status) {
         var setterCallback = function (n) {
-            // exportable = n;
             var nodeID = ["#node", n.data.id].join("-");
             d3.select(nodeID).classed("dragged-node", status);
             var labelID = ["#label", n.data.id].join("-");
@@ -404,25 +345,6 @@ HTMLWidgets.widget({
                         oldScale = parseFloat(selfRef.g.attr("transform").split("scale(")[1].split(")")[0]);
                     }
 
-                    // var dx = d3.event.sourceEvent.clientX - selfRef.scrollOrigin.x;
-                    // var dy = d3.event.sourceEvent.clientY - selfRef.scrollOrigin.y;
-
-                    // // Handle scrolling
-                    // selfRef.scrollOffset.x += d3.event.dx * oldScale;
-                    // selfRef.scrollOffset.y += d3.event.dy * oldScale;
-
-                    // var translateString = "translate("+(selfRef.scrollOrigin.x + selfRef.scrollOffset.x);
-                    // translateString += ","+(selfRef.scrollOrigin.y + selfRef.scrollOffset.y) + ")";
-
-
-                    // var scaleString = "scale(" + oldScale + ")";
-
-                    // // selfRef.g.attr("transform", translateString+scaleString);
-
-                    // selfRef.g.call(selfRef.zoomHandler.translateTo, selfRef.scrollOffset.x, selfRef.scrollOffset.y);
-
-                    // TODO(tfs): Triggering a zoom event seems cleaner, but was running into problems passing dx,dy
-                    // selfRef.svg.call(selfRef.zoomHandler.translateBy, dx * oldScale, dy * oldScale);
                     selfRef.svg.call(selfRef.zoomHandler.translateBy, d3.event.sourceEvent.movementX / oldScale, d3.event.sourceEvent.movementY / oldScale);
 
                     selfRef.scrollOrigin = { x: d3.event.sourceEvent.clientX, y: d3.event.sourceEvent.clientY }
@@ -442,25 +364,13 @@ HTMLWidgets.widget({
 
                     selfRef.draggedNode = d.data.id;
 
-                    // selfRef.dragSourceX = d3.select(this).attr("cx");
-                    // selfRef.dragSourceY = d3.select(this).attr("cy");
-                    // console.log(d);
-
-                    // var coords = d3.mouse(this);
-
                     selfRef.dragPointer = selfRef.g.append("circle").attr("id", "drag-pointer").attr("r", 10).raise();
                     d3.select("#drag-pointer").attr("cx", coords[0]).attr("cy", coords[1]);
                 }
 
-                // console.log(d3.mouse(this), d3.event.x, d3.event.y, d3.event.sourceEvent.x, d3.event.sourceEvent.y);
                 d3.event.sourceEvent.stopPropagation();
 
-                // d3.select(this).attr("cx", n.x).attr("cy", n.y);
                 d3.select("#drag-pointer").attr("cx", coords[0]).attr("cy", coords[1])
-
-                // var labelID = ["#label", this.id.split("-")[1]].join("-");
-
-                // d3.select(labelID).attr("transform", "translate("+n.x+","+n.y+")");
             }
         }
 
@@ -509,38 +419,6 @@ HTMLWidgets.widget({
         return handler;
     },
 
-    // /* Zoom on click.
-    //  */
-    // zoom: function (root, d) {
-    //     var self = this,
-    //         userClickedSameNodeTwice = self.nodeInFocus === d,
-    //         userClickedDiffNode = self.nodeInFocus !== d;
-    //     if (self.isRootNode(d) || userClickedSameNodeTwice) {
-    //         self.zoomToNode(root);
-    //     } else if (userClickedDiffNode) {
-    //         self.zoomToNode(d);
-    //     }
-    // },
-
-    // /* Zoom to node utility function.
-    //  */
-    // zoomToNode: function (node) {
-    //     var self = this,
-    //         ZOOM_DURATION = 500,
-    //         coords = [node.x, node.y, node.r * 2 + self.PAGE_MARGIN];
-    //     self.nodeInFocus = node;
-    //     d3.transition()
-    //         .duration(ZOOM_DURATION)
-    //         .tween("zoom", function () {
-    //             var interp = d3.interpolateZoom(self.currCoords, coords);
-    //             return function (t) {
-    //                 // `tween()` will handle the transition for us, so we can
-    //                 // pass `useTransition = false`.
-    //                 self.positionAndResizeNodes(interp(t), false);
-    //             };
-    //         });
-    // },
-
     setDraggedNode: function (nodeD) {
         return;
     },
@@ -575,12 +453,6 @@ HTMLWidgets.widget({
 
             self.setSource(targetD);
         } else {
-            // NOTE(tfs): Experimenting with different control schemes
-            // self.moveOrMerge(targetD, makeNewGroup);
-            // self.updateTopicAssignments(function() {
-            //     self.updateView(true);
-            // });
-
             self.setSource(targetD);
         }
     },
@@ -603,13 +475,7 @@ HTMLWidgets.widget({
 
         if (makeNewGroup) {
             oldParentD = sourceD.parent;
-            // selfRef.createNewGroup(targetD, sourceD);
-            // selfRef.removeChildDFromParent(sourceD);
-
-            // // Any or all of the source's ancestors might be childless now.
-            // // Walk up the tree and remove childless nodes.
-            // selfRef.removeChildlessNodes(oldParentD);
-
+            
             if (!sourceIsLeaf) {
                 nsToMove = [sourceD.data];
                 oldParentD = sourceD.parent;
@@ -662,11 +528,6 @@ HTMLWidgets.widget({
             text = text.transition().duration(MOVE_DURATION);
         }
 
-        // circles.attr("transform", function (d) {
-        //         var x = (d.x - coords[0]) * k,
-        //             y = (d.y - coords[1]) * k;
-        //         return "translate(" + x + "," + y + ")";
-        //     })
         circles.attr("cx", function (d) {
                 return d.x;
             })
@@ -688,12 +549,6 @@ HTMLWidgets.widget({
                     y = d.y;
                 return "translate(" + x + "," + y + ")";
             })
-        // text.attr("x", function (d) {
-        //         return (d.x - coords[0]) * k;
-        //     })
-        //     .attr("y", function (d) {
-        //         return (d.y - coords[1]) * k;
-        //     })
             .attr("display", function (d) {
                 self.setLabelVisibility(d);
             })
@@ -723,8 +578,6 @@ HTMLWidgets.widget({
                 var that = d3.select(this),
                     i = +that.attr("data-term-index"),
                     len = +that.attr("data-term-len");
-                // `- (len / 2) + 0.75` shifts the term down appropriately.
-                // `15 * k` spaces them out appropriately.
                 return (self.FONT_SIZE * (k / 2) + 3) * 1.2 * (i - (len / 2) + 0.75);
             })
             .style("font-size", function () {
@@ -877,7 +730,6 @@ HTMLWidgets.widget({
         // Assumes no broken connections, but does NOT assume that there are no empty IDs
         var maxID = srcData[srcData.length-1].nodeID;
 
-        // NOTE(tfs): I'm not entirely sure how references work in JS. This could break horribly
         // NOTE(tfs): When assigning to index out of bounds, JS arrays expand and include undefined entries.
         var nodes = [];
         nodes[0] = data;
@@ -903,28 +755,6 @@ HTMLWidgets.widget({
                 cleanPoint.weight = rawPoint.weight;
             }
         }
-
-        // For each data row add to the output tree.
-        // srcData.forEach(function (d) {
-        //     var parent = self.findParent(data, d.parentID, d.nodeID);
-
-        //     // Leaf node.
-        //     if (d.weight === 0) {
-        //         parent.children.push({
-        //             id: d.nodeID,
-        //             terms: d.title.split(" "),
-        //             children: []
-        //         });
-        //     } else if (parent !== null && parent.hasOwnProperty("children")) {
-        //         parent.children.push({
-        //             id: d.nodeID,
-        //             terms: d.title.split(" "),
-        //             weight: d.weight
-        //         });
-        //     }
-        // });
-
-
 
         return data;
     },

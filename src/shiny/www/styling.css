@@ -18,10 +18,6 @@
  *                                                        *
  **********************************************************/
 
-/*.shinyjs-hide {
-     This is what shiny does 
-    display: none !important;
-}*/
 
 /* Probably not the best solution, but should guarantee nothing overflows/allows scrolling */
 html {
@@ -92,8 +88,6 @@ h3 {
     left: 25vw;
     width: 50%;      /* Fallback */
     width: 50vw;
-    /*height: 50%;     /* Fallback */*/
-    /*height: 50vh;*/
     height: auto;
 
     /* Taken from shiny defaults */
@@ -131,9 +125,6 @@ svg {
 
     text-align: center;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-
-    /* Shiny defaults */
-    /*box-shadow: inset 0 1px 1px rgba(0,0,0,.05);*/
 }
 
 span#dataset-upload-inputs .form-group {
@@ -209,8 +200,6 @@ span#kmeans-initialization-row2 .form-group label {
     height: 100vh;
     border-color: black;
     border-right-width: 2px;
-    /*background-color: lightblue;*/
-    /*background-color: var(--left-bar-bg-color, #fff);*/
     background-color: #fff;
     border-right-style: solid;
     float: left;
@@ -240,7 +229,6 @@ span#kmeans-initialization-row2 .form-group label {
     border-bottom-width: 2px;
     padding-bottom: 25px;
     padding-top: 10px;
-    /*background-color: lightgray;*/
     background-color: var(--left-bar-bg-color, gray);
 }
 
@@ -252,7 +240,6 @@ span#kmeans-initialization-row2 .form-group label {
 
 .left-bar-tab {
     background-color: var(--left-bar-tab-bg-color, gray);
-    /*background-color: lightgray;*/
     text-align: center;
     box-sizing: border-box;
     width: 50%;
@@ -267,7 +254,6 @@ span#kmeans-initialization-row2 .form-group label {
 
 
 #left-bar-topic-tab.active-left-bar-tab {
-    /*border-color: var(--left-bar-tab-bg-color, gray);*/
     border-color: #fff;
     background-color: #fff;
 }
@@ -280,7 +266,6 @@ span#kmeans-initialization-row2 .form-group label {
 
 
 #left-bar-document-tab.active-left-bar-tab {
-    /*border-color: var(--left-bar-tab-bg-color, gray);*/
     border-color: #fff;
     background-color: #fff;
 }
@@ -298,14 +283,12 @@ span#kmeans-initialization-row2 .form-group label {
 
 
 #left-bar-content-container {
-    /*overflow: scroll;*/
+
 }
 
 
 .document-container {
-    /*border-top: 1px solid black;*/
     overflow: scroll;
-    /*height: 65vh;*/
 }
 
 
@@ -317,7 +300,6 @@ span#kmeans-initialization-row2 .form-group label {
 
 .document-summary {
     border-bottom: 1px solid black;
-    /*border-top: 1px solid black;*/
     padding: 0px;
     overflow: hidden;
     height: 50px;
@@ -325,22 +307,8 @@ span#kmeans-initialization-row2 .form-group label {
     box-sizing: border-box;
 }
 
-/*
-.document-summary:first-child {
-    border-top: 1px solid black;
-}
-*/
-/*
-.document-summary:first-child:hover {
-    border-top: 0px;
-}
-*/
 
 .document-summary:hover {
-    /*border-top: 1px solid black;*/
-    /*border-bottom: 2px solid black;*/
-    /*border-top: 0px solid black;*/
-    /*border-bottom: 0px solid black;*/
     border-bottom: 1px solid black;
     border-top: 0px solid black;
 }
@@ -393,31 +361,6 @@ span#kmeans-initialization-row2 .form-group label {
 }
 
 
-/*
-#left-document-tab-cluster-title {
-    border-bottom: 1px solid black;
-}
-*/
-
-
-/*
-#left-topic-tab-cluster-title {
-    border-bottom: 1px solid black;
-}
-*/
-
-
-/*
-#topic-controls-inputs-container {
-    border-top: 1px solid black;
-}
-*/
-
-/*
-.document-summary:first-child {
-    border-top: 1px solid black;
-}
-*/
 
 /**********************************************************
  *                                                        *
@@ -451,6 +394,7 @@ span#kmeans-initialization-row2 .form-group label {
     opacity: 1.0;
 }
 
+
 #download-button-container {
     float: left;
     text-align: left;
@@ -459,9 +403,11 @@ span#kmeans-initialization-row2 .form-group label {
     opacity: 0.60;
 }
 
+
 #donwload-button-container:hover {
     opacity: 1.0;
 }
+
 
 #help-button-container {
     position: absolute;
@@ -476,9 +422,11 @@ span#kmeans-initialization-row2 .form-group label {
     user-select: none; /* Standard */
 }
 
+
 #help-button-container:hover {
     opacity: 1.0;
 }
+
 
 #help-button {
     -webkit-user-select: none; /* Safari */        
@@ -513,6 +461,7 @@ span#kmeans-initialization-row2 .form-group label {
     height: 100%;
 }
 
+
 #main-panel {
     position: absolute;
     right: 0px;
@@ -521,26 +470,19 @@ span#kmeans-initialization-row2 .form-group label {
     overflow: hidden;
 }
 
-/*
-d#main-panel.main-content-export-mode {
-    transition: 0.5s;
-    width: 100vw;
-    max-width: unset;
-    position: absolute;
-    right: 0px;
-}
-*/
 
 .main-control {
     z-index: 2;
     position: relative;
 }
 
+
 #export-mode-control-container {
     float: right;
     margin-top: 10px;
     margin-right: 15px;
 }
+
 
 .export-control btn {
     width: 42px;
@@ -583,9 +525,11 @@ d#main-panel.main-content-export-mode {
     z-index: 15;
 }
 
+
 .middle-tree-node {
     fill: lightblue;
 }
+
 
 .middle-tree-node:hover, .middle-tree-node.selected {
     stroke-width: 1px;
@@ -593,9 +537,11 @@ d#main-panel.main-content-export-mode {
     fill: blue;
 }
 
+
 .terminal-tree-node {
     fill: blue;
 }
+
 
 .terminal-tree-node:hover, .terminal-tree-node.selected {
     fill: darkblue;
@@ -603,9 +549,11 @@ d#main-panel.main-content-export-mode {
     stroke: black;
 }
 
+
 .collapsed-tree-node {
     fill: red;
 }
+
 
 .collapsed-tree-node:hover, .collapsed-tree-node.selected {
     fill: darkred;
@@ -613,15 +561,18 @@ d#main-panel.main-content-export-mode {
     stroke: black;
 }
 
+
 .hidden-tree-node {
     display: none;
     visibility: hidden;
 }
 
+
 .hidden-tree-path {
     display: none;
     visibility: hidden;
 }
+
 
 .hidden-tree-label {
     display: none;
@@ -701,8 +652,6 @@ d#main-panel.main-content-export-mode {
     left: 0px;
     top: 0px;
     z-index: 15;
-    /*background-color: gray;*/
-    /*opacity: 0.5;*/
 }
 
 

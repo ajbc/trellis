@@ -7,15 +7,7 @@ library(shinyFiles)
 
 htmlTemplate("template.html",
     outputTitleName = titlePanel("Upload Dataset"),
-    # inputFileUpload = fileInput('model.file', '',
-    #              placeholder = "Topic Model (.RData) or saved work (TBD)",
-    #              buttonLabel = "Select",
-    #              width = "90%"),
-    # inputFileLocation  = fileInput('document.file.location', '',
-    #              placeholder = "Folder containing original text files (optional)",
-    #              buttonLabel = "Select",
-    #              width = "90%"),
-   
+
     # NOTE(tfs): Names with "." in them appear to break shinyFiles
     inputFileUpload = shinyFilesButton("modelfile", 'Topic Model',
                       'Topic model or saved work (.RData)',

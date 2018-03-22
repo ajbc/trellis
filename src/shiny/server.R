@@ -10,15 +10,21 @@ library(xtable) # Used to sanitize output
 
 options(shiny.maxRequestSize=1e4*1024^2)
 
+# NOTE(tfs): Constants in use for now. The goal is to remove
+#            `num.documents.shown` in favor of dynamically loading
+#            more documents on the left panel as the user scrolls
 file.home <- "~"
 num.documents.shown <- 100
 
-# Always check whether the entry exists before accessing.
-#        Simpler than updating whenever clustering/nodes/etc. change
-
 function(input, output, session) {
+  # Initialize a single storage of state.
+  # This will serve as the ground truth for the logic/data of the tool
+  # assigns:
+  #    Structured as a list such that each child is an "index" and the corresponding value is its parent
+  #    NOTE: root is represented as "root"
   stateStore <- reactiveValues(manual.titles=list(), assigns=NULL)
 
+  # Parse the user-provided dataset name (from the initial panel)
   chosenDataName <- reactive({
     chosen <- input$topic.datasetName
     if (chosen != "") {
@@ -28,11 +34,12 @@ function(input, output, session) {
     }
   })
 
+  # Display user-provided dataset name
   output$topic.chosenName <- reactive({
     return(chosenDataName())
   })
 
-  # isolate(input$topic.file) # Really not sure how best to isolate these yet? Probably not necessary as everything should hide anyway
+  # Load data from provided model file and path to directory containing text files (if provided)
   data <- reactive({
     path.parts <- isolate(input$modelfile$files$`0`)
     if (is.null(path.parts))
@@ -45,11 +52,10 @@ function(input, output, session) {
       path <- file.path(path, part)
     }
 
+    # Loads `beta`, `theta`, `filenames`, `titles`, and `vocab`
     load(path)
 
-    # session$sendCustomMessage("parsed", "Parsed");
-    # return(list("model"=model, "out"=out, "processed"=processed, "doc.summaries"=doc.summaries))
-    # return(list("out"=out, "processed"=processed, "docSummaries"=doc.summaries))
+    # Parse path to text file directory
     document.location <- NULL
     if (!is.null(isolate(input$textlocation))) {
       document.location <- file.home
@@ -59,34 +65,42 @@ function(input, output, session) {
       }
     }
 
-    print(document.location)
-
+    # Tell frontend to initiate clearing of:
+    #     * input[["textlocation-modal"]]
+    #     * input[["textlocation"]]
+    #     * input[["modelfile-modal"]]
+    #     * input[["modelfile"]]
+    # To free up resources (shinyFiles seems to be fairly expensive/have a fairly high performance impact otherwise)
     session$sendCustomMessage(type="clearFileInputs", "")
 
     return(list("beta"=beta, "theta"=theta, "filenames"=filenames, "doc.titles"=titles, "document.location"=document.location, "vocab"=vocab))
   })
 
+  # Find the number of documents (titles) according to the loaded model file
   num.documents <- reactive({
     return(length(data()$doc.titles))
   })
 
+  # Handle enabling/disabling the "Start" button on the initial panel.
+  #        Model file must be provided, but `input$textlocation` is optional
   observe({
     shinyjs::toggleState("topic.start", !is.null(input$modelfile))
   })
 
-  # TODO(tfs): Not sure how these work really
-  # shinyFileChoose(input, 'topic.file', session=session, roots=c(wd=getwd()), filetypes=c('', '.txt', '.RData'))
+  # Setup shinyFiles for model file selection and text file directory selection
   shinyFileChoose(input, 'modelfile', roots=c(home=file.home), session=session, restrictions=system.file(package='base'))
-
   shinyDirChoose(input, 'textlocation', session=session, roots=c(home=file.home))
 
+  # On "Start", tell the frontend to disable "Start" button and render a message to the user
+  #             This is separated out to ensure it fires before shinyFiles
+  #             resource usage could potentially cause the message to not display.
   observeEvent(input$topic.start, {
     session$sendCustomMessage(type="processingFile", "")
   })
 
   # Triggered by topics.js handler for "processingFile", should remove race condition/force sequentiality
   observeEvent(input$start.processing, {
-    req(data())
+    req(data()) # Ensures that data() will finish running before displays transition on the frontend
 
     if (input$initialize.kmeans) {
       fit <- initial.kmeansFit()
@@ -95,30 +109,9 @@ function(input, output, session) {
       initAssigns <- c(rep(0, K()))
     }
 
-    # session$sendCustomMessage(type="initialAssignments", initAssigns)
-
     stateStore$assigns <- initAssigns
 
-    req(bubbles.data())
-
-    # gc()
-
-    # print("vvvvvvvvvvvvvvvvvvvvvvvvvvv")
-
-    # print(ls())
-
-    # print("---------------------------")
-
-    # print(names(input))
-
-    # print("---------------------------")
-
-    # if ("textlocation-modal" %in% names(input)) {
-    #   print(input[["textlocation-modal"]])
-    # }
-
-    # print("^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-
+    req(bubbles.data()) # Similarly ensures that bubbles.data() finishes running before displays transition
     shinyjs::hide(selector=".initial")
     shinyjs::show(selector=".left-content")
     shinyjs::show(selector=".main-content")
@@ -127,40 +120,39 @@ function(input, output, session) {
   })
 
 
+  # Observe that export button has been pressed, pass back to frontend
   observeEvent(input$enterExportMode, {
     session$sendCustomMessage("enterExportMode", "")
   })
 
 
+  # Observe that cancel button (for export) has been pressed, pass back to frontend
   observeEvent(input$exitExportMode, {
     session$sendCustomMessage("exitExportMode", "")  
   })
 
 
+  # When selected topic (e.g. when a bubble has been clicked) changes, notify frontend
   observeEvent(input$topic.selected, {
     session$sendCustomMessage("topicSelected", input$topic.selected)
   })
 
+
+  # When active topic (e.g. when a bubble has been hovered) changes, notify frontend
   observeEvent(input$topic.active, {
     session$sendCustomMessage("topicSelected", input$topic.selected)
   })
 
 
-  # output$downloadSVG = downloadHandler(
-  #   filename = function () { paste(paste(chosenDataName(), input$selectedView, sep="_"), "svg", sep=".") },
-  #   content = function (file) {
-  #     outString <- input$svgString
-  #     write(out, file=file, row.names=FALSE, quote=FALSE)
-  #   }
-  # )
-
-
+  # Returns the highest topic id number
   max.id <- reactive({
     # NOTE(tfs): max() returns NA if NA exists
     return(max(K(), max(stateStore$assigns[!is.na(stateStore$assigns)])))
   })
 
 
+  # Encodes the assignment/hierarchy structure as a string:
+  #      "[child]:[parent],[child]:[parent],..."
   assignString <- reactive({
     if (is.null(stateStore$assigns)) {
       return(NULL)
@@ -178,24 +170,30 @@ function(input, output, session) {
   })
 
 
+  # Shorter accessor for data()$beta
   beta <- reactive({
     if (is.null(data()))
       return(NULL)
 
-    return(exp(data()$beta))
+    return(data()$beta)
   })
 
+
+  # Because beta() only provides values for the initial K() topics,
+  #    calculate the beta values for all meta-topics/clusters
   all.beta <- reactive({
     leaf.beta <- beta()
     lids <- leaf.ids()
     weights <- colSums(data()$theta)
 
+    # Initialzie matrix for beta values
     ab <- matrix(0, nrow=max.id(), ncol=ncol(leaf.beta))
 
     for (l in seq(K())) {
       ab[l,] <- leaf.beta[l,]
     }
 
+    # Use beta values of leaves (intial topics) to calculate aggregate beta values for meta topics/clusters
     if (max.id() > K()) {
       for (clusterID in seq(K()+1, max.id())) {
         if (is.na(stateStore$assigns[[clusterID]])) { next }
@@ -214,6 +212,8 @@ function(input, output, session) {
     return(ab)
   })
 
+
+  # Number of initial topics in the model
   K <- reactive({
     if (is.null(data()))
       return(NULL)
@@ -221,6 +221,8 @@ function(input, output, session) {
     return(nrow(beta()))
   })
 
+  # Because the initial kmeans clustering of topics does not originate from a user input,
+  #         this separate method handles it.
   initial.kmeansFit <- reactive({
     if (is.null(beta())) {
       return(NULL)
@@ -233,11 +235,17 @@ function(input, output, session) {
     }
   })
 
-  observeEvent(input$clusterUpdate, {
-    print("TODO: should be more efficient for small/simple changes like shifting a single node")  
-  })
+  # TODO(tfs): For simple updates, we probably don't need to recreate all of assignments.
+  #            There should be a way to improve efficiency for small changes to the hierarchy.
+  # observeEvent(input$clusterUpdate, {
+  #   print("TODO: should be more efficient for small/simple changes like shifting a single node")  
+  # })
 
+  # Given that a hierarchy already exists (the widgets are already rendered),
+  #       initiate a new clustering that operates on the direct descendants of the selected node (if able).
+  #       Can also operate on direct descendants of the root.
   observeEvent(input$runtimeCluster, {
+    # Check that all conditions are met before performing clustering
     req(data())
 
     if (is.null(input$topic.selected)) {
@@ -249,29 +257,12 @@ function(input, output, session) {
 
     numNewClusters <- isolate(input$runtime.numClusters)
 
-    # TODO(tfs): This is the rough structure I want, but should use direct children only
-    # if (input$topic.selected == "") {
-    #   newFit <- kmeans(beta(), isolate(input$runtime.numClusters))
-    # } else {
-    #   if (length(selected.children()) <= numNewClusters) {
-    #     session$sendCustomMessage(type="runtimeClusterError", "Too few children for number of clusters")
-    #     return()
-    #   } else {
-    #     newFit <- kmeans(selected.childBetas(), isolate(input$runtime.numClusters))
-    #   }
-    # }
-
-    # msg = list(childIDs=selected.children(), fit=newFit$cluster)
-
-    # session$sendCustomMessage(type="runtimeCluster", msg)
-
-    # Handle root clustering exacltly the same as non-root clustering.
-    # TODO(tfs): Add a cluster delete function to compensate
     if (length(selected.children()) <= numNewClusters) {
       session$sendCustomMessage(type="runtimeClusterError", "Too few children for number of clusters")
       return()
     }
 
+    # Calculate a new fit for direct descendants of selected topic/cluster
     # NOTE(tfs): We probably don't need to isolate here, but I'm not 100% sure how observeEvent works
     newFit <- kmeans(selected.childBetas(), isolate(input$runtime.numClusters))
 
@@ -279,25 +270,30 @@ function(input, output, session) {
 
     maxOldID <- max.id()
 
+    # Add new clusters into assignments
     for (i in seq(numNewClusters)) {
       stateStore$assigns[[i + maxOldID]] = selectedTopic
     }
 
+    # Update assignments to reflect new clustering
     for (i in seq(length(childIDs))) {
       ch <- childIDs[[i]]
       pa <- newFit$cluster[[i]] + maxOldID
       stateStore$assigns[[ch]] = pa
     }
 
+    # Notify frontend of completion
     session$sendCustomMessage("runtimeClusterFinished", "SUCCESS")
   })
 
+  # Handle deletion of the selected cluster, triggered by a button on frontend
   observeEvent(input$deleteCluster, {
+    # Check for good input
     if (is.null(input$topic.selected) || input$topic.selected == "") { return() }
     topic = input$topic.selected
 
+    # DO NOT DELETE if selected topic is a leaf (initial cluster)
     if ((topic == 0) || (topic <= K())) { return() }
-
 
     childIDs <- children()[[topic]]
 
@@ -312,6 +308,8 @@ function(input, output, session) {
     session$sendCustomMessage("nodeDeleted", "SUCCESS")
   })
 
+
+  # Default titles (top 5 most probable words) for each of the initial topics
   titles <- reactive({
     rv <- c()
     if (is.null(data()))
@@ -325,471 +323,8 @@ function(input, output, session) {
     return(rv)
   })
 
-  topic.doctab.title <- reactive({
-    if (input$topic.active == "") {
-      return("Please Hover or Select a Topic")
-    }
 
-    topic <- as.integer(input$topic.active)
-
-    if (topic == 0) { return("[ROOT]") }
-
-    return(sanitize(all.titles()[topic], type="html"))
-  })
-
-  topic.topictab.title <- reactive ({
-    if (input$topic.selected == "") {
-      return("Please Select a Topic")
-    }
-
-    topic <- as.integer(input$topic.selected)
-
-    if (topic == 0) { return("[ROOT]") }
-
-    return(sanitize(all.titles()[topic], type="html"))
-  })
-
-  observeEvent(input$topics, {
-    if (is.null(input$topics) || input$topics == "" || input$topics == assignString()) { return() }
-    
-    node.ids <- c()
-    parent.ids <- c()
-
-    # for (pair in strsplit(input$topics, ',')[[1]]) {
-    for (pair in strsplit(input$topics, ',')[[1]]) {
-      ids <- strsplit(pair, ":")[[1]]
-      node.ids <- c(node.ids, as.integer(ids[[1]]))
-      parent.ids <- c(parent.ids, as.integer(ids[[2]]))
-    }
-
-    pids <- parent.ids[order(node.ids)]
-    cids <- node.ids[order(node.ids)]
-
-    # Clear old settings
-    stateStore$assigns <- c()
-
-    for (i in seq(length(cids))) {
-      stateStore$assigns[[cids[[i]]]] = pids[[i]]
-    }
-  })
-
-  # TODO(tfs): New structure proposal, to help with reclustering:
-  #            kmeans fits on backend send messages to frontend,
-  #            restructure the nodes and update a string on frontend,
-  #            linked as an input field. assignments then essentially
-  #            just reflects this input field.
-  # TODO(tfs): This will need to be updated for reclustering
-  # assignments <- reactive({
-  #   if (is.null(data())) {
-  #     return(c())
-  #   }
-
-  #   # # NOTE(tfs): SHOULD only occur on initialization
-  #   # # if (input$topics == "") {
-  #   # if (is.null(assignString()) || assignString() == "") {
-  #   #   if (input$initialize.kmeans) {
-  #   #     fit <- initial.kmeansFit()
-  #   #     initAssigns <- c(fit$cluster + K(), rep(0, input$initial.numClusters))
-  #   #   } else {
-  #   #     initAssigns <- c(rep(0, K()))
-  #   #   }
-
-  #   #   return(initAssigns)
-  #   # }
-
-  #   # node.ids <- c()
-  #   # parent.ids <- c()
-  #   # # for (pair in strsplit(input$topics, ',')[[1]]) {
-  #   # for (pair in strsplit(assignString(), ',')[[1]]) {
-  #   #   ids <- strsplit(pair, ":")[[1]]
-  #   #   node.ids <- c(node.ids, as.integer(ids[[1]]))
-  #   #   parent.ids <- c(parent.ids, as.integer(ids[[2]]))
-  #   # }
-
-  #   # # adjust ids for missing/deleted clusters
-  #   # # TODO: consider a more elegant solution (see also download)
-  #   # for (i in seq(max(parent.ids))) {
-  #   #   # if this id doesn't exist, add a dummy one
-  #   #   if (sum(node.ids==i) == 0) {
-  #   #     node.ids <- c(node.ids, i)
-  #   #     parent.ids <- c(parent.ids, 0)
-  #   #   }
-  #   # }
-
-  #   # ids <- parent.ids[order(node.ids)]
-
-  #   # # NOTE(tfs; 2017-10-12): If initial.numClusters was updated on the UI after
-  #   # #      nodes were manually assigned, input$topics will not be empty.
-  #   # #      However, the length of assignments in input$topics will
-  #   # #      correspond to the previous initial.numClusters, resulting in a
-  #   # #      crash unless we verify before returning here.
-  #   # # NOTE(tfs; 2018-01-22): State should be stored/updated better in input$topics
-  #   # #      after initialization. This should no longer be necessary.
-  #   # # if (length(ids) != (K() + input$initial.numClusters)) {
-  #   # #   return(c(fit$cluster + K(), rep(0, input$initial.numClusters)))
-  #   # # }
-
-  #   # return(ids)
-
-  #   return(stateStore$assigns)
-  # })
-
-  # Full storage of child IDs for each node (0 is root)
-  children <- reactive({
-    # req(assignments())
-    if (is.null(stateStore$assigns)) { return() }
-    childmap <- list()
-
-    n <- max.id()
-
-    # for (i in seq(length(assignments()))) {
-    #   childmap[[i]] <- c()
-    # }
-
-    for (ch in seq(n)) {
-      p <- stateStore$assigns[[ch]]
-      if (is.na(p)) { 
-        next
-      }
-      if (p == 0) {
-        if (!is.null(childmap$root)) {
-          # Root has already been initialized
-          childmap$root <- append(childmap$root, ch)
-        } else {
-          childmap$root <- c(ch)
-        }
-      } else {
-        if (p <= length(childmap) && !is.null(childmap[[p]])) {
-          childmap[[p]] <- append(childmap[[p]], ch)
-        } else {
-          childmap[[p]] <- c(ch)
-        }
-      }
-    }
-
-    return(childmap)
-  })
-
-  selected.children <- reactive({
-    req(children())
-    parentNode <- as.integer(input$topic.selected)
-    if (is.na(parentNode) || parentNode == 0) {
-      return(children()$root)
-    } else {
-      return(children()[[parentNode]])
-    }
-  })
-
-  # TODO(tfs): Adapt beta()[childIDs,], because beta() only provides betas for leaves
-  selected.childBetas <- reactive({
-    childIDs <- selected.children()
-
-    return(all.beta()[childIDs,])
-  })
-
-  # Returns the highest ID of a cluster, offset by the number of leaf nodes (K())
-  node.maxID <- reactive({
-    if (is.null(data())) {
-      return(0)
-    }
-
-    return(max.id() - K())
-  })
-
-  output$topic.doctab.summary <- renderUI({
-    # if (input$active == "")
-    #   return()
-
-    out.string <- paste("<hr/>\n<h3>Topic Summary</h3>\n",
-                        "<h4>", topic.doctab.title(), "</h4>\n", documents())
-    return(HTML(out.string))
-  })
-
-  selected.topic.fileorder <- reactive({
-    # TODO(tfs): NOW BREAKS IF NOTHING IS "SELECTED", JUST "ACTIVE"?
-    topic <- as.integer(input$topic.selected)
-    idx <- as.integer(input$document.details.docid)
-
-    if (is.na(topic) || is.na(idx)) { return() }
-
-    if (topic > K()) {
-      ordering <- order(meta.theta()[,topic-K()], decreasing=TRUE)
-    } else {
-      ordering <- order(data()$theta[,topic], decreasing=TRUE)
-    }
-
-    return(ordering)
-  })
-
-  selected.document <- reactive({
-    topic <- as.integer(input$topic.selected)
-    idx <- as.integer(input$document.details.docid)
-
-    if (is.na(topic) || is.na(idx)) { return() }
-
-    # TODO(tfs): Sort based on topic ordering
-    fname <- file.path(data()$document.location, data()$filenames[selected.topic.fileorder()[idx]])
-
-    contents <- tryCatch({
-      readChar(fname, file.info(fname)$size)
-    }, warning = function (w) {
-      print("Warning while loading file")
-      return()
-    }, error = function (w) {
-      print("Error while loading file")
-      return()
-    })
-
-    return(contents)
-  })
-
-  output$document.details.title <- renderUI({
-    topic <- as.integer(input$topic.selected)
-    idx <- as.integer(input$document.details.docid)
-
-    if (is.na(topic) || is.na(idx)) { return() }
-
-    title <- data()$doc.titles[selected.topic.fileorder()[idx]]
-
-    rv <- paste("<h4 id=\"document-details-title\" class=\"centered\">", sanitize(title, type="html") ,"</h4>")
-    return(HTML(rv))
-  })
-
-  output$document.details <- renderUI({
-    topic <- as.integer(input$topic.selected)
-    idx <- as.integer(input$document.details.docid)
-
-    if (is.na(topic) || is.na(idx)) { return() }
-
-    rv <- paste("<p>", sanitize(selected.document(), type="html"), "</p>")
-    return(HTML(rv))
-  })
-
-  leaf.ids <- reactive({
-    if (is.null(stateStore$assigns)) { return() }
-    leafmap <- list()
-
-    # Leaf set = original K() topics
-    for (ch in seq(K())) {
-      itrID <- ch
-
-      p <- stateStore$assigns[itrID]
-      if (is.na(p) || is.null(p)) { next } # Continue
-      while (p > 0) {
-        if (p <= length(leafmap) && !is.null(leafmap[[p]])) {
-          leafmap[[p]] <- append(leafmap[[p]], ch)
-        } else {
-          leafmap[[p]] <- c(ch)
-        }
-
-        itrID <- p
-
-        p <- stateStore$assigns[itrID]
-      }
-    }
-
-    return(leafmap)
-  })
-
-  # TODO(tfs): This will need to be updated for hierarchical kmeans, I believe
-  meta.theta <- reactive({
-    theta <- data()$theta
-    mtheta <- matrix(0, nrow=nrow(theta), ncol=node.maxID())
-    
-    if (node.maxID() <= 0) {
-      return(mtheta)
-    }
-
-    # for (topic in seq(K())) {
-    #   # rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:10]]
-
-    #   mtheta[,assignments()[topic] - K()] <-
-    #     mtheta[,assignments()[topic] - K()] + theta[,topic]
-    # }
-
-    for (clusterID in seq(K()+1, max.id())) {
-      if (clusterID > length(leaf.ids()) || is.null(leaf.ids()[[clusterID]])) { next }
-      
-      leaves <- leaf.ids()[[clusterID]]
-
-      for (leafID in leaves) {
-        mtheta[,clusterID-K()] <- mtheta[,clusterID-K()] + theta[,leafID]
-      }
-    }
-
-    return(mtheta)
-  })
-
-  last.shown.docidx <- reactive({
-    return(min(num.documents(), num.documents.shown))
-  })
-
-  top.documents <- reactive({
-    rv <- list()
-    theta <- data()$theta
-    # meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
-    for (topic in seq(K())) {
-      # rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:100]]
-      
-      rv[[topic]] <- data()$doc.titles[order(theta[,topic], decreasing=TRUE)[1:last.shown.docidx()]] # Top 100 documents
-
-      # meta.theta[,assignments()[topic] - K()] <-
-      #   meta.theta[,assignments()[topic] - K()] + theta[,topic]
-    }
-
-    if (node.maxID() > 0) {
-      for (meta.topic in seq(node.maxID())) {
-        # rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta()[,meta.topic],
-                                                  # decreasing=TRUE)[1:100]]
-        rv[[meta.topic + K()]] <- data()$doc.titles[order(meta.theta()[,meta.topic],
-                                                  decreasing=TRUE)[1:last.shown.docidx()]]
-      }
-    }
-
-    return(rv)
-  })
-
-  thetas.selected <- reactive({
-    topic.theta <- data()$theta
-    topic <- as.integer(input$topic.active)
-
-    if (is.na(topic)) {
-      return(list())
-    }
-
-    if (topic <= K()) {
-      # sorted <- sort.list(topic.theta[,topic], decreasing=TRUE)
-
-      # NOTE(tfs): I'm not very familiar with the way R does things,
-      #            but the above line does not produce values between 0 and 1.
-      #            The following line is really ugly and I'm sure is not the
-      #            best way to do this.
-      sorted <- topic.theta[,topic][order(topic.theta[,topic], decreasing=TRUE)]
-    } else {
-      # sorted <- sort.list(meta.theta()[,topic-K()], decreasing=TRUE)
-
-      sorted <- meta.theta()[,topic-K()][order(meta.theta()[,topic-K()], decreasing=TRUE)]
-    }
-
-    return(sorted)
-  })
-
-  # top.documents <- reactive({
-  #   # TODO: this will need to be updated for hierarchy
-  #   rv <- list()
-  #   theta <- data()$theta
-  #   meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
-  #   for (topic in seq(K())) {
-  #     rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:10]]
-
-  #     meta.theta[,assignments()[topic] - K()] <-
-  #       meta.theta[,assignments()[topic] - K()] + theta[,topic]
-  #   }
-
-  #   for (meta.topic in seq(length(assignments()) - K())) {
-  #     rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta[,meta.topic],
-  #                                               decreasing=TRUE)[1:10]]
-  #   }
-
-  #   return(rv)
-  # })
-
-  # Top documents for selected topic/group
-  documents <- reactive({
-    topic <- as.integer(input$topic.active)
-
-    if (is.na(topic) || topic == 0) {
-      return("")
-    }
-
-    docs <- top.documents()[[topic]]
-    thetas <- thetas.selected()
-    rv <- ""
-    # for (doc in top.documents()[[topic]]) {
-    for (i in 1:length(top.documents()[[topic]])) {
-      rv <- paste(rv, "<div class=\"document-summary\"",
-                  paste("onclick=\"clickDocumentSummary(", toString(i), ")\">", sep=""),
-                  "<div class=\"document-summary-fill\" style=\"width:",
-                  paste(as.integer(thetas[i] * 100), "%;", sep=""),
-                  "\"></div>",
-                  "<p class=\"document-summary-contents\">",
-                  sanitize(substr(docs[i], start=1, stop=75), type="html"),
-                  "</p>",
-                  "</div>")
-    }
-    return(rv)
-  })
-
-
-  output$topic.document.title <- renderUI({
-    return(HTML(topic.doctab.title()))
-  })
-
-
-  output$topic.documents <- renderUI({
-    return(HTML(documents()))
-  })  
-
-  # output$topic.documents <- renderUI({
-  #   # req(input$topic.active)
-  #   rv <- paste("<h4 id=\"left-document-tab-cluster-title\">",
-  #               topic.doctab.title(),
-  #               "</h4>",
-  #               "<div id=\"doctab-document-container\" class=\"topic-bar document-container\">",
-  #               documents(),
-  #               "</div>")
-
-  #   return(HTML(rv))
-  # })
-
-  output$topicTabTitle <- renderUI({
-    ostr <- paste("<h4 id=\"left-topic-tab-cluster-title\">", topic.topictab.title(), "</h4>")
-    return(HTML(ostr))
-  })
-
-  observeEvent(input$updateTitle, {
-    topic <- as.integer(input$topic.selected)
-
-    newTitle <- input$topic.customTitle
-    if (is.null(newTitle)) {
-      newTitle = ""
-    }
-
-    stateStore$manual.titles[[topic]] <- newTitle
-  })
-
-  all.titles <- reactive({
-    rv <- c()
-
-    # n <- length(stateStore$assigns)
-    n <- max.id()
-
-    ttl <- c(titles(), cluster.titles())
-
-    
-    for (i in seq(n)) {
-      # NOTE(tfs): Now separated this into a separate RV, allowing for easier processing
-      # mtIndex <- ((i + K() - 1) %% n) + 1 # Shifts by 1 to allow for modulus while 1-indexing
-      if (i > length(stateStore$manual.titles)
-      || is.null(stateStore$manual.titles[[i]])
-      || stateStore$manual.titles[[i]] == "") {
-        if (i > length(ttl) 
-        || is.null(ttl[[i]])
-        || i > length(stateStore$assigns)
-        || is.null(stateStore$assigns[[i]])) {
-          rv <- c(rv, "")
-        } else {
-          rv <- c(rv, ttl[[i]]) 
-        }
-      } else {
-        rv <- c(rv, stateStore$manual.titles[[i]])
-      }
-    }
-
-    return(rv)
-  })
-
-  # TODO: this may not work for deeper hierarchy; needs to be checked once implemented
+  # Default titles (top 5 most probable words) for each meta topic/cluster
   cluster.titles <- reactive({
     if (is.null(data())) {
       return(c())
@@ -828,6 +363,386 @@ function(input, output, session) {
     return(rv)
   })
 
+
+  # Display title for all topics and meta topics/clusters. Manual title if provided, else default title
+  all.titles <- reactive({
+    rv <- c()
+
+    n <- max.id()
+
+    ttl <- c(titles(), cluster.titles())
+
+    # Select correct title (manual if it exists, else default) for all topics and meta topics/clusters
+    for (i in seq(n)) {
+      if (i > length(stateStore$manual.titles)
+      || is.null(stateStore$manual.titles[[i]])
+      || stateStore$manual.titles[[i]] == "") {
+        if (i > length(ttl) 
+        || is.null(ttl[[i]])
+        || i > length(stateStore$assigns)
+        || is.null(stateStore$assigns[[i]])) {
+          rv <- c(rv, "")
+        } else {
+          rv <- c(rv, ttl[[i]]) 
+        }
+      } else {
+        rv <- c(rv, stateStore$manual.titles[[i]])
+      }
+    }
+
+    return(rv)
+  })
+
+  # Display title for currently active (e.g. hovered) topic
+  #         Document tab displays contents for any hovered OR selected topic.
+  topic.doctab.title <- reactive({
+    if (input$topic.active == "") {
+      return("Please Hover or Select a Topic")
+    }
+
+    topic <- as.integer(input$topic.active)
+
+    if (topic == 0) { return("[ROOT]") }
+
+    return(sanitize(all.titles()[topic], type="html"))
+  })
+
+  # Display title for currently selected (e.g. hovered) topic.
+  #         Topic tab does not display anything if no topic is selected.
+  topic.topictab.title <- reactive ({
+    if (input$topic.selected == "") {
+      return("Please Select a Topic")
+    }
+
+    topic <- as.integer(input$topic.selected)
+
+    if (topic == 0) { return("[ROOT]") }
+
+    return(sanitize(all.titles()[topic], type="html"))
+  })
+
+  # Handle changes to assignments from the frontend.
+  #     To maintain ground truth, update stateStore on the backend.
+  #     This ensures that data is consistent between widgets, as all output data is based solely
+  #      on the backend's ground truth `stateStore`
+  # Provided as a string encoding (same format as `assignString()`)
+  observeEvent(input$topics, {
+    if (is.null(input$topics) || input$topics == "" || input$topics == assignString()) { return() }
+    
+    node.ids <- c()
+    parent.ids <- c()
+
+    for (pair in strsplit(input$topics, ',')[[1]]) {
+      ids <- strsplit(pair, ":")[[1]]
+      node.ids <- c(node.ids, as.integer(ids[[1]]))
+      parent.ids <- c(parent.ids, as.integer(ids[[2]]))
+    }
+
+    pids <- parent.ids[order(node.ids)]
+    cids <- node.ids[order(node.ids)]
+
+    # Clear old settings
+    stateStore$assigns <- c()
+
+    for (i in seq(length(cids))) {
+      stateStore$assigns[[cids[[i]]]] = pids[[i]]
+    }
+  })
+
+
+  # Full storage of child IDs for each node (0 is root)
+  children <- reactive({
+    if (is.null(stateStore$assigns)) { return() }
+   
+    childmap <- list()
+
+    n <- max.id()
+
+    for (ch in seq(n)) {
+      p <- stateStore$assigns[[ch]]
+      if (is.na(p)) { 
+        next
+      }
+      if (p == 0) {
+        if (!is.null(childmap$root)) {
+          # Root has already been initialized
+          childmap$root <- append(childmap$root, ch)
+        } else {
+          childmap$root <- c(ch)
+        }
+      } else {
+        if (p <= length(childmap) && !is.null(childmap[[p]])) {
+          childmap[[p]] <- append(childmap[[p]], ch)
+        } else {
+          childmap[[p]] <- c(ch)
+        }
+      }
+    }
+
+    return(childmap)
+  })
+
+  # List of children for selected topic
+  selected.children <- reactive({
+    req(children())
+    parentNode <- as.integer(input$topic.selected)
+    if (is.na(parentNode) || parentNode == 0) {
+      return(children()$root)
+    } else {
+      return(children()[[parentNode]])
+    }
+  })
+
+  # Beta values for all children of selected topic
+  selected.childBetas <- reactive({
+    childIDs <- selected.children()
+
+    return(all.beta()[childIDs,])
+  })
+
+  # Returns the highest ID of any cluster, offset by the number of leaf nodes (K())
+  node.maxID <- reactive({
+    if (is.null(data())) {
+      return(0)
+    }
+
+    return(max.id() - K())
+  })
+
+  # Format HTML for list of documents sorted by topic relevance
+  output$topic.doctab.summary <- renderUI({
+    out.string <- paste("<hr/>\n<h3>Topic Summary</h3>\n",
+                        "<h4>", topic.doctab.title(), "</h4>\n", documents())
+    return(HTML(out.string))
+  })
+
+  # Returns the ordering of files for the selected topic
+  selected.topic.fileorder <- reactive({
+    # NOTE(tfs): The user should only be able to click on a document if a topic is selected,
+    #            But the distinction between selected and active topics may be an issue here
+    topic <- as.integer(input$topic.selected)
+    idx <- as.integer(input$document.details.docid)
+
+    if (is.na(topic) || is.na(idx)) { return() }
+
+    if (topic > K()) {
+      ordering <- order(meta.theta()[,topic-K()], decreasing=TRUE)
+    } else {
+      ordering <- order(data()$theta[,topic], decreasing=TRUE)
+    }
+
+    return(ordering)
+  })
+
+  # Returns the full text contents of a file that the user clicks
+  selected.document <- reactive({
+    topic <- as.integer(input$topic.selected)
+    idx <- as.integer(input$document.details.docid)
+
+    if (is.na(topic) || is.na(idx)) { return() }
+
+    fname <- file.path(data()$document.location, data()$filenames[selected.topic.fileorder()[idx]])
+
+    contents <- tryCatch({
+      readChar(fname, file.info(fname)$size)
+    }, warning = function (w) {
+      print("Warning while loading file")
+      return()
+    }, error = function (w) {
+      print("Error while loading file")
+      return()
+    })
+
+    return(contents)
+  })
+
+  # Returns the document title of the document clicked by the user
+  output$document.details.title <- renderUI({
+    topic <- as.integer(input$topic.selected)
+    idx <- as.integer(input$document.details.docid)
+
+    if (is.na(topic) || is.na(idx)) { return() }
+
+    title <- data()$doc.titles[selected.topic.fileorder()[idx]]
+
+    rv <- paste("<h4 id=\"document-details-title\" class=\"centered\">", sanitize(title, type="html") ,"</h4>")
+    return(HTML(rv))
+  })
+
+
+  # Formats the document (title and contents) clicked by the user.
+  output$document.details <- renderUI({
+    topic <- as.integer(input$topic.selected)
+    idx <- as.integer(input$document.details.docid)
+
+    if (is.na(topic) || is.na(idx)) { return() }
+
+    rv <- paste("<p>", sanitize(selected.document(), type="html"), "</p>")
+    return(HTML(rv))
+  })
+
+
+  # Mapping of each cluster to all of its descendant leaves (initial topics)
+  leaf.ids <- reactive({
+    if (is.null(stateStore$assigns)) { return() }
+    leafmap <- list()
+
+    # Leaf set = original K() topics
+    for (ch in seq(K())) {
+      itrID <- ch
+
+      p <- stateStore$assigns[itrID]
+      if (is.na(p) || is.null(p)) { next } # Continue
+      while (p > 0) {
+        if (p <= length(leafmap) && !is.null(leafmap[[p]])) {
+          leafmap[[p]] <- append(leafmap[[p]], ch)
+        } else {
+          leafmap[[p]] <- c(ch)
+        }
+
+        itrID <- p
+
+        p <- stateStore$assigns[itrID]
+      }
+    }
+
+    return(leafmap)
+  })
+
+  # Calculates theta values for all meta topics/clusters
+  meta.theta <- reactive({
+    theta <- data()$theta
+    mtheta <- matrix(0, nrow=nrow(theta), ncol=node.maxID())
+    
+    if (node.maxID() <= 0) {
+      return(mtheta)
+    }
+
+    for (clusterID in seq(K()+1, max.id())) {
+      if (clusterID > length(leaf.ids()) || is.null(leaf.ids()[[clusterID]])) { next }
+      
+      leaves <- leaf.ids()[[clusterID]]
+
+      for (leafID in leaves) {
+        mtheta[,clusterID-K()] <- mtheta[,clusterID-K()] + theta[,leafID]
+      }
+    }
+
+    return(mtheta)
+  })
+
+  # TODO(tfs): Phase this out in favor of dynamically displaying an increasing number
+  #            of document titles on the left panel
+  last.shown.docidx <- reactive({
+    return(min(num.documents(), num.documents.shown))
+  })
+
+  # List of document titles, sorted by topic relevance, for all topics and meta topics/clusters
+  top.documents <- reactive({
+    rv <- list()
+    theta <- data()$theta
+    # meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
+    for (topic in seq(K())) {
+      # rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:100]]
+      
+      rv[[topic]] <- data()$doc.titles[order(theta[,topic], decreasing=TRUE)[1:last.shown.docidx()]] # Top 100 documents
+
+      # meta.theta[,assignments()[topic] - K()] <-
+      #   meta.theta[,assignments()[topic] - K()] + theta[,topic]
+    }
+
+    if (node.maxID() > 0) {
+      for (meta.topic in seq(node.maxID())) {
+        # rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta()[,meta.topic],
+                                                  # decreasing=TRUE)[1:100]]
+        rv[[meta.topic + K()]] <- data()$doc.titles[order(meta.theta()[,meta.topic],
+                                                  decreasing=TRUE)[1:last.shown.docidx()]]
+      }
+    }
+
+    return(rv)
+  })
+
+  # Returns the theta values of all documents corresponding to the selected topic
+  thetas.selected <- reactive({
+    topic.theta <- data()$theta
+    topic <- as.integer(input$topic.active)
+
+    if (is.na(topic)) {
+      return(list())
+    }
+
+    if (topic <= K()) {
+      sorted <- topic.theta[,topic][order(topic.theta[,topic], decreasing=TRUE)]
+    } else {
+      sorted <- meta.theta()[,topic-K()][order(meta.theta()[,topic-K()], decreasing=TRUE)]
+    }
+
+    return(sorted)
+  })
+
+  # Top document titles for selected topic, formatted into HTML elements
+  documents <- reactive({
+    topic <- as.integer(input$topic.active)
+
+    if (is.na(topic) || topic == 0) {
+      return("")
+    }
+
+    docs <- top.documents()[[topic]]
+    thetas <- thetas.selected() # Used to show relative relevance to topic
+    rv <- ""
+
+    for (i in 1:length(top.documents()[[topic]])) {
+      rv <- paste(rv, "<div class=\"document-summary\"",
+                  paste("onclick=\"clickDocumentSummary(", toString(i), ")\">", sep=""),
+                  "<div class=\"document-summary-fill\" style=\"width:",
+                  paste(as.integer(thetas[i] * 100), "%;", sep=""),
+                  "\"></div>",
+                  "<p class=\"document-summary-contents\">",
+                  sanitize(substr(docs[i], start=1, stop=75), type="html"),
+                  "</p>",
+                  "</div>")
+    }
+    return(rv)
+  })
+
+
+  # Display the title of the selected or active topic (document tab)
+  output$topic.document.title <- renderUI({
+    return(HTML(topic.doctab.title()))
+  })
+
+
+  # Render the titles of top documents for the selected topic
+  output$topic.documents <- renderUI({
+    return(HTML(documents()))
+  })  
+
+
+  # Display the title of the selected topic (topic tab)
+  output$topicTabTitle <- renderUI({
+    ostr <- paste("<h4 id=\"left-topic-tab-cluster-title\">", topic.topictab.title(), "</h4>")
+    return(HTML(ostr))
+  })
+
+  # When user presses the update title button, store the update into backend stateStore
+  observeEvent(input$updateTitle, {
+    topic <- as.integer(input$topic.selected)
+
+    newTitle <- input$topic.customTitle
+    if (is.null(newTitle)) {
+      newTitle = ""
+    }
+
+    stateStore$manual.titles[[topic]] <- newTitle
+  })
+
+  # Aggregate and format data necessary for the bubble/tree widgets, in parallel lists:
+  #     parentID:    list of parent ids
+  #     nodeID:      list of child ids
+  #     weight:      list of node weights
+  #     title:       list of node titles
   bubbles.data <- reactive({
     if (is.null(data())) {
       return(NULL)
@@ -859,8 +774,10 @@ function(input, output, session) {
     return(rv)
   })
 
+  # Render bubble widget
   output$bubbles <- renderTopicBubbles({ topicBubbles(bubbles.data()) })
 
+  # Render tree widget
   output$tree <- renderTopicTree({ topicTree(bubbles.data()) })
 }
 
