@@ -6,8 +6,12 @@ library(data.table)
 library(htmlwidgets)
 library(topicBubbles)
 library(topicTree)
+library(xtable) # Used to sanitize output
 
 options(shiny.maxRequestSize=1e4*1024^2)
+
+file.home <- "~"
+num.documents.shown <- 100
 
 # Always check whether the entry exists before accessing.
 #        Simpler than updating whenever clustering/nodes/etc. change
@@ -30,35 +34,58 @@ function(input, output, session) {
 
   # isolate(input$topic.file) # Really not sure how best to isolate these yet? Probably not necessary as everything should hide anyway
   data <- reactive({
-    inFile <- input$topic.file
-    if (is.null(inFile))
+    path.parts <- isolate(input$modelfile$files$`0`)
+    if (is.null(path.parts))
       return(NULL)
 
-    load(inFile$datapath)
+    # Build full file name
+    path <- file.home
+
+    for (part in path.parts) {
+      path <- file.path(path, part)
+    }
+
+    load(path)
 
     # session$sendCustomMessage("parsed", "Parsed");
     # return(list("model"=model, "out"=out, "processed"=processed, "doc.summaries"=doc.summaries))
     # return(list("out"=out, "processed"=processed, "docSummaries"=doc.summaries))
     document.location <- NULL
-    if (!is.null(input$document.file.location)) {
-      document.location <- input$document.file.location
+    if (!is.null(isolate(input$textlocation))) {
+      document.location <- file.home
+
+      for (part in isolate(input$textlocation$path)) {
+        document.location <- file.path(document.location, part)
+      }
     }
+
+    print(document.location)
+
+    session$sendCustomMessage(type="clearFileInputs", "")
 
     return(list("beta"=beta, "theta"=theta, "filenames"=filenames, "doc.titles"=titles, "document.location"=document.location, "vocab"=vocab))
   })
 
-  observe({
-    shinyjs::toggleState("topic.start", !is.null(input$topic.file))
+  num.documents <- reactive({
+    return(length(data()$doc.titles))
   })
 
-  # TODO(tfs): Not sure how these work
-  # shinyFileChoose(input, 'topic.file', session=session, roots=c(wd=getwd()), filetypes=c('', '.txt', '.RData'))
-  shinyFileChoose(input, 'modelfile', roots=c(home="~"), session=session, restrictions=system.file(package='base'))
+  observe({
+    shinyjs::toggleState("topic.start", !is.null(input$modelfile))
+  })
 
-  shinyDirChoose(input, 'textlocation', session=session, roots=c(home="~"))
+  # TODO(tfs): Not sure how these work really
+  # shinyFileChoose(input, 'topic.file', session=session, roots=c(wd=getwd()), filetypes=c('', '.txt', '.RData'))
+  shinyFileChoose(input, 'modelfile', roots=c(home=file.home), session=session, restrictions=system.file(package='base'))
+
+  shinyDirChoose(input, 'textlocation', session=session, roots=c(home=file.home))
 
   observeEvent(input$topic.start, {
     session$sendCustomMessage(type="processingFile", "")
+  })
+
+  # Triggered by topics.js handler for "processingFile", should remove race condition/force sequentiality
+  observeEvent(input$start.processing, {
     req(data())
 
     if (input$initialize.kmeans) {
@@ -73,6 +100,25 @@ function(input, output, session) {
     stateStore$assigns <- initAssigns
 
     req(bubbles.data())
+
+    # gc()
+
+    # print("vvvvvvvvvvvvvvvvvvvvvvvvvvv")
+
+    # print(ls())
+
+    # print("---------------------------")
+
+    # print(names(input))
+
+    # print("---------------------------")
+
+    # if ("textlocation-modal" %in% names(input)) {
+    #   print(input[["textlocation-modal"]])
+    # }
+
+    # print("^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+
     shinyjs::hide(selector=".initial")
     shinyjs::show(selector=".left-content")
     shinyjs::show(selector=".main-content")
@@ -288,7 +334,7 @@ function(input, output, session) {
 
     if (topic == 0) { return("[ROOT]") }
 
-    return(all.titles()[topic])
+    return(sanitize(all.titles()[topic], type="html"))
   })
 
   topic.topictab.title <- reactive ({
@@ -300,7 +346,7 @@ function(input, output, session) {
 
     if (topic == 0) { return("[ROOT]") }
 
-    return(all.titles()[topic])
+    return(sanitize(all.titles()[topic], type="html"))
   })
 
   observeEvent(input$topics, {
@@ -459,13 +505,30 @@ function(input, output, session) {
     return(HTML(out.string))
   })
 
+  selected.topic.fileorder <- reactive({
+    # TODO(tfs): NOW BREAKS IF NOTHING IS "SELECTED", JUST "ACTIVE"?
+    topic <- as.integer(input$topic.selected)
+    idx <- as.integer(input$document.details.docid)
+
+    if (is.na(topic) || is.na(idx)) { return() }
+
+    if (topic > K()) {
+      ordering <- order(meta.theta()[,topic-K()], decreasing=TRUE)
+    } else {
+      ordering <- order(data()$theta[,topic], decreasing=TRUE)
+    }
+
+    return(ordering)
+  })
+
   selected.document <- reactive({
     topic <- as.integer(input$topic.selected)
     idx <- as.integer(input$document.details.docid)
 
     if (is.na(topic) || is.na(idx)) { return() }
 
-    fname <- file.path(data()$document.location, data()$filenames[[idx]])
+    # TODO(tfs): Sort based on topic ordering
+    fname <- file.path(data()$document.location, data()$filenames[selected.topic.fileorder()[idx]])
 
     contents <- tryCatch({
       readChar(fname, file.info(fname)$size)
@@ -480,13 +543,25 @@ function(input, output, session) {
     return(contents)
   })
 
+  output$document.details.title <- renderUI({
+    topic <- as.integer(input$topic.selected)
+    idx <- as.integer(input$document.details.docid)
+
+    if (is.na(topic) || is.na(idx)) { return() }
+
+    title <- data()$doc.titles[selected.topic.fileorder()[idx]]
+
+    rv <- paste("<h4 id=\"document-details-title\" class=\"centered\">", sanitize(title, type="html") ,"</h4>")
+    return(HTML(rv))
+  })
+
   output$document.details <- renderUI({
     topic <- as.integer(input$topic.selected)
     idx <- as.integer(input$document.details.docid)
 
     if (is.na(topic) || is.na(idx)) { return() }
 
-    rv <- paste("<p>", selected.document(), "</p>")
+    rv <- paste("<p>", sanitize(selected.document(), type="html"), "</p>")
     return(HTML(rv))
   })
 
@@ -545,13 +620,18 @@ function(input, output, session) {
     return(mtheta)
   })
 
+  last.shown.docidx <- reactive({
+    return(min(num.documents(), num.documents.shown))
+  })
+
   top.documents <- reactive({
     rv <- list()
     theta <- data()$theta
     # meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
     for (topic in seq(K())) {
       # rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:100]]
-      rv[[topic]] <- data()$doc.titles[order(theta[,topic], decreasing=TRUE)[1:100]] # Top 100 documents
+      
+      rv[[topic]] <- data()$doc.titles[order(theta[,topic], decreasing=TRUE)[1:last.shown.docidx()]] # Top 100 documents
 
       # meta.theta[,assignments()[topic] - K()] <-
       #   meta.theta[,assignments()[topic] - K()] + theta[,topic]
@@ -562,7 +642,7 @@ function(input, output, session) {
         # rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta()[,meta.topic],
                                                   # decreasing=TRUE)[1:100]]
         rv[[meta.topic + K()]] <- data()$doc.titles[order(meta.theta()[,meta.topic],
-                                                  decreasing=TRUE)[1:100]]
+                                                  decreasing=TRUE)[1:last.shown.docidx()]]
       }
     }
 
@@ -633,7 +713,7 @@ function(input, output, session) {
                   paste(as.integer(thetas[i] * 100), "%;", sep=""),
                   "\"></div>",
                   "<p class=\"document-summary-contents\">",
-                  substr(docs[i], start=1, stop=75),
+                  sanitize(substr(docs[i], start=1, stop=75), type="html"),
                   "</p>",
                   "</div>")
     }

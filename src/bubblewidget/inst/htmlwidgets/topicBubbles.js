@@ -305,6 +305,7 @@ HTMLWidgets.widget({
             .on("mouseover", function (d) {
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id,
                     isRoot = self.isRootNode(d);
+                console.log(isRoot ? displayID : d.data.id);
                 Shiny.onInputChange("topic.active", isRoot ? displayID : d.data.id);
                 if (isRoot || self.isGroupInFocus(d)) {
                     return;
@@ -391,8 +392,6 @@ HTMLWidgets.widget({
             coords = d3.mouse(this);
 
             if (d3.event.sourceEvent.altKey) {
-
-                console.log("!!!!: ", d3.event);
 
                 if (selfRef.scrollOrigin === null) {
                     // Set origin, do not update position

@@ -7,7 +7,7 @@ library(shinyFiles)
 
 htmlTemplate("template.html",
     outputTitleName = titlePanel("Upload Dataset"),
-    # inputFileUpload = fileInput('topic.file', '',
+    # inputFileUpload = fileInput('model.file', '',
     #              placeholder = "Topic Model (.RData) or saved work (TBD)",
     #              buttonLabel = "Select",
     #              width = "90%"),
@@ -45,5 +45,6 @@ htmlTemplate("template.html",
     inputDeleteCluster = actionButton("deleteCluster", "Delete"),
     outputBubbles = topicBubblesOutput("bubbles"),
     outputTree = topicTreeOutput("tree"),
+    outputDocumentDetailsTitle = htmlOutput("document.details.title"),
     outputDocumentDetails = htmlOutput("document.details")
 )

@@ -109,6 +109,8 @@ $(document).on("shiny:sessioninitialized", function(event) {
 
 	Shiny.addCustomMessageHandler("nodeDeleted", handleNodeDeletion);
 
+	Shiny.addCustomMessageHandler("clearFileInputs", clearFileInputs);
+
 	for (var i = 0; i < HTMLWidgets.widgets.length; i++) {
 		switch (HTMLWidgets.widgets[i].name) {
 			case "topicBubbles":
@@ -134,9 +136,11 @@ $(document).on("shiny:sessioninitialized", function(event) {
 
 
 function processInputFile(msg) {
+	console.log("Processing Files")
 	$("#topic\\.start").attr("disabled", true);
 	$("#init-message").removeClass("inplace-hidden-message");
 	$("#init-message").trigger("shown");
+	Shiny.onInputChange("start.processing", "");
 }
 
 
@@ -161,9 +165,17 @@ function updateData(dataObject) {
 
 
 function initializeMainView(msg) {
-	console.log("hi");
 	$("#doctab-document-container").css({ "height": ($(window).height() - $("#doctab-document-container").position().top) });
-}
+};
+
+
+function clearFileInputs(msg) {
+	console.log("Clearing file inputs");
+	Shiny.onInputChange("textlocation-modal", null);
+	Shiny.onInputChange("textlocation", null);
+	Shiny.onInputChange("modelfile-modal", null);
+	Shiny.onInputChange("modelfile", null);
+};
 
 
 function toggleHelpButton() {
