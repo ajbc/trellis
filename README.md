@@ -1,14 +1,11 @@
-# Topic Bubbles
+# Topic Aggregation Tool
 
 [Sign up for updates and give us feedback!](https://goo.gl/forms/HP7aTlMyMdKChaGi2)
 
-## Demo on Server
+This tool is intended to be run locally. It is impractical to upload thousands or tens of thousands of text files, so we use the `shinyFiles` package to access files locally. The tool will therefore not be functional if deployed to a remote server.
 
-We have a demo up on [shinyapps.io](https://bstewart.shinyapps.io/topicBubbles/)!
 
-Please note that this software is intended to be run locally.  The online demo may run much slower than a locally-hosted version.  Please see below for instructions on how to run the software locally.
-
-## Running locally
+## Setup
 
 ### Download
 
@@ -17,7 +14,7 @@ Clone the repo:
 git clone https://github.com/ajbc/topic-bubbles.git
 ```
 
-### Setup
+### Dependency Installation
 
 Install the dependencies in R:
 ```
@@ -27,25 +24,27 @@ install.packages("shiny")
 install.packages("shinyjs")
 install.packages("stm")
 install.packages("V8")
+install.packages("xtable")
+install.packages("shinyFiles")
 ```
 
 Install the htmlwidget for local use:
 ```
-devtools::install("src/htmlwidget")
-```
-
-Alternately, install the htmlwidget for remote deployment
-```
-devtools::install_github("ajbc/topic-bubbles", subdir="src/htmlwidget")
+devtools::install("src/bubblewidget")
+devtools::install("src/treewidget")
 ```
 
 ### Launching the demo
 
 #### Option 1: from [RStudio](https://www.rstudio.com)
+
 - open `src/shiny/server.R`
 - click `Run App`
 
+Note that the tool is designed to be run in a standard web browser, not through the RStudio Viewer Pane.
+
 #### Option 2: from R in terminal
+
 Run the following:
 ```
 library(shiny)
@@ -95,9 +94,11 @@ Both the raw Wikipedia data and `wiki.K100.RData` are incuded as examples.
 
 ### Supported Interactions
 
-- adjust the number of default clusters (note that this removes any manual adjustments, so do it first!)
-- *click* to zoom on a circle
-- *double-click* to select a circle (when nothing currently selected); selected circles turn blue
-- when you have a circle selected, *double-click* a target location to move or merge bubble (original topics move, clusters merge)
-- when you have a circle selected, *shift+double-click* to create a new subcluster that contains that circle
-- click the download button to download the manual hierarchical clustering
+- Renaming clusters and topics
+- Reclustering the children of a selected cluster
+- Deleting a cluster (all children become direct children of the cluster's parent)
+- Zooming and panning
+- Dragging and dropping to merge or move nodes within the hierarchy
+- Exporting an SVG image (not currently funcitoning properly for the tree view)
+- Clicking on a document in the lefthand panel to view the full text
+- (Tree view) Collapsing a node and its children
