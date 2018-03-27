@@ -127,7 +127,6 @@ HTMLWidgets.widget({
 
     zoomHandler: function (selfRef) {
         var handler = function () {
-            exportable.zoomEvent = d3.event;
             selfRef.g.attr("transform", "translate(" + d3.event.transform.x + "," + d3.event.transform.y + ")" + "scale(" + d3.event.transform.k + ")");
             try {
                 d3.event.sourceEvent.stopPropagation();
