@@ -613,12 +613,12 @@ span#kmeans-initialization-row2 .form-group label {
 
 #help-box {
     position: fixed;
-    top: 20vh;
-    left: 20vw;
-    width: 60vw;
-    height: 60vh;
+    top: 10vh;
+    left: 10vw;
+    width: 80vw;
+    height: 70vh;
     background-color: lightblue;
-    opacity: 0.8;
+    opacity: 1.0;
     text-align: center;
 
     border-color: black;
