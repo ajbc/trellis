@@ -74,19 +74,14 @@ function(input, output, session) {
 
     # Parse path to text file directory
     document.location <- NULL
-    print("yo")
     if (!is.null(isolate(input$textlocation))) {
       # document.location <- file.home
 
       # for (part in isolate(input$textlocation$path)) {
         # document.location <- file.path(document.location, part)
       # }
-      print("hi")
-      print(parseDirPath(c(home=file.home), isolate(input$textlocation)))
       document.location <- as.character(parseDirPath(c(home=file.home), isolate(input$textlocation)))
-      print(document.location)
     }
-    print("ending?")
 
     # Tell frontend to initiate clearing of:
     #     * input[["textlocation-modal"]]
@@ -95,7 +90,6 @@ function(input, output, session) {
     #     * input[["modelfile"]]
     # To free up resources (shinyFiles seems to be fairly expensive/have a fairly high performance impact otherwise)
     session$sendCustomMessage(type="clearFileInputs", "")
-    print("told to clear files")
     return(list("beta"=beta, "theta"=theta, "filenames"=filenames, "doc.titles"=titles, "document.location"=document.location, "vocab"=vocab))
   })
 
@@ -155,10 +149,8 @@ function(input, output, session) {
 
   # Triggered by topics.js handler for "processingFile", should remove race condition/force sequentiality
   observeEvent(input$start.processing, {
-    print("EXCITING")
     req(data()) # Ensures that data() will finish running before displays transition on the frontend
 
-    print("ALIVE")
     if (is.null(stateStore$assigns)) {
       if (input$initialize.kmeans) {
         fit <- initial.kmeansFit()
@@ -170,11 +162,7 @@ function(input, output, session) {
       stateStore$assigns <- initAssigns
     }
 
-    print("MORE LIFE")
-
     req(bubbles.data()) # Similarly ensures that bubbles.data() finishes running before displays transition
-    print(bubbles.data())
-    print("BUBBLED")
     shinyjs::hide(selector=".initial")
     shinyjs::show(selector=".left-content")
     shinyjs::show(selector=".main-content")
@@ -808,7 +796,6 @@ function(input, output, session) {
   #     title:       list of node titles
   bubbles.data <- reactive({
     if (is.null(data())) {
-      print("null data")
       return(NULL)
     }
 
