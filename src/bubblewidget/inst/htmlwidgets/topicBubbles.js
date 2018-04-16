@@ -185,9 +185,7 @@ HTMLWidgets.widget({
     renderValue: function (el, rawData) {
         // Shiny calls this function before the user uploads any data. We want
         // to just early-return in this case.
-        console.log(rawData);
         if (rawData.data === null) {
-            console.log("NULL RAW DATA");
             return;
         }
 
