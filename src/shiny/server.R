@@ -22,16 +22,11 @@ function(input, output, session) {
   # assigns:
   #    Structured as a list such that each child is an "index" and the corresponding value is its parent
   #    NOTE: root is represented as "root"
-  stateStore <- reactiveValues(manual.titles=list(), assigns=NULL)
+  stateStore <- reactiveValues(manual.titles=list(), assigns=NULL, dataname="Data")
 
   # Parse the user-provided dataset name (from the initial panel)
   chosenDataName <- reactive({
-    chosen <- input$topic.datasetName
-    if (chosen != "") {
-      return(chosen)
-    } else {
-      return("Dataset")
-    }
+    return(stateStore$dataname)
   })
 
   # Display user-provided dataset name
@@ -41,29 +36,57 @@ function(input, output, session) {
 
   # Load data from provided model file and path to directory containing text files (if provided)
   data <- reactive({
-    path.parts <- isolate(input$modelfile$files$`0`)
-    if (is.null(path.parts))
+    if ((is.null(isolate(input$modelfile))) && is.null())
       return(NULL)
 
     # Build full file name
-    path <- file.home
-
-    for (part in path.parts) {
-      path <- file.path(path, part)
-    }
+    path <- parseFilePaths(c(home=file.home), isolate(input$modelfile))
 
     # Loads `beta`, `theta`, `filenames`, `titles`, and `vocab`
-    load(path)
+    load(as.character(path$datapath))
+
+    # Optionally load pre-saved data
+    vals <- ls()
+
+    if ("dataName" %in% vals) {
+      stateStore$dataname <- dataName
+    }
+
+    if ("aString" %in% vals) {
+      newA <- c()
+
+      for (ch in seq(nrow(beta))) {
+        newA[[ch]] <- 0 # Will be overwritten, but ensures that at least all assignments to 0 are made
+      }
+
+      for (pair in strsplit(aString, ",")[[1]]) {
+        rel <- strsplit(pair, ":")[[1]]
+
+        newA[[as.integer(rel[[1]])]] <- as.integer(rel[[2]])
+      }
+
+      stateStore$assigns <- newA
+    }
+
+    if ("mantitles" %in% vals) {
+      stateStore$manual.titles <- mantitles
+    }
 
     # Parse path to text file directory
     document.location <- NULL
+    print("yo")
     if (!is.null(isolate(input$textlocation))) {
-      document.location <- file.home
+      # document.location <- file.home
 
-      for (part in isolate(input$textlocation$path)) {
-        document.location <- file.path(document.location, part)
-      }
+      # for (part in isolate(input$textlocation$path)) {
+        # document.location <- file.path(document.location, part)
+      # }
+      print("hi")
+      print(parseDirPath(c(home=file.home), isolate(input$textlocation)))
+      document.location <- as.character(parseDirPath(c(home=file.home), isolate(input$textlocation)))
+      print(document.location)
     }
+    print("ending?")
 
     # Tell frontend to initiate clearing of:
     #     * input[["textlocation-modal"]]
@@ -72,7 +95,7 @@ function(input, output, session) {
     #     * input[["modelfile"]]
     # To free up resources (shinyFiles seems to be fairly expensive/have a fairly high performance impact otherwise)
     session$sendCustomMessage(type="clearFileInputs", "")
-
+    print("told to clear files")
     return(list("beta"=beta, "theta"=theta, "filenames"=filenames, "doc.titles"=titles, "document.location"=document.location, "vocab"=vocab))
   })
 
@@ -89,29 +112,69 @@ function(input, output, session) {
 
   # Setup shinyFiles for model file selection and text file directory selection
   shinyFileChoose(input, 'modelfile', roots=c(home=file.home), session=session, restrictions=system.file(package='base'))
-  shinyDirChoose(input, 'textlocation', session=session, roots=c(home=file.home))
+  shinyDirChoose(input, 'textlocation', roots=c(home=file.home), session=session, restrictions=system.file(package='base'))
+  shinyFileSave(input, 'savedata', roots=c(home=file.home), session=session, restrictions=system.file(package='base'))
+
+  observeEvent(input$savedata, {
+    if (is.null(input$savedata)) {
+      return(NULL)
+    }
+
+    # All values to be saved
+    sp <- parseSavePath(c(home=file.home), input$savedata)
+    file <- as.character(sp$datapath)
+    beta <- data()$beta
+    theta <- data()$theta
+    filenames <- data()$filenames
+    titles <- data()$doc.titles
+    vocab <- data()$vocab
+    aString <- assignString()
+    mantitles <- stateStore$manual.titles
+    dataName <- chosenDataName()
+
+    save(beta=beta, theta=theta, filenames=filenames, titles=titles,
+          vocab=vocab, assignString=aString, manual.titles=mantitles,
+          dataName=dataName, file=file)
+
+    session$sendCustomMessage(type="clearSaveInput", "")
+  })
 
   # On "Start", tell the frontend to disable "Start" button and render a message to the user
   #             This is separated out to ensure it fires before shinyFiles
   #             resource usage could potentially cause the message to not display.
   observeEvent(input$topic.start, {
+    chosen <- input$topic.datasetName
+    if (chosen == "") {
+      chosen <- "Data"
+    }
+
+    stateStore$dataname <- chosen
+
     session$sendCustomMessage(type="processingFile", "")
   })
 
   # Triggered by topics.js handler for "processingFile", should remove race condition/force sequentiality
   observeEvent(input$start.processing, {
+    print("EXCITING")
     req(data()) # Ensures that data() will finish running before displays transition on the frontend
 
-    if (input$initialize.kmeans) {
-      fit <- initial.kmeansFit()
-      initAssigns <- c(fit$cluster + K(), rep(0, input$initial.numClusters))
-    } else {
-      initAssigns <- c(rep(0, K()))
+    print("ALIVE")
+    if (is.null(stateStore$assigns)) {
+      if (input$initialize.kmeans) {
+        fit <- initial.kmeansFit()
+        initAssigns <- c(fit$cluster + K(), rep(0, input$initial.numClusters))
+      } else {
+        initAssigns <- c(rep(0, K()))
+      }
+
+      stateStore$assigns <- initAssigns
     }
 
-    stateStore$assigns <- initAssigns
+    print("MORE LIFE")
 
     req(bubbles.data()) # Similarly ensures that bubbles.data() finishes running before displays transition
+    print(bubbles.data())
+    print("BUBBLED")
     shinyjs::hide(selector=".initial")
     shinyjs::show(selector=".left-content")
     shinyjs::show(selector=".main-content")
@@ -745,6 +808,7 @@ function(input, output, session) {
   #     title:       list of node titles
   bubbles.data <- reactive({
     if (is.null(data())) {
+      print("null data")
       return(NULL)
     }
 

@@ -139,7 +139,9 @@ HTMLWidgets.widget({
     },
 
     renderValue: function (el, rawData) {
+        console.log(rawData);
         if (rawData === null) {
+            console.log("NULL RAW DATA");
             return;
         }
 
