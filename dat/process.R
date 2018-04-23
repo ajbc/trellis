@@ -1,8 +1,8 @@
 library(stm)
 library(data.table)
 
-titles <- as.data.frame(fread("wiki_titles.dat", header=FALSE, col.names=c("title"), encoding="UTF-8"))
-docs <- as.data.frame(fread("wiki_all.dat", sep='\t', header=FALSE, col.names=c("documents")))
+titles <- as.data.frame(fread("wiki_small_titles.dat", header=FALSE, col.names=c("title"), encoding="UTF-8"))
+docs <- as.data.frame(fread("wiki_small_all.dat", sep='\t', header=FALSE, col.names=c("documents")))
 
 processed <- textProcessor(docs$documents, metadata=titles)
 out <- prepDocuments(processed$documents, processed$vocab, processed$meta)
@@ -27,4 +27,4 @@ maketitle <- function (x) URLdecode(gsub("_", " ", x))
 # the space-substituted titles of the documents
 titles <- lapply(filenames, maketitle)
 
-save(beta, theta, vocab, titles, filenames, file="wiki.K100.RData")
+save(beta, theta, vocab, titles, filenames, file="wiki.small.K100.RData")
