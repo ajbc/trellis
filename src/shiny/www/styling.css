@@ -233,6 +233,11 @@ span#kmeans-initialization-row2 .form-group label {
 }
 
 
+#topic-controls-inputs-container {
+    margin-left: 5px;
+}
+
+
 #chosen-dataset-name {
     height: 28px;
 }
