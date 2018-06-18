@@ -22,6 +22,9 @@ function(input, output, session) {
   # assigns:
   #    Structured as a list such that each child is an "index" and the corresponding value is its parent
   #    NOTE: root is represented as "root"
+  # TODO(tfs; 2018-06-18): Add storage for collapsed nodes here if moving to backend.
+  #    Alternately, use strictly front-end systems. If only front-end, then no storage (e.g. save)
+  #    However, front-end only state storage would be much faster for the visualizations.
   stateStore <- reactiveValues(manual.titles=list(), assigns=NULL, dataname="Data")
 
   # Parse the user-provided dataset name (from the initial panel)
