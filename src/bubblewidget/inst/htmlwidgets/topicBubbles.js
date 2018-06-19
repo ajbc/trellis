@@ -776,10 +776,10 @@ HTMLWidgets.widget({
                 assignments.push(childN.id + ":" + n.id);
             });
         });
-        Shiny.addCustomMessageHandler(EVENT, function (newTopics) {
-            self.updateTopicView(newTopics);
-            callback();
-        });
+        // Shiny.addCustomMessageHandler(EVENT, function (newTopics) {
+        //     self.updateTopicView(newTopics);
+        //     callback();
+        // });
         Shiny.onInputChange(EVENT, assignments.join(","));
     },
 

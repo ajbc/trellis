@@ -22,10 +22,10 @@ function(input, output, session) {
   # assigns:
   #    Structured as a list such that each child is an "index" and the corresponding value is its parent
   #    NOTE: root is represented as "root"
-  # TODO(tfs; 2018-06-18): Add storage for collapsed nodes here if moving to backend.
-  #    Alternately, use strictly front-end systems. If only front-end, then no storage (e.g. save)
-  #    However, front-end only state storage would be much faster for the visualizations.
-  stateStore <- reactiveValues(manual.titles=list(), assigns=NULL, dataname="Data")
+  # collapsed.nodes:
+  #    Similar to assigns in format, list of node ids
+  #    with either a boolean value or a missing entry (corresponding to false).
+  stateStore <- reactiveValues(manual.titles=list(), assigns=NULL, dataname="Data", collapsed.nodes=c())
 
   # Parse the user-provided dataset name (from the initial panel)
   chosenDataName <- reactive({
@@ -56,14 +56,14 @@ function(input, output, session) {
     }
 
     if ("aString" %in% vals) {
-      newA <- c()
+      newA <- c() # Set up new assignments vector
 
       for (ch in seq(nrow(beta))) {
         newA[[ch]] <- 0 # Will be overwritten, but ensures that at least all assignments to 0 are made
       }
 
       for (pair in strsplit(aString, ",")[[1]]) {
-        rel <- strsplit(pair, ":")[[1]]
+        rel <- strsplit(pair, ":")[[1]] # Relation between two nodes
 
         newA[[as.integer(rel[[1]])]] <- as.integer(rel[[2]])
       }
@@ -73,6 +73,10 @@ function(input, output, session) {
 
     if ("mantitles" %in% vals) {
       stateStore$manual.titles <- mantitles
+    }
+
+    if ("collapsed.flags" %in% vals) {
+      stateStore$collapsed.nodes <- collapsed.flags
     }
 
     # Parse path to text file directory
@@ -117,6 +121,23 @@ function(input, output, session) {
       return(NULL)
     }
 
+    # collapsed.flags <- c()
+
+    # # Initialize list of collapsed flags to false
+    # for (i in seq(max.id())) {
+    #   collapsed.flags[[i]] <- FALSE
+    # }
+
+    # if (!is.null(isolate(input$collapsed.nodes))) {
+    #   # Input flags are formatted: "[id #]:[TRUE/FALSE],[id #]:[TRUE/FALSE], . . ."
+    #   for (pair in strsplit(isolate(input$collapsed.nodes), ',')[[1]]) {
+    #     idflag <- strsplit(pair, ":")[[1]]
+    #     collapsed.flags[[as.integer(idflag[[1]])]] <- as.logical(idflag[[2]])
+    #   }
+    # }
+
+    collapsed.flags <- stateStore$collapsed.nodes # Rename to avoid collision later
+
     # All values to be saved
     sp <- parseSavePath(c(home=file.home), input$savedata)
     file <- as.character(sp$datapath)
@@ -131,7 +152,7 @@ function(input, output, session) {
 
     save(beta=beta, theta=theta, filenames=filenames, titles=titles,
           vocab=vocab, assignString=aString, manual.titles=mantitles,
-          dataName=dataName, file=file)
+          dataName=dataName, file=file, collapsed.flags=collapsed.flags)
 
     session$sendCustomMessage(type="clearSaveInput", "")
   })
@@ -287,6 +308,30 @@ function(input, output, session) {
     } else {
       return(NULL)
     }
+  })
+
+  observeEvent(input$collapseNode, {
+    req(data())
+
+    print(input$collapseNode)
+
+    if (is.null(input$collapseNode) || is.na(as.integer(input$collapseNode))) {
+      return()
+    }
+
+    stateStore$collapsed.nodes[[as.integer(input$collapseNode)]] <- TRUE
+  })
+
+  observeEvent(input$expandNode, {
+    req(data())
+
+    print(input$expandNode)
+
+    if (is.null(input$expandNode) || is.na(as.integer(input$expandNode))) {
+      return()
+    }
+
+    stateStore$collapsed.nodes[[as.integer(input$expandNode)]] <- FALSE
   })
 
   # TODO(tfs): For simple updates, we probably don't need to recreate all of assignments.
@@ -802,9 +847,10 @@ function(input, output, session) {
       return(NULL)
     }
 
-    pid <- c()
-    nid <- c()
-    ttl <- c()
+    pid <- c() # Parent ids
+    nid <- c() # Node ids (children, but will serve as the basic node id for each topic in the widgets)
+    ttl <- c() # Titles, aggregating manual and automatic
+    clp <- c() # Collapsed node flags
 
     # n <- length(stateStore$assigns)
     n <- max.id()
@@ -814,17 +860,25 @@ function(input, output, session) {
       nid <- append(nid, ch)
       pid <- append(pid, stateStore$assigns[ch])
       ttl <- append(ttl, all.titles()[[ch]])
+
+      # Handle collapsed node flags, filling in FALSE for missing entries
+      if (ch <= length(stateStore$collapsed.nodes) && !(is.na(stateStore$collapsed.nodes[[ch]]))) {
+        clp <- append(clp, stateStore$collapsed.nodes[[ch]])
+      } else {
+        clp <- append(clp, FALSE)
+      }
     }
 
-    wgt <- c(colSums(data()$theta))
+    wgt <- c(colSums(data()$theta)) # Weights for each node, based on representation in the corpus
 
+    # Assign weights of 0 for each aggregate node (they will be summed on the frontend)
     if (length(pid) > length(wgt)) {
       for (i in seq(length(pid) - length(wgt))) {
         wgt <- append(wgt, 0)
       }
     }
 
-    rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl)
+    rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl, collapsed=clp)
     return(rv)
   })
 

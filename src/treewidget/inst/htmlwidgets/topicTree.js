@@ -197,6 +197,11 @@ HTMLWidgets.widget({
             .attr("id", function (d) {
                 return "tree-node-" + d.data.id;
             })
+            .each(function(d, i) {
+                if (d.collapsed) {
+                    self.collapseNode(d);
+                }
+            })
             .on("click", self.generateNodeClickHandler(self))
             .on("mouseover", function (d) {
                 d3.event.stopPropagation;
@@ -606,7 +611,7 @@ HTMLWidgets.widget({
         var d = n.data;
 
         if (d.children && d.children.length > 0) {
-            d.collapsed = true;
+            // d.collapsed = true;
             d.children.forEach(function (child) {
                 self.setNodeDisplayStatus(child, true);
             });
@@ -622,7 +627,7 @@ HTMLWidgets.widget({
         var d = n.data;
 
         if (d.collapsed) {
-            d.collapsed = false;
+            // d.collapsed = false;
             d.children.forEach(function (child) {
                 self.setNodeDisplayStatus(child, false);
             });
@@ -641,12 +646,19 @@ HTMLWidgets.widget({
             if (d3.event.ctrlKey || d3.event.altKey) {
                 // NOTE(tfs): I think this avoids wierdness with javascript nulls
                 if (n.data.collapsed === true) {
-                    selfRef.expandNode(n);
+                    // Ensure that the input actually changes
+                    Shiny.onInputChange("expandNode", "");
+                    Shiny.onInputChange("expandNode", n.data.id);
+                    // selfRef.expandNode(n);
                 } else {
-                    selfRef.collapseNode(n);
+                    // Ensure that the input actually changes
+                    Shiny.onInputChange("collapseNode", "");
+                    Shiny.onInputChange("collapseNode", n.data.id);
+                    // selfRef.collapseNode(n);
                 }
 
-                selfRef.updateTreeView(true);
+                // NOTE(tfs): Update now handled by re-rendering
+                // selfRef.updateTreeView(true);
             } else {
                 selfRef.selectNode(n, false);
             }
@@ -715,7 +727,7 @@ HTMLWidgets.widget({
      */
     getTreeFromRawData: function (x) {
         var self = this,
-            data = { id: 0, children: [], terms: [], weight: 0 },
+            data = { id: 0, children: [], terms: [], weight: 0, collapsed: false },
             srcData = HTMLWidgets.dataframeToD3(x.data);
 
         // Sort srcData by node ID
@@ -736,7 +748,7 @@ HTMLWidgets.widget({
         var nodes = [];
         nodes[0] = data;
         for (var i = 0; i < srcData.length; i++) {
-            nodes[srcData[i].nodeID] = { id: srcData[i].nodeID, children: [], terms: [], weight: 0 };
+            nodes[srcData[i].nodeID] = { id: srcData[i].nodeID, children: [], terms: [], weight: 0, collapsed: false };
         }
 
         var rawPoint;
@@ -757,6 +769,8 @@ HTMLWidgets.widget({
                 cleanPoint.terms = rawPoint.title.split(" ");
                 cleanPoint.weight = rawPoint.weight;
             }
+
+            cleanPoint.collapsed = (rawPoint.collapsed == "TRUE");
         }
 
         // Updates weight properties of nodes
@@ -810,10 +824,10 @@ HTMLWidgets.widget({
                 });
             }
         });
-        Shiny.addCustomMessageHandler(EVENT, function (newTopics) {
-            self.updateTopicView(newTopics);
-            callback();
-        });
+        // Shiny.addCustomMessageHandler(EVENT, function (newTopics) {
+        //     self.updateTopicView(newTopics);
+        //     callback();
+        // });
         Shiny.onInputChange(EVENT, assignments.join(","));
     },
 
