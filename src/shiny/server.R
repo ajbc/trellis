@@ -313,25 +313,41 @@ function(input, output, session) {
   observeEvent(input$collapseNode, {
     req(data())
 
-    print(input$collapseNode)
-
-    if (is.null(input$collapseNode) || is.na(as.integer(input$collapseNode))) {
+    if (is.null(input$collapseNode)) {
       return()
     }
 
-    stateStore$collapsed.nodes[[as.integer(input$collapseNode)]] <- TRUE
+    rawNodeID <- input$collapseNode[[1]]
+
+    if (is.null(rawNodeID) || is.na(as.integer(rawNodeID)) || is.null(as.integer(rawNodeID))) {
+      return()
+    }
+
+    if (as.integer(rawNodeID) < 1) {
+      return()
+    }
+
+    stateStore$collapsed.nodes[[as.integer(rawNodeID)]] <- TRUE
   })
 
   observeEvent(input$expandNode, {
     req(data())
 
-    print(input$expandNode)
-
-    if (is.null(input$expandNode) || is.na(as.integer(input$expandNode))) {
+    if (is.null(input$expandNode)) {
       return()
     }
 
-    stateStore$collapsed.nodes[[as.integer(input$expandNode)]] <- FALSE
+    rawNodeID <- input$expandNode[[1]]
+
+    if (is.null(rawNodeID) || is.na(as.integer(rawNodeID)) || is.null(as.integer(rawNodeID))) {
+      return()
+    }
+
+    if (as.integer(rawNodeID) < 1) {
+      return()
+    }
+
+    stateStore$collapsed.nodes[[as.integer(rawNodeID)]] <- FALSE
   })
 
   # TODO(tfs): For simple updates, we probably don't need to recreate all of assignments.

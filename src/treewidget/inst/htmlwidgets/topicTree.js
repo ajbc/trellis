@@ -197,11 +197,11 @@ HTMLWidgets.widget({
             .attr("id", function (d) {
                 return "tree-node-" + d.data.id;
             })
-            .each(function(d, i) {
-                if (d.collapsed) {
-                    self.collapseNode(d);
-                }
-            })
+            // .each(function(d, i) {
+            //     if (d.collapsed) {
+            //         self.collapseNode(d);
+            //     }
+            // })
             .on("click", self.generateNodeClickHandler(self))
             .on("mouseover", function (d) {
                 d3.event.stopPropagation;
@@ -521,6 +521,7 @@ HTMLWidgets.widget({
                     elem.classed("collapsed-tree-node", true);
                     elem.classed("terminal-tree-node", false);
                     elem.attr("r", self.COLLAPSED_NODE_RADIUS);
+                    self.collapseNode(d);
                 } else if (d.data.children && d.data.children.length > 0) {
                     // NOTE(tfs): There is probably a cleaner way to do this
                     elem.classed("middle-tree-node", true);
@@ -532,6 +533,13 @@ HTMLWidgets.widget({
                     elem.classed("terminal-tree-node", true);
                     elem.classed("collapsed-tree-node", false);
                     elem.attr("r", self.TERMINAL_NODE_RADIUS);
+                }
+            })
+            .enter(function (d) {
+                console.log("Handling new node: " + d.data.id);
+
+                if (!d.data.collapsed) {
+                    self.expandNode(d);
                 }
             });
 
@@ -576,7 +584,13 @@ HTMLWidgets.widget({
             .attr("height", function (d) {
                 var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
                 return textheight;
-            })
+            });
+
+        // circles.enter(function(d) {
+        //     if (d.collapsed) {
+        //         self.collapseNode(d);
+        //     }
+        // });
     },
 
 
@@ -640,20 +654,27 @@ HTMLWidgets.widget({
 
     generateNodeClickHandler: function (selfRef) {
         var treeNodeClickHandler = function (n) {
+            console.log("HELLO");
             d3.event.stopPropagation();
 
             // Handle Windows and Mac common behaviors
             if (d3.event.ctrlKey || d3.event.altKey) {
                 // NOTE(tfs): I think this avoids wierdness with javascript nulls
                 if (n.data.collapsed === true) {
+                    console.log("Expanding: " + n.data.id);
                     // Ensure that the input actually changes
-                    Shiny.onInputChange("expandNode", "");
-                    Shiny.onInputChange("expandNode", n.data.id);
+                    // Shiny.onInputChange("expandNode", "");
+
+                    // Timestamp to ensure an actual change is registered
+                    Shiny.onInputChange("expandNode", [n.data.id, Date.now()]);
                     // selfRef.expandNode(n);
                 } else {
+                    console.log("Collapsing: " + n.data.id);
                     // Ensure that the input actually changes
-                    Shiny.onInputChange("collapseNode", "");
-                    Shiny.onInputChange("collapseNode", n.data.id);
+                    // Shiny.onInputChange("collapseNode", "");
+
+                    // Timestamp to ensure an actual change is registered
+                    Shiny.onInputChange("collapseNode", [n.data.id, Date.now()]);
                     // selfRef.collapseNode(n);
                 }
 
