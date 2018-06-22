@@ -75,7 +75,6 @@ $(document).ready(function() {
 
 	$("#updateTitle").click(function(event) {
 		event.preventDefault();
-		cleanTopicInputs();
 	});
 
 	$("#document-details-offset").click(hideDocumentDetails);
@@ -104,6 +103,8 @@ $(document).on("shiny:sessioninitialized", function(event) {
 	Shiny.addCustomMessageHandler("nodeDeleted", handleNodeDeletion);
 
 	Shiny.addCustomMessageHandler("clearFileInputs", clearFileInputs);
+
+	Shiny.addCustomMessageHandler("cleanTitleInput", cleanTopicInputs);
 
 	// Initialize which view is selected (starts on bubble widget)
 	selectors[BUBBLE_LABEL] = BUBBLE_SELECTOR;
@@ -424,7 +425,7 @@ function hideDocumentDetails() {
 
 
 // Remove values from left panel topic tab controls
-function cleanTopicInputs() {
+function cleanTopicInputs(msg) {
 	// NOTE(tfs): Apparently using jquery to set val()
 	//            doesn't trigger an update to the input field for Shiny
 

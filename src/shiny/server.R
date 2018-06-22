@@ -845,12 +845,15 @@ function(input, output, session) {
   observeEvent(input$updateTitle, {
     topic <- as.integer(input$topic.selected)
 
-    newTitle <- input$topic.customTitle
+    newTitle <- isolate(input$topic.customTitle)
+
     if (is.null(newTitle)) {
       newTitle = ""
     }
 
     stateStore$manual.titles[[topic]] <- newTitle
+
+    session$sendCustomMessage("cleanTitleInput", "")
   })
 
   # Aggregate and format data necessary for the bubble/tree widgets, in parallel lists:
