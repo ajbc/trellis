@@ -1,3 +1,5 @@
+# USAGE: python collapse_docs.py title_file document_directory
+
 import sys, os
 
 titles = [title.strip() for title in open(sys.argv[1]).readlines()]
