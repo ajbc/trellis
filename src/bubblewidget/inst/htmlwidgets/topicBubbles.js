@@ -237,13 +237,7 @@ HTMLWidgets.widget({
             .attr("id", function (d) {
                 return 'node-' + d.data.id;
             })
-            .on("dblclick", function () {
-                d3.event.stopPropagation();
-            })
-            .on("click", function (d) {
-                d3.event.stopPropagation();
-                self.selectNode(d, false);
-            })
+            .on("click", self.generateNodeClickHandler(self))
             .on("mouseover", function (d) {
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id,
                     isRoot = self.isRootNode(d);
@@ -288,6 +282,29 @@ HTMLWidgets.widget({
             [root.x, root.y, root.r * 2 + self.PAGE_MARGIN],
             useTransition
         );
+    },
+
+
+    generateNodeClickHandler: function (selfRef) {
+        var bubbleNodeClickHandler = function (n) {
+            d3.event.stopPropagation();
+
+            // Handle Windows and Mac common behaviors
+            if (d3.event.ctrlKey || d3.event.altKey) {
+                // NOTE(tfs): I think this avoids wierdness with javascript nulls
+                if (n.data.collapsed === true) {
+                    // Timestamp to ensure an actual change is registered
+                    Shiny.onInputChange("expandNode", [n.data.id, Date.now()]);
+                } else {
+                    // Timestamp to ensure an actual change is registered
+                    Shiny.onInputChange("collapseNode", [n.data.id, Date.now()]);
+                }
+            } else {
+                selfRef.selectNode(n, false);
+            }
+        }
+
+        return bubbleNodeClickHandler;
     },
 
 
@@ -606,14 +623,19 @@ HTMLWidgets.widget({
     /* Correctly color any node.
      */
     setCircleFill: function (d) {
+        // TODO(tfs; 2018-07-04): May want to overhaul styling to be class/CSS based
         var self = this,
             isfirstSelNode = self.sourceD
                 && self.sourceD.data.id === d.data.id,
             borderColor = null,
+            isCollapsed = d.data.collapsed,
             fillColor;
         if (isfirstSelNode) {
             borderColor = "rgb(12, 50, 127)";
             fillColor = "rgb(25, 101, 255)";
+        } else if (isCollapsed) {
+            fillColor = "rgb(175, 0, 0)";
+            borderColor = "rgb(0, 0, 0)";
         } else if (d.children) {
             fillColor = self.colorMap(d.depth);
         } else {
@@ -628,17 +650,21 @@ HTMLWidgets.widget({
     /* Correctly label any node.
      */
     setLabelVisibility: function (d, hover) {
+        // TODO(tfs; 2018-07-04): This should probably be cleaned up.
+        //                        Many of these conditions no longer reflect the functionality of Trellis.
+        //                        In fact, we may want to completely overhaul label visibility.
         var self = this,
             dIs = !!d,
             dIsSource = dIs && self.sourceD && d.data.id === self.sourceD.data.id,
             dInFocus = dIs && d === self.nodeInFocus,
             parentInFocus = dIs && d.depth === self.nodeInFocus.depth + 1,
             isLeaf = dIs && self.isLeafNode(d),
+            isCollapsed = d.data.collapsed,
             isInFocus = dIs && d === self.nodeInFocus,
             zoomedOnLeaf = isInFocus && isLeaf && !self.isRootNode(d),
             label = d3.select('#label-' + d.data.id);
 
-        if ((dIsSource && !dInFocus) || parentInFocus || hover || zoomedOnLeaf) {
+        if ((dIsSource && !dInFocus) || parentInFocus || hover || zoomedOnLeaf || isCollapsed) {
             label.style("display", "inline");
         } else {
             label.style("display", "none");
@@ -683,7 +709,7 @@ HTMLWidgets.widget({
         var nodes = [];
         nodes[0] = data;
         for (var i = 0; i < srcData.length; i++) {
-            nodes[srcData[i].nodeID] = {id: srcData[i].nodeID, children: [], terms: []};
+            nodes[srcData[i].nodeID] = { id: srcData[i].nodeID, children: [], terms: [], collapsed: false, isLeaf: false };
         }
 
         var rawPoint;
@@ -703,6 +729,9 @@ HTMLWidgets.widget({
                 cleanPoint.terms = rawPoint.title.split(" ");
                 cleanPoint.weight = rawPoint.weight;
             }
+
+            cleanPoint.collapsed = rawPoint.collapsed;
+            cleanPoint.isLeaf = rawPoint.isLeaf;
         }
 
         return data;
@@ -780,12 +809,7 @@ HTMLWidgets.widget({
     /* Returns `true` if the node is a leaf node, `false` otherwise.
      */
     isLeafNode: function (d) {
-        var hasChildren = typeof d.data.children !== 'undefined';
-        if (hasChildren) {
-            return d.data.children.length === 0;
-        } else {
-            return true;
-        }
+        return d.data.isLeaf;
     },
 
     /* Returns true if node `a` is a child node of `b`.
