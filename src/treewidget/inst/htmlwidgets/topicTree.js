@@ -352,13 +352,7 @@ HTMLWidgets.widget({
                 }
 
                 var makeNewGroup = d3.event.sourceEvent.shiftKey;
-                var updateNeeded = selfRef.moveOrMerge(selfRef, sourceID, targetID, makeNewGroup);
-                
-                if (updateNeeded) {
-                    selfRef.updateTopicAssignments(selfRef, function() {
-                        self.updateView(true);
-                    });
-                }
+                selfRef.moveOrMerge(selfRef, sourceID, targetID, makeNewGroup);
             }
         }
 
@@ -421,68 +415,12 @@ HTMLWidgets.widget({
     /* Move or merge source node with target node.
      */
     moveOrMerge: function (selfRef, sourceID, targetID, makeNewGroup) {
-        var sourceD = d3.select("#tree-node-"+sourceID).data()[0],
-            targetD = d3.select("#tree-node-"+targetID).data()[0],
-            sourceIsLeaf = selfRef.isLeafNode(sourceD),
-            targetIsSource = sourceD.data.id === targetD.data.id,
-            sourceIsCollapsed = sourceD.data.collapsed,
-            mergingNodes = sourceD.children && sourceD.children.length > 1,
-            sameParentSel = sourceD.parent === targetD,
-            oldParentD,
-            nsToMove;
-
-        if (targetIsSource || (sameParentSel && !makeNewGroup)) {
-            return false;
+        if (sourceID === targetID) {
+            return;
         }
 
         // This will now be handled on the backend
-        Shiny.onInputChange("updateAssignments", [sourceD.data.id, targetD.data.id, makeNewGroup, Date.now()])
-        return true;
-
-        // TODO(tfs; 2018-07-03): Move this to the backend as well.
-        //                        This will simplify representation/display of collapsed nodes
-        // if (makeNewGroup) {
-        //     oldParentD = sourceD.parent;
-        //     selfRef.createNewGroup(targetD, sourceD);
-        //     selfRef.removeChildDFromParent(sourceD);
-
-        //     // Any or all of the source's ancestors might be childless now.
-        //     // Walk up the tree and remove childless nodes.
-        //     selfRef.removeChildlessNodes(oldParentD);
-
-        //     if (!sourceIsLeaf) {
-        //         nsToMove = [sourceD.data];
-        //         oldParentD = sourceD.parent;
-        //         selfRef.updateNsToMove(selfRef, nsToMove, oldParentD, targetD);
-        //     } else {
-        //         selfRef.createNewGroup(targetD, sourceD);
-        //         selfRef.removeChildDFromParent(sourceD);
-        //     }
-
-        //     selfRef.removeChildlessNodes(oldParentD);
-
-        //     return true;
-        // } else {
-        //     if (sourceIsLeaf) {
-        //         nsToMove = [sourceD.data];
-        //         oldParentD = sourceD.parent;
-        //     } else {
-        //         nsToMove = [];
-        //         sourceD.children.forEach(function (d) {
-        //             nsToMove.push(d.data);
-        //         });
-        //         oldParentD = sourceD;
-        //     }
-
-        //     selfRef.updateNsToMove(selfRef, nsToMove, oldParentD, targetD);
-        //     if (sourceIsLeaf) {
-        //         selfRef.removeChildlessNodes(oldParentD);
-        //     } else {
-        //         selfRef.removeChildDFromParent(sourceD);
-        //     }
-
-        //     return true;
-        // }
+        Shiny.onInputChange("updateAssignments", [sourceID, targetID, makeNewGroup, Date.now()]);
     },
 
 
@@ -543,8 +481,6 @@ HTMLWidgets.widget({
                 }
             })
             .enter(function (d) {
-                console.log("Handling new node: " + d.data.id);
-
                 if (!d.data.collapsed) {
                     self.expandNode(d);
                 }
@@ -661,33 +597,18 @@ HTMLWidgets.widget({
 
     generateNodeClickHandler: function (selfRef) {
         var treeNodeClickHandler = function (n) {
-            console.log("HELLO");
             d3.event.stopPropagation();
 
             // Handle Windows and Mac common behaviors
             if (d3.event.ctrlKey || d3.event.altKey) {
                 // NOTE(tfs): I think this avoids wierdness with javascript nulls
-                console.log(n);
                 if (n.data.collapsed === true) {
-                    console.log("Expanding: " + n.data.id);
-                    // Ensure that the input actually changes
-                    // Shiny.onInputChange("expandNode", "");
-
                     // Timestamp to ensure an actual change is registered
                     Shiny.onInputChange("expandNode", [n.data.id, Date.now()]);
-                    // selfRef.expandNode(n);
                 } else {
-                    console.log("Collapsing: " + n.data.id);
-                    // Ensure that the input actually changes
-                    // Shiny.onInputChange("collapseNode", "");
-
                     // Timestamp to ensure an actual change is registered
                     Shiny.onInputChange("collapseNode", [n.data.id, Date.now()]);
-                    // selfRef.collapseNode(n);
                 }
-
-                // NOTE(tfs): Update now handled by re-rendering
-                // selfRef.updateTreeView(true);
             } else {
                 selfRef.selectNode(n, false);
             }
@@ -799,7 +720,6 @@ HTMLWidgets.widget({
                 cleanPoint.weight = rawPoint.weight;
             }
 
-            console.log(rawPoint);
             cleanPoint.collapsed = rawPoint.collapsed;
             cleanPoint.isLeaf = rawPoint.isLeaf;
         }

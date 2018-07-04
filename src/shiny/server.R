@@ -354,12 +354,6 @@ function(input, output, session) {
     stateStore$collapsed.nodes[[as.integer(rawNodeID)]] <- FALSE
   })
 
-  # TODO(tfs): For simple updates, we probably don't need to recreate all of assignments.
-  #            There should be a way to improve efficiency for small changes to the hierarchy.
-  # observeEvent(input$clusterUpdate, {
-  #   print("TODO: should be more efficient for small/simple changes like shifting a single node")  
-  # })
-
   # Given that a hierarchy already exists (the widgets are already rendered),
   #       initiate a new clustering that operates on the direct descendants of the selected node (if able).
   #       Can also operate on direct descendants of the root.
@@ -540,6 +534,81 @@ function(input, output, session) {
     return(sanitize(all.titles()[topic], type="html"))
   })
 
+  observeEvent(input$updateAssignments, {
+    # Fields: sourceID, targetID, makeNewGroup, timestamp
+    if (is.null(input$updateAssignments)) {
+      return()
+    }
+
+    # NOTE(tfs; 2018-07-04): Currently this relies on the frontend preventing
+    #                        any node targeting one of its descendants
+
+    source.id <- input$updateAssignments[[1]]
+    target.id <- input$updateAssignments[[2]]
+    shift.held <- input$updateAssignments[[3]]
+
+    # Leaf checks currently rely on all initial topics (leaves) to have IDs 1-K()
+    source.is.leaf <- (source.id <= K() && K() > 0)
+    target.is.leaf <- (target.id <= K() && target.id > 0)
+
+    # Leaves (original topics) remain leaves
+    if (target.is.leaf) { 
+      return() }
+
+    if (source.id == target.id) {
+      return() }
+
+    if (shift.held) {
+      if (source.is.leaf || stateStore$assigns[[source.id]] == target.id) {
+        # Shift is held, source is leaf or source is child of target
+        #   Generates new node
+        newID <- max.id() + 1
+        stateStore$assigns[[newID]] <- target.id
+        stateStore$assigns[[source.id]] <- newID
+        return()
+      } else {
+        # Shift is held, source is an aggregate node
+        stateStore$assigns[[source.id]] <- target.id
+        return()
+      }
+    } else {
+      if (stateStore$assigns[[source.id]] == target.id) {
+        return()
+      }
+
+      if (source.is.leaf) {
+        empty.id <- stateStore$assigns[[source.id]]
+
+        # Move a single leaf node
+        stateStore$assigns[[source.id]] <- target.id
+
+        # Clean up if source's parent is now empty
+        while(empty.id > 0 && (empty.id > length(leaf.ids()) || is.null(leaf.ids()[[empty.id]]) || length(leaf.ids()[[empty.id]]) <= 0)) {
+          nid <- stateStore$assigns[[empty.id]]
+          stateStore$assigns[[empty.id]] <- NA
+          empty.id <- nid
+        }
+
+        return()
+      } else {
+        # Move all children of the source node
+        for (ch in children()[[source.id]]) {
+          stateStore$assigns[[ch]] <- target.id
+        }
+
+        empty.id <- source.id
+
+        while(empty.id > 0 && (empty.id > length(leaf.ids()) || is.null(leaf.ids()[[empty.id]]) || length(leaf.ids()[[empty.id]]) <= 0)) {
+          nid <- stateStore$assigns[[empty.id]]
+          stateStore$assigns[[empty.id]] <- NA
+          empty.id <- nid
+        }
+
+        return()
+      }
+    }
+  })
+
   # Handle changes to assignments from the frontend.
   #     To maintain ground truth, update stateStore on the backend.
   #     This ensures that data is consistent between widgets, as all output data is based solely
@@ -602,26 +671,18 @@ function(input, output, session) {
   })
 
   is.collapsed.descendant <- reactive({
-    print("dud")
     req(data())
-    print("DUUUUUUDE")
 
     rv <- c()
 
     for (ch in seq(max.id())) {
-      print("ded")
       p <- stateStore$assigns[[ch]]
-      print("ddd")
       rv[[ch]] <- FALSE
-      print("DDD!!!")
       if (is.null(stateStore$collapsed.nodes)) {
-        print("exploded")
         next }
 
       if (is.null(p) || is.na(p) || p <= 0) {
-        print("borped")
         next }
-      print("DDDDDDDD!!!!!!!!!!!!!!")
       while (p > 0) {
         if (p > length(stateStore$collapsed.nodes)
             || is.null(stateStore$collapsed.nodes[[p]])
@@ -630,21 +691,11 @@ function(input, output, session) {
           next
         }
 
-        print("A")
-        print(p)
-        print("B")
-        print(stateStore$collapsed.nodes)
-        print("C")
-        print(stateStore$sollapsed.nodes[[p]])
-        print("D")
-
         if (!is.null(stateStore$collapsed.nodes[[p]]) && stateStore$collapsed.nodes[[p]]) {
-          print("e")
           rv[[ch]] <- TRUE
           break
         }
 
-        print("F")
         p <- stateStore$assigns[[p]]
       }
     }
@@ -931,7 +982,6 @@ function(input, output, session) {
     n <- max.id()
 
     for (ch in seq(n)) {
-      print(ch)
       if (is.collapsed.descendant()[[ch]]) { next } # Skip descendants of collapsed nodes
       if (is.na(stateStore$assigns[[ch]])) { next } # Continue
       nid <- append(nid, ch)
