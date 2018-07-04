@@ -9,7 +9,9 @@ var selectedViewTab
 var selectedLeftTab = DOCUMENT_LABEL;
 var data = null;
 var exportMode = false;
+var flattenMode = false;
 var LEFT_BAR_WIDTH = 300;
+var RIGHT_BAR_WIDTH = 300;
 var activeSelector;
 
 var assignments;
@@ -40,6 +42,12 @@ $(document).ready(function() {
 			$("#main-panel").css({ "max-width": ($(window).width() - (LEFT_BAR_WIDTH + 5)) + "px"});
 			$("#document-details-content").css({ "max-width": ($(window).width() - (LEFT_BAR_WIDTH + 5)) + "px"});
 			$("#doctab-document-container").css({ "height": ($(window).height() - $("#doctab-document-container").position().top) });
+		} else {
+			if (flattenMode) {
+				$("#main-panel").css({ "max-width": ($(window).width() - (RIGHT_BAR_WIDTH + 5)) + "px"});
+				$("#document-details-content").css({ "max-width": ($(window).width() - (RIGHT_BAR_WIDTH + 5)) + "px"});
+				$("#doctab-document-container").css({ "height": ($(window).height() - $("#doctab-document-container").position().top) });
+			}
 		}
 	});
 
@@ -71,6 +79,17 @@ $(document).ready(function() {
 	$("#export-svg-button").click(function(event) {
 		event.preventDefault();
 		downloadActiveWidgetAsSVG();
+	});
+
+	$("#export-flattened-button").click(function(event) {
+		event.preventDefault();
+		enterFlattenMode();
+	});
+
+	$("#exit-flatten-button").click(function(event) {
+		event.preventDefault();
+		console.log("pLEASE");
+		exitFlattenMode();
 	});
 
 	$("#updateTitle").click(function(event) {
@@ -259,6 +278,49 @@ function selectDocumentTab() {
 };
 
 
+// Display right panel (only if already in export mode)
+function enterFlattenMode(msg) {
+	if (!exportMode) { return; }
+	if (flattenMode) { return; }
+
+	$("#right-bar").addClass("right-content-flatten-mode");
+	$(".export-mode-control").addClass("hidden");
+
+	var newWidth = Math.min($(window).width() - (RIGHT_BAR_WIDTH + 5), 0.7 * $(window).width());
+	flattenMode = true;
+
+	$("#main-panel").css({ "left": "0px" });
+	$("#main-panel").css({ "right": "" });
+
+	$("#main-panel").animate({ "width": newWidth }, 500, function() {
+		$("#main-panel").css({ "max-width": ($(window).width() - (RIGHT_BAR_WIDTH + 5)) + "px" });
+		$("#main-panel").css({ "width": "70vw" });
+		$(window).trigger("resize");
+	});
+}
+
+
+// Return to default export mode
+function exitFlattenMode(msg) {
+	if (!exportMode) { return; }
+	if (!flattenMode) { return; }
+
+	console.log("EXITING FLATTEN MODE");
+
+	$("#right-bar").removeClass("right-content-flatten-mode");
+	$(".export-mode-control").removeClass("hidden");
+
+	flattenMode = false;
+
+	$("#main-panel").css({ "max-width": "unset" });
+	$("#main-panel").animate({ "width": "100vw" }, 500, function() {
+		$("#main-panel").css({ "right": "0px" });
+		$("#main-panel").css({ "left": "" });
+		$(window).trigger("resize"); // Not the cleanest solution, but seems to work
+	});
+}
+
+
 // Hide left panel and adjust controls
 function enterExportMode(msg) {
 	if (exportMode) {
@@ -285,7 +347,7 @@ function exitExportMode(msg) {
 		exportMode = false;
 		var newWidth = Math.min($(window).width() - (LEFT_BAR_WIDTH + 5), 0.7 * $(window).width());
 		$("#main-panel").animate({ "width": newWidth }, 500, function() {
-			$("#main-panel").css({ "max-width": ($(window).width() - (LEFT_BAR_WIDTH + 5)) + "px"});
+			$("#main-panel").css({ "max-width": ($(window).width() - (LEFT_BAR_WIDTH + 5)) + "px" });
 			$("#main-panel").css({ "width": "70vw" });
 			$(window).trigger("resize");
 		});

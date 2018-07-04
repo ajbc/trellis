@@ -175,6 +175,7 @@ function(input, output, session) {
     shinyjs::hide(selector=".initial")
     shinyjs::show(selector=".left-content")
     shinyjs::show(selector=".main-content")
+    shinyjs::show(selector=".right-content")
     shinyjs::show(selector="#document-details-container")
     session$sendCustomMessage(type="initializeMainView", "")
   })

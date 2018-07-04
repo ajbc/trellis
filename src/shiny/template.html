@@ -121,6 +121,10 @@
                         <button id="export-pdf-button" class="btn btn-primary" disabled="true">.PDF</button>
                     </span> -->
 
+                    <span id="export-flattened-container" class="main-control export-control">
+                        <button id="export-flattened-button" class="btn btn-primary">Flattened</button>
+                    </span>
+
                     <span id="export-cancel-container" class="main-control export-control">
                         {{ inputExitExportButton }}
                     </span>
@@ -175,6 +179,10 @@
                 <h3>Tree View</h3>
                 {{ outputTree }}
             </div>
+        </div>
+
+        <div id="right-bar" class="right-content initial-hidden shinyjs-hide">
+            <button id="exit-flatten-button" class="btn">Cancel</button>
         </div>
 
         <div id="document-details-container" class="document-expanded initial-hidden shinyjs-hide hidden">
