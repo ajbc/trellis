@@ -197,11 +197,6 @@ HTMLWidgets.widget({
             .attr("id", function (d) {
                 return "tree-node-" + d.data.id;
             })
-            // .each(function(d, i) {
-            //     if (d.collapsed) {
-            //         self.collapseNode(d);
-            //     }
-            // })
             .on("click", self.generateNodeClickHandler(self))
             .on("mouseover", function (d) {
                 d3.event.stopPropagation;
@@ -466,7 +461,6 @@ HTMLWidgets.widget({
                     elem.classed("collapsed-tree-node", true);
                     elem.classed("terminal-tree-node", false);
                     elem.attr("r", self.COLLAPSED_NODE_RADIUS);
-                    // self.collapseNode(d);
                 } else if (d.data.children && d.data.children.length > 0) {
                     // NOTE(tfs): There is probably a cleaner way to do this
                     elem.classed("middle-tree-node", true);
@@ -478,11 +472,6 @@ HTMLWidgets.widget({
                     elem.classed("terminal-tree-node", true);
                     elem.classed("collapsed-tree-node", false);
                     elem.attr("r", self.TERMINAL_NODE_RADIUS);
-                }
-            })
-            .enter(function (d) {
-                if (!d.data.collapsed) {
-                    self.expandNode(d);
                 }
             });
 
@@ -528,12 +517,6 @@ HTMLWidgets.widget({
                 var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
                 return textheight;
             });
-
-        // circles.enter(function(d) {
-        //     if (d.collapsed) {
-        //         self.collapseNode(d);
-        //     }
-        // });
     },
 
 
@@ -560,40 +543,6 @@ HTMLWidgets.widget({
             });
         }
     },
-
-
-    // Ref: https://bl.ocks.org/d3noob/43a860bc0024792f8803bba8ca0d5ecd
-    collapseNode: function (n) {
-        var self = this;
-        var d = n.data;
-
-        if (d.children && d.children.length > 0) {
-            // d.collapsed = true;
-            // d.children.forEach(function (child) {
-            //     self.setNodeDisplayStatus(child, true);
-            // });
-        }
-
-        d3.select("#tree-node-" + d.id).classed("collapsed-tree-node", true);
-        d3.select("#tree-label-" + d.id).classed("collapsed-tree-label", true);
-    },
-
-
-    expandNode: function (n) {
-        var self = this;
-        var d = n.data;
-
-        if (d.collapsed) {
-            // d.collapsed = false;
-            d.children.forEach(function (child) {
-                self.setNodeDisplayStatus(child, false);
-            });
-        }
-
-        d3.select("#tree-node-" + d.id).classed("collapsed-tree-node", false);
-        d3.select("#tree-label-" + d.id).classed("collapsed-tree-label", false);
-    },
-
 
     generateNodeClickHandler: function (selfRef) {
         var treeNodeClickHandler = function (n) {
@@ -775,10 +724,7 @@ HTMLWidgets.widget({
                 });
             }
         });
-        // Shiny.addCustomMessageHandler(EVENT, function (newTopics) {
-        //     self.updateTopicView(newTopics);
-        //     callback();
-        // });
+
         Shiny.onInputChange(EVENT, assignments.join(","));
     },
 
@@ -832,12 +778,7 @@ HTMLWidgets.widget({
     /* Returns `true` if the node is a leaf node, `false` otherwise.
      */
     isLeafNode: function (d) {
-        var hasChildren = typeof d.data.children !== 'undefined';
-        if (hasChildren) {
-            return d.data.isLeaf;
-        } else {
-            return true;
-        }
+        return d.data.isLeaf;
     },
 
     /* Returns true if node `a` is a child node of `b`.

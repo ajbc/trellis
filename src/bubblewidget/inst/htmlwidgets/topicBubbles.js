@@ -453,13 +453,10 @@ HTMLWidgets.widget({
     /* Move or merge source node with target node.
      */
     moveOrMerge: function (selfRef, sourceID, targetID, makeNewGroup) {
-        console.log(d3.select("#tree-node-"+targetID));
-
         if (sourceID === targetID) {
             return;
         }
 
-        // This will now be handled on the backend
         Shiny.onInputChange("updateAssignments", [sourceID, targetID, makeNewGroup, Date.now()]);
     },
 
@@ -729,10 +726,7 @@ HTMLWidgets.widget({
                 assignments.push(childN.id + ":" + n.id);
             });
         });
-        // Shiny.addCustomMessageHandler(EVENT, function (newTopics) {
-        //     self.updateTopicView(newTopics);
-        //     callback();
-        // });
+
         Shiny.onInputChange(EVENT, assignments.join(","));
     },
 

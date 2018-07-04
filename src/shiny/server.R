@@ -121,21 +121,6 @@ function(input, output, session) {
       return(NULL)
     }
 
-    # collapsed.flags <- c()
-
-    # # Initialize list of collapsed flags to false
-    # for (i in seq(max.id())) {
-    #   collapsed.flags[[i]] <- FALSE
-    # }
-
-    # if (!is.null(isolate(input$collapsed.nodes))) {
-    #   # Input flags are formatted: "[id #]:[TRUE/FALSE],[id #]:[TRUE/FALSE], . . ."
-    #   for (pair in strsplit(isolate(input$collapsed.nodes), ',')[[1]]) {
-    #     idflag <- strsplit(pair, ":")[[1]]
-    #     collapsed.flags[[as.integer(idflag[[1]])]] <- as.logical(idflag[[2]])
-    #   }
-    # }
-
     collapsed.flags <- stateStore$collapsed.nodes # Rename to avoid collision later
 
     # All values to be saved
@@ -598,6 +583,7 @@ function(input, output, session) {
 
         empty.id <- source.id
 
+        # Clean up if the update emptied a node
         while(empty.id > 0 && (empty.id > length(leaf.ids()) || is.null(leaf.ids()[[empty.id]]) || length(leaf.ids()[[empty.id]]) <= 0)) {
           nid <- stateStore$assigns[[empty.id]]
           stateStore$assigns[[empty.id]] <- NA
@@ -670,19 +656,25 @@ function(input, output, session) {
     return(childmap)
   })
 
+  # Boolean value for each node, noting whether or not the node is a descendant of a collapsed node
   is.collapsed.descendant <- reactive({
     req(data())
 
     rv <- c()
 
+    # Iterate over all potential ids
     for (ch in seq(max.id())) {
-      p <- stateStore$assigns[[ch]]
-      rv[[ch]] <- FALSE
-      if (is.null(stateStore$collapsed.nodes)) { next }
+      p <- stateStore$assigns[[ch]] # Parent/ancestor iterator
 
-      if (is.null(p) || is.na(p) || p <= 0) {
-        next }
+      rv[[ch]] <- FALSE # Default value: NOT a descendant of a collapsed node
+
+      # Simple cases (default value holds)
+      if (is.null(stateStore$collapsed.nodes)) { next }
+      if (is.null(p) || is.na(p) || p <= 0) { next }
+
+      # Iterate up all ancestors in the hierarchy, checking collapsed status
       while (p > 0) {
+        # Cases where p is not yet root, but is not collapsed (keep iterating)
         if (p > length(stateStore$collapsed.nodes)
             || is.null(stateStore$collapsed.nodes[[p]])
             || is.na(stateStore$collapsed.nodes[[p]])) {
@@ -690,6 +682,7 @@ function(input, output, session) {
           next
         }
 
+        # If p is collapsed, set the flag to TRUE and advance to next node
         if (!is.null(stateStore$collapsed.nodes[[p]]) && stateStore$collapsed.nodes[[p]]) {
           rv[[ch]] <- TRUE
           break
@@ -1007,24 +1000,6 @@ function(input, output, session) {
       }
     }
 
-    # Assign weights of 0 for each aggregate node (they will be summed on the frontend)
-    # if (length(pid) > length(wgt)) {
-    #   for (i in seq(length(pid) - length(wgt))) {
-    #     if (i + length(wgt) < !is.null(stateStore$collapsed.nodes[[i + K()]]) && stateStore$collapsed.nodes[[i + K()]]) {
-    #       # Aggregate weight on backend for collapsed nodes
-    #       newWgt <- 0
-
-    #       for (l in leaf.ids()[[i + length(wgt)]]) {
-    #         newWgt <- newWgt + cols[[l]]
-    #       }
-
-    #       wgt <- append(wgt, newWgt)
-    #     } else {
-    #       wgt <- append(wgt, 0)
-    #     }
-    #   }
-    # }
-
     if (max.id() > K()) {
       for (i in seq(max.id() - K())) {
         ind <- i + K()
@@ -1047,7 +1022,6 @@ function(input, output, session) {
     }
 
     rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl, collapsed=clp, isLeaf=ilf)
-    # rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl, collapsed=clp)
     return(rv)
   })
 
