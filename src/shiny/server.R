@@ -22,7 +22,10 @@ function(input, output, session) {
   # assigns:
   #    Structured as a list such that each child is an "index" and the corresponding value is its parent
   #    NOTE: root is represented as "root"
-  stateStore <- reactiveValues(manual.titles=list(), assigns=NULL, dataname="Data")
+  # collapsed.nodes:
+  #    Similar to assigns in format, list of node ids
+  #    with either a boolean value or a missing entry (corresponding to false).
+  stateStore <- reactiveValues(manual.titles=list(), assigns=NULL, dataname="Data", collapsed.nodes=NULL)
 
   # Parse the user-provided dataset name (from the initial panel)
   chosenDataName <- reactive({
@@ -53,14 +56,14 @@ function(input, output, session) {
     }
 
     if ("aString" %in% vals) {
-      newA <- c()
+      newA <- c() # Set up new assignments vector
 
       for (ch in seq(nrow(beta))) {
         newA[[ch]] <- 0 # Will be overwritten, but ensures that at least all assignments to 0 are made
       }
 
       for (pair in strsplit(aString, ",")[[1]]) {
-        rel <- strsplit(pair, ":")[[1]]
+        rel <- strsplit(pair, ":")[[1]] # Relation between two nodes
 
         newA[[as.integer(rel[[1]])]] <- as.integer(rel[[2]])
       }
@@ -70,6 +73,10 @@ function(input, output, session) {
 
     if ("mantitles" %in% vals) {
       stateStore$manual.titles <- mantitles
+    }
+
+    if ("collapsed.flags" %in% vals) {
+      stateStore$collapsed.nodes <- collapsed.flags
     }
 
     # Parse path to text file directory
@@ -114,6 +121,8 @@ function(input, output, session) {
       return(NULL)
     }
 
+    collapsed.flags <- stateStore$collapsed.nodes # Rename to avoid collision later
+
     # All values to be saved
     sp <- parseSavePath(c(home=file.home), input$savedata)
     file <- as.character(sp$datapath)
@@ -128,7 +137,7 @@ function(input, output, session) {
 
     save(beta=beta, theta=theta, filenames=filenames, titles=titles,
           vocab=vocab, assignString=aString, manual.titles=mantitles,
-          dataName=dataName, file=file)
+          dataName=dataName, file=file, collapsed.flags=collapsed.flags)
 
     session$sendCustomMessage(type="clearSaveInput", "")
   })
@@ -286,11 +295,49 @@ function(input, output, session) {
     }
   })
 
-  # TODO(tfs): For simple updates, we probably don't need to recreate all of assignments.
-  #            There should be a way to improve efficiency for small changes to the hierarchy.
-  # observeEvent(input$clusterUpdate, {
-  #   print("TODO: should be more efficient for small/simple changes like shifting a single node")  
-  # })
+  observeEvent(input$collapseNode, {
+    req(data())
+
+    if (is.null(input$collapseNode)) {
+      return()
+    }
+
+    rawNodeID <- input$collapseNode[[1]]
+
+    if (is.null(rawNodeID) || is.na(as.integer(rawNodeID)) || is.null(as.integer(rawNodeID))) {
+      return()
+    }
+
+    if (as.integer(rawNodeID) < 1) {
+      return()
+    }
+
+    if (as.integer(rawNodeID) <= K()) {
+      return()
+    }
+
+    stateStore$collapsed.nodes[[as.integer(rawNodeID)]] <- TRUE
+  })
+
+  observeEvent(input$expandNode, {
+    req(data())
+
+    if (is.null(input$expandNode)) {
+      return()
+    }
+
+    rawNodeID <- input$expandNode[[1]]
+
+    if (is.null(rawNodeID) || is.na(as.integer(rawNodeID)) || is.null(as.integer(rawNodeID))) {
+      return()
+    }
+
+    if (as.integer(rawNodeID) < 1) {
+      return()
+    }
+
+    stateStore$collapsed.nodes[[as.integer(rawNodeID)]] <- FALSE
+  })
 
   # Given that a hierarchy already exists (the widgets are already rendered),
   #       initiate a new clustering that operates on the direct descendants of the selected node (if able).
@@ -472,6 +519,82 @@ function(input, output, session) {
     return(sanitize(all.titles()[topic], type="html"))
   })
 
+  observeEvent(input$updateAssignments, {
+    # Fields: sourceID, targetID, makeNewGroup, timestamp
+    if (is.null(input$updateAssignments)) {
+      return()
+    }
+
+    # NOTE(tfs; 2018-07-04): Currently this relies on the frontend preventing
+    #                        any node targeting one of its descendants
+
+    source.id <- input$updateAssignments[[1]]
+    target.id <- input$updateAssignments[[2]]
+    shift.held <- input$updateAssignments[[3]]
+
+    # Leaf checks currently rely on all initial topics (leaves) to have IDs 1-K()
+    source.is.leaf <- (source.id <= K() && K() > 0)
+    target.is.leaf <- (target.id <= K() && target.id > 0)
+
+    # Leaves (original topics) remain leaves
+    if (target.is.leaf) { 
+      return() }
+
+    if (source.id == target.id) {
+      return() }
+
+    if (shift.held) {
+      if (source.is.leaf || stateStore$assigns[[source.id]] == target.id) {
+        # Shift is held, source is leaf or source is child of target
+        #   Generates new node
+        newID <- max.id() + 1
+        stateStore$assigns[[newID]] <- target.id
+        stateStore$assigns[[source.id]] <- newID
+        return()
+      } else {
+        # Shift is held, source is an aggregate node
+        stateStore$assigns[[source.id]] <- target.id
+        return()
+      }
+    } else {
+      if (stateStore$assigns[[source.id]] == target.id) {
+        return()
+      }
+
+      if (source.is.leaf) {
+        empty.id <- stateStore$assigns[[source.id]]
+
+        # Move a single leaf node
+        stateStore$assigns[[source.id]] <- target.id
+
+        # Clean up if source's parent is now empty
+        while(empty.id > 0 && (empty.id > length(leaf.ids()) || is.null(leaf.ids()[[empty.id]]) || length(leaf.ids()[[empty.id]]) <= 0)) {
+          nid <- stateStore$assigns[[empty.id]]
+          stateStore$assigns[[empty.id]] <- NA
+          empty.id <- nid
+        }
+
+        return()
+      } else {
+        # Move all children of the source node
+        for (ch in children()[[source.id]]) {
+          stateStore$assigns[[ch]] <- target.id
+        }
+
+        empty.id <- source.id
+
+        # Clean up if the update emptied a node
+        while(empty.id > 0 && (empty.id > length(leaf.ids()) || is.null(leaf.ids()[[empty.id]]) || length(leaf.ids()[[empty.id]]) <= 0)) {
+          nid <- stateStore$assigns[[empty.id]]
+          stateStore$assigns[[empty.id]] <- NA
+          empty.id <- nid
+        }
+
+        return()
+      }
+    }
+  })
+
   # Handle changes to assignments from the frontend.
   #     To maintain ground truth, update stateStore on the backend.
   #     This ensures that data is consistent between widgets, as all output data is based solely
@@ -531,6 +654,45 @@ function(input, output, session) {
     }
 
     return(childmap)
+  })
+
+  # Boolean value for each node, noting whether or not the node is a descendant of a collapsed node
+  is.collapsed.descendant <- reactive({
+    req(data())
+
+    rv <- c()
+
+    # Iterate over all potential ids
+    for (ch in seq(max.id())) {
+      p <- stateStore$assigns[[ch]] # Parent/ancestor iterator
+
+      rv[[ch]] <- FALSE # Default value: NOT a descendant of a collapsed node
+
+      # Simple cases (default value holds)
+      if (is.null(stateStore$collapsed.nodes)) { next }
+      if (is.null(p) || is.na(p) || p <= 0) { next }
+
+      # Iterate up all ancestors in the hierarchy, checking collapsed status
+      while (p > 0) {
+        # Cases where p is not yet root, but is not collapsed (keep iterating)
+        if (p > length(stateStore$collapsed.nodes)
+            || is.null(stateStore$collapsed.nodes[[p]])
+            || is.na(stateStore$collapsed.nodes[[p]])) {
+          p <- stateStore$assigns[[p]]
+          next
+        }
+
+        # If p is collapsed, set the flag to TRUE and advance to next node
+        if (!is.null(stateStore$collapsed.nodes[[p]]) && stateStore$collapsed.nodes[[p]]) {
+          rv[[ch]] <- TRUE
+          break
+        }
+
+        p <- stateStore$assigns[[p]]
+      }
+    }
+
+    return(rv)
   })
 
   # List of children for selected topic
@@ -781,12 +943,15 @@ function(input, output, session) {
   observeEvent(input$updateTitle, {
     topic <- as.integer(input$topic.selected)
 
-    newTitle <- input$topic.customTitle
+    newTitle <- isolate(input$topic.customTitle)
+
     if (is.null(newTitle)) {
       newTitle = ""
     }
 
     stateStore$manual.titles[[topic]] <- newTitle
+
+    session$sendCustomMessage("cleanTitleInput", "")
   })
 
   # Aggregate and format data necessary for the bubble/tree widgets, in parallel lists:
@@ -799,29 +964,64 @@ function(input, output, session) {
       return(NULL)
     }
 
-    pid <- c()
-    nid <- c()
-    ttl <- c()
+    pid <- c() # Parent ids
+    nid <- c() # Node ids (children, but will serve as the basic node id for each topic in the widgets)
+    ttl <- c() # Titles, aggregating manual and automatic
+    clp <- c() # Collapsed node flags
+    wgt <- c()
+    ilf <- c() # Denotes nodes that are true leaves (simplifies storage/representation of collapsed nodes)
 
     # n <- length(stateStore$assigns)
     n <- max.id()
 
+    cols <- c(colSums(data()$theta)) # Weights for each node, based on representation in the corpus
+
     for (ch in seq(n)) {
+      if (is.collapsed.descendant()[[ch]]) { next } # Skip descendants of collapsed nodes
       if (is.na(stateStore$assigns[[ch]])) { next } # Continue
       nid <- append(nid, ch)
       pid <- append(pid, stateStore$assigns[ch])
       ttl <- append(ttl, all.titles()[[ch]])
-    }
+      
+      if (ch <= K()) { wgt <- append(wgt, cols[[ch]]) }
 
-    wgt <- c(colSums(data()$theta))
+      # isLeaf is dependent on all original topics being given the first K ids
+      if (ch <= K()) {
+        ilf <- append(ilf, TRUE)
+      } else {
+        ilf <- append(ilf, FALSE)
+      }
 
-    if (length(pid) > length(wgt)) {
-      for (i in seq(length(pid) - length(wgt))) {
-        wgt <- append(wgt, 0)
+      # Handle collapsed node flags, filling in FALSE for missing entries
+      if (ch <= length(stateStore$collapsed.nodes) && !(is.na(stateStore$collapsed.nodes[[ch]]))) {
+        clp <- append(clp, stateStore$collapsed.nodes[[ch]])
+      } else {
+        clp <- append(clp, FALSE)
       }
     }
 
-    rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl)
+    if (max.id() > K()) {
+      for (i in seq(max.id() - K())) {
+        ind <- i + K()
+
+        if (is.na(stateStore$assigns[[ind]]) || is.collapsed.descendant()[[ind]]) { next }
+
+        if (ind <= length(stateStore$collapsed.nodes) && !is.null(stateStore$collapsed.nodes[[ind]]) && !is.na(stateStore$collapsed.nodes[[ind]]) && stateStore$collapsed.nodes[[ind]]) {
+          # Aggregate weight on backend for collapsed nodes
+          newWgt <- 0
+
+          for (l in leaf.ids()[[i + K()]]) {
+            newWgt <- newWgt + cols[[l]]
+          }
+
+          wgt <- append(wgt, newWgt)
+        } else {
+          wgt <- append(wgt, 0)
+        }
+      }
+    }
+
+    rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl, collapsed=clp, isLeaf=ilf)
     return(rv)
   })
 

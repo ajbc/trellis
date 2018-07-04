@@ -405,13 +405,7 @@ HTMLWidgets.widget({
                 }
 
                 var makeNewGroup = d3.event.sourceEvent.shiftKey;
-                var updateNeeded = selfRef.moveOrMerge(selfRef, sourceID, targetID, makeNewGroup);
-                
-                if (updateNeeded) {
-                    selfRef.updateTopicAssignments(selfRef, function() {
-                        self.updateView(true);
-                    });
-                }
+                selfRef.moveOrMerge(selfRef, sourceID, targetID, makeNewGroup);
             }
         }
 
@@ -459,55 +453,11 @@ HTMLWidgets.widget({
     /* Move or merge source node with target node.
      */
     moveOrMerge: function (selfRef, sourceID, targetID, makeNewGroup) {
-        var sourceD = d3.select("#node-"+sourceID).data()[0],
-            targetD = d3.select("#node-"+targetID).data()[0],
-            sourceIsLeaf = selfRef.isLeafNode(sourceD),
-            targetIsSource = sourceD.data.id === targetD.data.id,
-            mergingNodes = sourceD.children && sourceD.children.length > 1,
-            sameParentSel = sourceD.parent === targetD,
-            oldParentD,
-            nsToMove;
-
-        if (targetIsSource || (sameParentSel && !makeNewGroup)) {
-            return false;
+        if (sourceID === targetID) {
+            return;
         }
 
-        if (makeNewGroup) {
-            oldParentD = sourceD.parent;
-            
-            if (!sourceIsLeaf) {
-                nsToMove = [sourceD.data];
-                oldParentD = sourceD.parent;
-                selfRef.updateNsToMove(selfRef, nsToMove, oldParentD, targetD);
-            } else {
-                selfRef.createNewGroup(targetD, sourceD);
-                selfRef.removeChildDFromParent(sourceD);
-            }
-
-            selfRef.removeChildlessNodes(oldParentD);
-
-            return true;
-        } else {
-            if (sourceIsLeaf) {
-                nsToMove = [sourceD.data];
-                oldParentD = sourceD.parent;
-            } else {
-                nsToMove = [];
-                sourceD.children.forEach(function (d) {
-                    nsToMove.push(d.data);
-                });
-                oldParentD = sourceD;
-            }
-
-            selfRef.updateNsToMove(selfRef, nsToMove, oldParentD, targetD);
-            if (sourceIsLeaf) {
-                selfRef.removeChildlessNodes(oldParentD);
-            } else {
-                selfRef.removeChildDFromParent(sourceD);
-            }
-
-            return true;
-        }
+        Shiny.onInputChange("updateAssignments", [sourceID, targetID, makeNewGroup, Date.now()]);
     },
 
     /* This function "zooms" to center of coordinates. It is important to
@@ -776,10 +726,7 @@ HTMLWidgets.widget({
                 assignments.push(childN.id + ":" + n.id);
             });
         });
-        Shiny.addCustomMessageHandler(EVENT, function (newTopics) {
-            self.updateTopicView(newTopics);
-            callback();
-        });
+
         Shiny.onInputChange(EVENT, assignments.join(","));
     },
 

@@ -347,13 +347,7 @@ HTMLWidgets.widget({
                 }
 
                 var makeNewGroup = d3.event.sourceEvent.shiftKey;
-                var updateNeeded = selfRef.moveOrMerge(selfRef, sourceID, targetID, makeNewGroup);
-                
-                if (updateNeeded) {
-                    selfRef.updateTopicAssignments(selfRef, function() {
-                        self.updateView(true);
-                    });
-                }
+                selfRef.moveOrMerge(selfRef, sourceID, targetID, makeNewGroup);
             }
         }
 
@@ -416,61 +410,11 @@ HTMLWidgets.widget({
     /* Move or merge source node with target node.
      */
     moveOrMerge: function (selfRef, sourceID, targetID, makeNewGroup) {
-        var sourceD = d3.select("#tree-node-"+sourceID).data()[0],
-            targetD = d3.select("#tree-node-"+targetID).data()[0],
-            sourceIsLeaf = selfRef.isLeafNode(sourceD),
-            targetIsSource = sourceD.data.id === targetD.data.id,
-            mergingNodes = sourceD.children && sourceD.children.length > 1,
-            sameParentSel = sourceD.parent === targetD,
-            oldParentD,
-            nsToMove;
-
-        if (targetIsSource || (sameParentSel && !makeNewGroup)) {
-            return false;
+        if (sourceID === targetID) {
+            return;
         }
 
-        if (makeNewGroup) {
-            oldParentD = sourceD.parent;
-            // selfRef.createNewGroup(targetD, sourceD);
-            // selfRef.removeChildDFromParent(sourceD);
-
-            // // Any or all of the source's ancestors might be childless now.
-            // // Walk up the tree and remove childless nodes.
-            // selfRef.removeChildlessNodes(oldParentD);
-
-            if (!sourceIsLeaf) {
-                nsToMove = [sourceD.data];
-                oldParentD = sourceD.parent;
-                selfRef.updateNsToMove(selfRef, nsToMove, oldParentD, targetD);
-            } else {
-                selfRef.createNewGroup(targetD, sourceD);
-                selfRef.removeChildDFromParent(sourceD);
-            }
-
-            selfRef.removeChildlessNodes(oldParentD);
-
-            return true;
-        } else {
-            if (sourceIsLeaf) {
-                nsToMove = [sourceD.data];
-                oldParentD = sourceD.parent;
-            } else {
-                nsToMove = [];
-                sourceD.children.forEach(function (d) {
-                    nsToMove.push(d.data);
-                });
-                oldParentD = sourceD;
-            }
-
-            selfRef.updateNsToMove(selfRef, nsToMove, oldParentD, targetD);
-            if (sourceIsLeaf) {
-                selfRef.removeChildlessNodes(oldParentD);
-            } else {
-                selfRef.removeChildDFromParent(sourceD);
-            }
-
-            return true;
-        }
+        Shiny.onInputChange("updateAssignments", [sourceID, targetID, makeNewGroup, Date.now()]);
     },
 
 
@@ -571,7 +515,7 @@ HTMLWidgets.widget({
             .attr("height", function (d) {
                 var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
                 return textheight;
-            })
+            });
     },
 
 
@@ -599,40 +543,6 @@ HTMLWidgets.widget({
         }
     },
 
-
-    // Ref: https://bl.ocks.org/d3noob/43a860bc0024792f8803bba8ca0d5ecd
-    collapseNode: function (n) {
-        var self = this;
-        var d = n.data;
-
-        if (d.children && d.children.length > 0) {
-            d.collapsed = true;
-            d.children.forEach(function (child) {
-                self.setNodeDisplayStatus(child, true);
-            });
-        }
-
-        d3.select("#tree-node-" + d.id).classed("collapsed-tree-node", true);
-        d3.select("#tree-label-" + d.id).classed("collapsed-tree-label", true);
-    },
-
-
-    expandNode: function (n) {
-        var self = this;
-        var d = n.data;
-
-        if (d.collapsed) {
-            d.collapsed = false;
-            d.children.forEach(function (child) {
-                self.setNodeDisplayStatus(child, false);
-            });
-        }
-
-        d3.select("#tree-node-" + d.id).classed("collapsed-tree-node", false);
-        d3.select("#tree-label-" + d.id).classed("collapsed-tree-label", false);
-    },
-
-
     generateNodeClickHandler: function (selfRef) {
         var treeNodeClickHandler = function (n) {
             d3.event.stopPropagation();
@@ -641,12 +551,12 @@ HTMLWidgets.widget({
             if (d3.event.ctrlKey || d3.event.altKey) {
                 // NOTE(tfs): I think this avoids wierdness with javascript nulls
                 if (n.data.collapsed === true) {
-                    selfRef.expandNode(n);
+                    // Timestamp to ensure an actual change is registered
+                    Shiny.onInputChange("expandNode", [n.data.id, Date.now()]);
                 } else {
-                    selfRef.collapseNode(n);
+                    // Timestamp to ensure an actual change is registered
+                    Shiny.onInputChange("collapseNode", [n.data.id, Date.now()]);
                 }
-
-                selfRef.updateTreeView(true);
             } else {
                 selfRef.selectNode(n, false);
             }
@@ -715,7 +625,7 @@ HTMLWidgets.widget({
      */
     getTreeFromRawData: function (x) {
         var self = this,
-            data = { id: 0, children: [], terms: [], weight: 0 },
+            data = { id: 0, children: [], terms: [], weight: 0, collapsed: false, isLeaf: false },
             srcData = HTMLWidgets.dataframeToD3(x.data);
 
         // Sort srcData by node ID
@@ -736,7 +646,7 @@ HTMLWidgets.widget({
         var nodes = [];
         nodes[0] = data;
         for (var i = 0; i < srcData.length; i++) {
-            nodes[srcData[i].nodeID] = { id: srcData[i].nodeID, children: [], terms: [], weight: 0 };
+            nodes[srcData[i].nodeID] = { id: srcData[i].nodeID, children: [], terms: [], weight: 0, collapsed: false, isLeaf: false };
         }
 
         var rawPoint;
@@ -757,6 +667,9 @@ HTMLWidgets.widget({
                 cleanPoint.terms = rawPoint.title.split(" ");
                 cleanPoint.weight = rawPoint.weight;
             }
+
+            cleanPoint.collapsed = rawPoint.collapsed;
+            cleanPoint.isLeaf = rawPoint.isLeaf;
         }
 
         // Updates weight properties of nodes
@@ -810,10 +723,7 @@ HTMLWidgets.widget({
                 });
             }
         });
-        Shiny.addCustomMessageHandler(EVENT, function (newTopics) {
-            self.updateTopicView(newTopics);
-            callback();
-        });
+
         Shiny.onInputChange(EVENT, assignments.join(","));
     },
 
@@ -867,12 +777,7 @@ HTMLWidgets.widget({
     /* Returns `true` if the node is a leaf node, `false` otherwise.
      */
     isLeafNode: function (d) {
-        var hasChildren = typeof d.data.children !== 'undefined';
-        if (hasChildren) {
-            return d.data.children.length === 0;
-        } else {
-            return true;
-        }
+        return d.data.isLeaf;
     },
 
     /* Returns true if node `a` is a child node of `b`.
