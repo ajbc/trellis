@@ -327,6 +327,10 @@ function(input, output, session) {
       return()
     }
 
+    if (as.integer(rawNodeID) <= K()) {
+      return()
+    }
+
     stateStore$collapsed.nodes[[as.integer(rawNodeID)]] <- TRUE
   })
 
@@ -595,6 +599,57 @@ function(input, output, session) {
     }
 
     return(childmap)
+  })
+
+  is.collapsed.descendant <- reactive({
+    print("dud")
+    req(data())
+    print("DUUUUUUDE")
+
+    rv <- c()
+
+    for (ch in seq(max.id())) {
+      print("ded")
+      p <- stateStore$assigns[[ch]]
+      print("ddd")
+      rv[[ch]] <- FALSE
+      print("DDD!!!")
+      if (is.null(stateStore$collapsed.nodes)) {
+        print("exploded")
+        next }
+
+      if (is.null(p) || is.na(p) || p <= 0) {
+        print("borped")
+        next }
+      print("DDDDDDDD!!!!!!!!!!!!!!")
+      while (p > 0) {
+        if (p > length(stateStore$collapsed.nodes)
+            || is.null(stateStore$collapsed.nodes[[p]])
+            || is.na(stateStore$collapsed.nodes[[p]])) {
+          p <- stateStore$assigns[[p]]
+          next
+        }
+
+        print("A")
+        print(p)
+        print("B")
+        print(stateStore$collapsed.nodes)
+        print("C")
+        print(stateStore$sollapsed.nodes[[p]])
+        print("D")
+
+        if (!is.null(stateStore$collapsed.nodes[[p]]) && stateStore$collapsed.nodes[[p]]) {
+          print("e")
+          rv[[ch]] <- TRUE
+          break
+        }
+
+        print("F")
+        p <- stateStore$assigns[[p]]
+      }
+    }
+
+    return(rv)
   })
 
   # List of children for selected topic
@@ -870,15 +925,25 @@ function(input, output, session) {
     nid <- c() # Node ids (children, but will serve as the basic node id for each topic in the widgets)
     ttl <- c() # Titles, aggregating manual and automatic
     clp <- c() # Collapsed node flags
+    ilf <- c() # Denotes nodes that are true leaves (simplifies storage/representation of collapsed nodes)
 
     # n <- length(stateStore$assigns)
     n <- max.id()
 
     for (ch in seq(n)) {
+      print(ch)
+      if (is.collapsed.descendant()[[ch]]) { next } # Skip descendants of collapsed nodes
       if (is.na(stateStore$assigns[[ch]])) { next } # Continue
       nid <- append(nid, ch)
       pid <- append(pid, stateStore$assigns[ch])
       ttl <- append(ttl, all.titles()[[ch]])
+
+      # isLeaf is dependent on all original topics being given the first K ids
+      if (ch <= K()) {
+        ilf <- append(ilf, TRUE)
+      } else {
+        ilf <- append(ilf, FALSE)
+      }
 
       # Handle collapsed node flags, filling in FALSE for missing entries
       if (ch <= length(stateStore$collapsed.nodes) && !(is.na(stateStore$collapsed.nodes[[ch]]))) {
@@ -888,7 +953,14 @@ function(input, output, session) {
       }
     }
 
-    wgt <- c(colSums(data()$theta)) # Weights for each node, based on representation in the corpus
+    cols <- c(colSums(data()$theta)) # Weights for each node, based on representation in the corpus
+    wgt <- c()
+
+    for (ch in nid) {
+      if (ch <= length(cols)) {
+        wgt <- append(wgt, cols[[ch]])
+      }
+    }
 
     # Assign weights of 0 for each aggregate node (they will be summed on the frontend)
     if (length(pid) > length(wgt)) {
@@ -897,7 +969,8 @@ function(input, output, session) {
       }
     }
 
-    rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl, collapsed=clp)
+    rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl, collapsed=clp, isLeaf=ilf)
+    # rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl, collapsed=clp)
     return(rv)
   })
 

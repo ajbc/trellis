@@ -425,6 +425,7 @@ HTMLWidgets.widget({
             targetD = d3.select("#tree-node-"+targetID).data()[0],
             sourceIsLeaf = selfRef.isLeafNode(sourceD),
             targetIsSource = sourceD.data.id === targetD.data.id,
+            sourceIsCollapsed = sourceD.data.collapsed,
             mergingNodes = sourceD.children && sourceD.children.length > 1,
             sameParentSel = sourceD.parent === targetD,
             oldParentD,
@@ -434,48 +435,54 @@ HTMLWidgets.widget({
             return false;
         }
 
-        if (makeNewGroup) {
-            oldParentD = sourceD.parent;
-            // selfRef.createNewGroup(targetD, sourceD);
-            // selfRef.removeChildDFromParent(sourceD);
+        // This will now be handled on the backend
+        Shiny.onInputChange("updateAssignments", [sourceD.data.id, targetD.data.id, makeNewGroup, Date.now()])
+        return true;
 
-            // // Any or all of the source's ancestors might be childless now.
-            // // Walk up the tree and remove childless nodes.
-            // selfRef.removeChildlessNodes(oldParentD);
+        // TODO(tfs; 2018-07-03): Move this to the backend as well.
+        //                        This will simplify representation/display of collapsed nodes
+        // if (makeNewGroup) {
+        //     oldParentD = sourceD.parent;
+        //     selfRef.createNewGroup(targetD, sourceD);
+        //     selfRef.removeChildDFromParent(sourceD);
 
-            if (!sourceIsLeaf) {
-                nsToMove = [sourceD.data];
-                oldParentD = sourceD.parent;
-                selfRef.updateNsToMove(selfRef, nsToMove, oldParentD, targetD);
-            } else {
-                selfRef.createNewGroup(targetD, sourceD);
-                selfRef.removeChildDFromParent(sourceD);
-            }
+        //     // Any or all of the source's ancestors might be childless now.
+        //     // Walk up the tree and remove childless nodes.
+        //     selfRef.removeChildlessNodes(oldParentD);
 
-            selfRef.removeChildlessNodes(oldParentD);
+        //     if (!sourceIsLeaf) {
+        //         nsToMove = [sourceD.data];
+        //         oldParentD = sourceD.parent;
+        //         selfRef.updateNsToMove(selfRef, nsToMove, oldParentD, targetD);
+        //     } else {
+        //         selfRef.createNewGroup(targetD, sourceD);
+        //         selfRef.removeChildDFromParent(sourceD);
+        //     }
 
-            return true;
-        } else {
-            if (sourceIsLeaf) {
-                nsToMove = [sourceD.data];
-                oldParentD = sourceD.parent;
-            } else {
-                nsToMove = [];
-                sourceD.children.forEach(function (d) {
-                    nsToMove.push(d.data);
-                });
-                oldParentD = sourceD;
-            }
+        //     selfRef.removeChildlessNodes(oldParentD);
 
-            selfRef.updateNsToMove(selfRef, nsToMove, oldParentD, targetD);
-            if (sourceIsLeaf) {
-                selfRef.removeChildlessNodes(oldParentD);
-            } else {
-                selfRef.removeChildDFromParent(sourceD);
-            }
+        //     return true;
+        // } else {
+        //     if (sourceIsLeaf) {
+        //         nsToMove = [sourceD.data];
+        //         oldParentD = sourceD.parent;
+        //     } else {
+        //         nsToMove = [];
+        //         sourceD.children.forEach(function (d) {
+        //             nsToMove.push(d.data);
+        //         });
+        //         oldParentD = sourceD;
+        //     }
 
-            return true;
-        }
+        //     selfRef.updateNsToMove(selfRef, nsToMove, oldParentD, targetD);
+        //     if (sourceIsLeaf) {
+        //         selfRef.removeChildlessNodes(oldParentD);
+        //     } else {
+        //         selfRef.removeChildDFromParent(sourceD);
+        //     }
+
+        //     return true;
+        // }
     },
 
 
@@ -521,7 +528,7 @@ HTMLWidgets.widget({
                     elem.classed("collapsed-tree-node", true);
                     elem.classed("terminal-tree-node", false);
                     elem.attr("r", self.COLLAPSED_NODE_RADIUS);
-                    self.collapseNode(d);
+                    // self.collapseNode(d);
                 } else if (d.data.children && d.data.children.length > 0) {
                     // NOTE(tfs): There is probably a cleaner way to do this
                     elem.classed("middle-tree-node", true);
@@ -626,9 +633,9 @@ HTMLWidgets.widget({
 
         if (d.children && d.children.length > 0) {
             // d.collapsed = true;
-            d.children.forEach(function (child) {
-                self.setNodeDisplayStatus(child, true);
-            });
+            // d.children.forEach(function (child) {
+            //     self.setNodeDisplayStatus(child, true);
+            // });
         }
 
         d3.select("#tree-node-" + d.id).classed("collapsed-tree-node", true);
@@ -660,6 +667,7 @@ HTMLWidgets.widget({
             // Handle Windows and Mac common behaviors
             if (d3.event.ctrlKey || d3.event.altKey) {
                 // NOTE(tfs): I think this avoids wierdness with javascript nulls
+                console.log(n);
                 if (n.data.collapsed === true) {
                     console.log("Expanding: " + n.data.id);
                     // Ensure that the input actually changes
@@ -748,7 +756,7 @@ HTMLWidgets.widget({
      */
     getTreeFromRawData: function (x) {
         var self = this,
-            data = { id: 0, children: [], terms: [], weight: 0, collapsed: false },
+            data = { id: 0, children: [], terms: [], weight: 0, collapsed: false, isLeaf: false },
             srcData = HTMLWidgets.dataframeToD3(x.data);
 
         // Sort srcData by node ID
@@ -769,7 +777,7 @@ HTMLWidgets.widget({
         var nodes = [];
         nodes[0] = data;
         for (var i = 0; i < srcData.length; i++) {
-            nodes[srcData[i].nodeID] = { id: srcData[i].nodeID, children: [], terms: [], weight: 0, collapsed: false };
+            nodes[srcData[i].nodeID] = { id: srcData[i].nodeID, children: [], terms: [], weight: 0, collapsed: false, isLeaf: false };
         }
 
         var rawPoint;
@@ -791,7 +799,9 @@ HTMLWidgets.widget({
                 cleanPoint.weight = rawPoint.weight;
             }
 
-            cleanPoint.collapsed = (rawPoint.collapsed == "TRUE");
+            console.log(rawPoint);
+            cleanPoint.collapsed = rawPoint.collapsed;
+            cleanPoint.isLeaf = rawPoint.isLeaf;
         }
 
         // Updates weight properties of nodes
@@ -904,7 +914,7 @@ HTMLWidgets.widget({
     isLeafNode: function (d) {
         var hasChildren = typeof d.data.children !== 'undefined';
         if (hasChildren) {
-            return d.data.children.length === 0;
+            return d.data.isLeaf;
         } else {
             return true;
         }
