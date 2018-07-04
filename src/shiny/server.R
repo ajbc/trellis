@@ -537,24 +537,26 @@ function(input, output, session) {
     target.is.leaf <- (target.id <= K() && target.id > 0)
 
     # Leaves (original topics) remain leaves
-    if (target.is.leaf) { 
-      return() }
+    if (target.is.leaf) { return() }
 
-    if (source.id == target.id) {
-      return() }
+    if (source.id == target.id) { return() }
+
+    empty.id <- source.id
 
     if (shift.held) {
       if (source.is.leaf || stateStore$assigns[[source.id]] == target.id) {
         # Shift is held, source is leaf or source is child of target
         #   Generates new node
+        empty.id <- stateStore$assigns[[source.id]]
+
         newID <- max.id() + 1
         stateStore$assigns[[newID]] <- target.id
         stateStore$assigns[[source.id]] <- newID
-        return()
       } else {
         # Shift is held, source is an aggregate node
+        empty.id <- stateStore$assigns[[source.id]]
+
         stateStore$assigns[[source.id]] <- target.id
-        return()
       }
     } else {
       if (stateStore$assigns[[source.id]] == target.id) {
@@ -566,15 +568,6 @@ function(input, output, session) {
 
         # Move a single leaf node
         stateStore$assigns[[source.id]] <- target.id
-
-        # Clean up if source's parent is now empty
-        while(empty.id > 0 && (empty.id > length(leaf.ids()) || is.null(leaf.ids()[[empty.id]]) || length(leaf.ids()[[empty.id]]) <= 0)) {
-          nid <- stateStore$assigns[[empty.id]]
-          stateStore$assigns[[empty.id]] <- NA
-          empty.id <- nid
-        }
-
-        return()
       } else {
         # Move all children of the source node
         for (ch in children()[[source.id]]) {
@@ -582,16 +575,14 @@ function(input, output, session) {
         }
 
         empty.id <- source.id
-
-        # Clean up if the update emptied a node
-        while(empty.id > 0 && (empty.id > length(leaf.ids()) || is.null(leaf.ids()[[empty.id]]) || length(leaf.ids()[[empty.id]]) <= 0)) {
-          nid <- stateStore$assigns[[empty.id]]
-          stateStore$assigns[[empty.id]] <- NA
-          empty.id <- nid
-        }
-
-        return()
       }
+    }
+
+    # Clean up if the update emptied a node
+    while(empty.id > 0 && (empty.id > length(leaf.ids()) || is.null(leaf.ids()[[empty.id]]) || length(leaf.ids()[[empty.id]]) <= 0)) {
+      nid <- stateStore$assigns[[empty.id]]
+      stateStore$assigns[[empty.id]] <- NA
+      empty.id <- nid
     }
   })
 
