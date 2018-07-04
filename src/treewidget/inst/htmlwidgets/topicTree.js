@@ -527,22 +527,6 @@ HTMLWidgets.widget({
         return path;
     },
 
-
-    setNodeDisplayStatus: function (d, status) {
-        var self = this,
-            id = d.id;
-        d3.select("#tree-node-"+id).classed("hidden-tree-node", status);
-        d3.select("#tree-path-"+id).classed("hidden-tree-path", status);
-        d3.select("#tree-label-"+id).classed("hidden-tree-label", status);
-        d3.select("#tree-label-background-"+id).classed("hidden-tree-label-background", status);
-
-        if (d.children && d.children.length > 0 && !d.collapsed) {
-            d.children.forEach(function (newD) {
-                self.setNodeDisplayStatus(newD, status);
-            });
-        }
-    },
-
     generateNodeClickHandler: function (selfRef) {
         var treeNodeClickHandler = function (n) {
             d3.event.stopPropagation();
@@ -563,52 +547,6 @@ HTMLWidgets.widget({
         }
 
         return treeNodeClickHandler;
-    },
-
-    updateNsToMove: function (selfRef, nsToMove, oldParentD, newParentD) {
-        var newChildren = [];
-
-        // Remove nodes-to-move from old parent.
-        if (nsToMove.length === 1) {
-            oldParentD.data.children.forEach(function (child) {
-                if (child.id !== nsToMove[0].id) {
-                    newChildren.push(child);
-                }
-            });
-            oldParentD.data.children = newChildren;
-        } else {
-            // In this scenario, the user selected a group of topics
-            // (`oldParent`), and we're moving all of that group's children.
-            oldParentD.data.children = [];
-        }
-
-        // Add nodes-to-move to new parent.
-        nsToMove.forEach(function (nToMove) {
-            newParentD.data.children.push(nToMove);
-        });
-    },
-
-    /* Removes child node from its parent.
-     */
-    removeChildDFromParent: function (childD) {
-        var newChildren = [];
-        childD.parent.data.children.forEach(function (n) {
-            if (n.id !== childD.data.id) {
-                newChildren.push(n);
-            }
-        });
-        childD.parent.data.children = newChildren;
-    },
-
-    /* Make new group with `target` if node meets criteria.
-     */
-    createNewGroup: function (newGroupD, childD) {
-        var self = this;
-        newGroupD.data.children.push({
-            id: self.getNewID(),
-            children: [childD.data],
-            terms: childD.data.terms
-        });
     },
 
     traverseTree: function (node, processNode) {
