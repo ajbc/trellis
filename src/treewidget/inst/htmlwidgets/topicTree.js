@@ -414,7 +414,6 @@ HTMLWidgets.widget({
             return;
         }
 
-        // This will now be handled on the backend
         Shiny.onInputChange("updateAssignments", [sourceID, targetID, makeNewGroup, Date.now()]);
     },
 
