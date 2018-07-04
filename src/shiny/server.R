@@ -25,7 +25,7 @@ function(input, output, session) {
   # collapsed.nodes:
   #    Similar to assigns in format, list of node ids
   #    with either a boolean value or a missing entry (corresponding to false).
-  stateStore <- reactiveValues(manual.titles=list(), assigns=NULL, dataname="Data", collapsed.nodes=c())
+  stateStore <- reactiveValues(manual.titles=list(), assigns=NULL, dataname="Data", collapsed.nodes=NULL)
 
   # Parse the user-provided dataset name (from the initial panel)
   chosenDataName <- reactive({
@@ -678,8 +678,7 @@ function(input, output, session) {
     for (ch in seq(max.id())) {
       p <- stateStore$assigns[[ch]]
       rv[[ch]] <- FALSE
-      if (is.null(stateStore$collapsed.nodes)) {
-        next }
+      if (is.null(stateStore$collapsed.nodes)) { next }
 
       if (is.null(p) || is.na(p) || p <= 0) {
         next }
@@ -976,10 +975,13 @@ function(input, output, session) {
     nid <- c() # Node ids (children, but will serve as the basic node id for each topic in the widgets)
     ttl <- c() # Titles, aggregating manual and automatic
     clp <- c() # Collapsed node flags
+    wgt <- c()
     ilf <- c() # Denotes nodes that are true leaves (simplifies storage/representation of collapsed nodes)
 
     # n <- length(stateStore$assigns)
     n <- max.id()
+
+    cols <- c(colSums(data()$theta)) # Weights for each node, based on representation in the corpus
 
     for (ch in seq(n)) {
       if (is.collapsed.descendant()[[ch]]) { next } # Skip descendants of collapsed nodes
@@ -987,6 +989,8 @@ function(input, output, session) {
       nid <- append(nid, ch)
       pid <- append(pid, stateStore$assigns[ch])
       ttl <- append(ttl, all.titles()[[ch]])
+      
+      if (ch <= K()) { wgt <- append(wgt, cols[[ch]]) }
 
       # isLeaf is dependent on all original topics being given the first K ids
       if (ch <= K()) {
@@ -1003,19 +1007,42 @@ function(input, output, session) {
       }
     }
 
-    cols <- c(colSums(data()$theta)) # Weights for each node, based on representation in the corpus
-    wgt <- c()
-
-    for (ch in nid) {
-      if (ch <= length(cols)) {
-        wgt <- append(wgt, cols[[ch]])
-      }
-    }
-
     # Assign weights of 0 for each aggregate node (they will be summed on the frontend)
-    if (length(pid) > length(wgt)) {
-      for (i in seq(length(pid) - length(wgt))) {
-        wgt <- append(wgt, 0)
+    # if (length(pid) > length(wgt)) {
+    #   for (i in seq(length(pid) - length(wgt))) {
+    #     if (i + length(wgt) < !is.null(stateStore$collapsed.nodes[[i + K()]]) && stateStore$collapsed.nodes[[i + K()]]) {
+    #       # Aggregate weight on backend for collapsed nodes
+    #       newWgt <- 0
+
+    #       for (l in leaf.ids()[[i + length(wgt)]]) {
+    #         newWgt <- newWgt + cols[[l]]
+    #       }
+
+    #       wgt <- append(wgt, newWgt)
+    #     } else {
+    #       wgt <- append(wgt, 0)
+    #     }
+    #   }
+    # }
+
+    if (max.id() > K()) {
+      for (i in seq(max.id() - K())) {
+        ind <- i + K()
+
+        if (is.na(stateStore$assigns[[ind]]) || is.collapsed.descendant()[[ind]]) { next }
+
+        if (ind <= length(stateStore$collapsed.nodes) && !is.null(stateStore$collapsed.nodes[[ind]]) && !is.na(stateStore$collapsed.nodes[[ind]]) && stateStore$collapsed.nodes[[ind]]) {
+          # Aggregate weight on backend for collapsed nodes
+          newWgt <- 0
+
+          for (l in leaf.ids()[[i + K()]]) {
+            newWgt <- newWgt + cols[[l]]
+          }
+
+          wgt <- append(wgt, newWgt)
+        } else {
+          wgt <- append(wgt, 0)
+        }
       }
     }
 
