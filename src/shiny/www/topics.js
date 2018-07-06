@@ -303,6 +303,7 @@ function enterFlattenMode(msg) {
 
 	var newWidth = Math.min($(window).width() - (RIGHT_BAR_WIDTH + 5), 0.7 * $(window).width());
 	flattenMode = true;
+	Shiny.onInputChange("clear.flat.selection", Date.now());
 
 	$("#main-panel").css({ "left": "0px" });
 	$("#main-panel").css({ "right": "" });
@@ -324,6 +325,7 @@ function exitFlattenMode(msg) {
 	$(".export-mode-control").removeClass("hidden");
 
 	flattenMode = false;
+	Shiny.onInputChange("clear.flat.selection", Date.now());
 
 	$("#main-panel").css({ "max-width": "unset" });
 	$("#main-panel").animate({ "width": "100vw" }, 500, function() {

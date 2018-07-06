@@ -24,8 +24,45 @@ function(input, output, session) {
   #    NOTE: root is represented as "root"
   # collapsed.nodes:
   #    Similar to assigns in format, list of node ids
-  #    with either a boolean value or a missing entry (corresponding to false).
-  stateStore <- reactiveValues(manual.titles=list(), assigns=NULL, dataname="Data", collapsed.nodes=NULL)
+  #    with either a boolean value or a missing entry (corresponding to false)
+  # flat.selection:
+  #    Similar to collapsed.nodes
+  #    Boolean flag (denoting whether a node is selected for a flat export) or a missing value (false)
+  stateStore <- reactiveValues(manual.titles=list(), assigns=NULL, dataname="Data", collapsed.nodes=NULL, flat.selection=NULL)
+
+  # Function used to select nodes for flatten mode
+  find.level.children <- function(id, level) {
+    if (id == 0) { id <- "root" }
+
+    # Base cases
+    if ((level <= 0) || (length(children()[[id]]) == 0)) {
+      return(c(id))
+    }
+
+    # Recurse on all children of current node
+    idlist <- c()
+    for (ch in children()[[id]]) {
+      idlist <- append(idlist, select.level.children(ch, level-1))
+    }
+
+    return(idlist)
+  }
+
+  # Provide all descendants of a node (as a list)
+  all.descendant.ids <- function(id) {
+    if (id == 0) { id <- "root" }
+
+    # Base case
+    if (length(children()[[id]]) == 0) { return(c(id)) }
+
+    # Recurse on children
+    idlist <- c()
+    for (ch in children()[[id]]) {
+      idlist <- append(idlist, all.descendant.ids(ch))
+    }
+
+    return(idlist)
+  }
 
   # Parse the user-provided dataset name (from the initial panel)
   chosenDataName <- reactive({
@@ -616,6 +653,105 @@ function(input, output, session) {
   })
 
 
+  # Only enable the flat export button if something is selected
+  observe({
+    shinyjs::toggleState("export.flat", !is.null(stateStore$flat.selection))
+  })
+
+
+  # Update the flat selection state
+  observeEvent(input$flat.node.selection, {
+    req(data())
+
+    if (is.null(input$flat.node.selection) || input$flat.node.selection == "") { return() }
+    
+    # Handle edge case of root, equivalent of deselcting
+    # (A one-node topic model isn't very interesting)
+    if (as.integer(input$flat.node.selection) == 0) {
+      stateStore$flat.selection = NULL
+      return()
+    }
+
+    # Error case. Shouldn't happen.
+    if (length(stateStore$assigns) < as.integer(input$flat.node.selection)) {
+      stateStore$flat.selection = NULL
+      return()
+    }
+
+    # If nothing is currently selected, select all nodes of the appropriate level
+    if (is.null(stateStore$flat.selection)) {
+      stateStore$flat.selection <- c()
+
+      level <- 1
+      p <- stateStore$assigns[[as.integer(input$flat.node.selection)]]
+
+      while (p > 0) {
+        level <- level + 1
+        p <- stateStore$assigns[[p]]
+      }
+
+      idlist <- find.level.children(0, level)
+      for (id in idlist) {
+        stateStore$flat.selection[[id]] <- TRUE
+      }
+    }
+
+    level <- 1
+    p <- stateStore$assigns[[as.integer(input$flat.node.selection)]]
+    ancestor.flag <- FALSE
+
+    # Check if an ancestor of the current node is already selected.
+    #    If so, select all nodes at the same level as the node id provided
+    while (p > 0) {
+      # Cases where p is not yet root, but is not collapsed (keep iterating)
+      if (p > length(stateStore$flat.selection)
+          || is.null(stateStore$flat.selection[[p]])
+          || is.na(stateStore$flat.selection[[p]])) {
+        p <- stateStore$assigns[[p]]
+        next
+      }
+
+      # If p is selected, note the level and select all of same level
+      # Deselect p
+      if (!is.null(stateStore$flat.selection[[p]]) && stateStore$flat.selection[[p]]) {
+        stateStore$flat.selection[[p]] <- FALSE # Deselect p
+        parent.flag <- TRUE
+        break
+      }
+
+      level <- level + 1
+      p <- stateStore$assigns[[p]]
+    }
+
+    # If an ancestor of the specified node was previously selected,
+    #    select all of that ancestors leaves or descendants at the same level as
+    #    the specified node, whichever is shallower
+    if (ancestor.flag) {
+      idlist <- find.level.children(p, level)
+
+      # Label all ids
+      for (id in idlist) {
+        stateStore$flat.selection[[id]] <- TRUE
+      }
+
+      return()
+    }
+
+    # Deselect all descendants of original node
+    idlist <- all.descendant.ids(as.integer(input$flat.node.selection))
+
+    for (id in idlist) {
+      stateStore$flat.selection[[id]] <- FALSE
+    }
+  })
+
+
+  # Clears selection, used when exiting flat export more
+  observeEvent(input$clear.flat.selection, {
+    stateStore$flat.selection = NULL
+  })
+
+
   # Full storage of child IDs for each node (0 is root)
   children <- reactive({
     if (is.null(stateStore$assigns)) { return() }
@@ -962,6 +1098,7 @@ function(input, output, session) {
     clp <- c() # Collapsed node flags
     wgt <- c()
     ilf <- c() # Denotes nodes that are true leaves (simplifies storage/representation of collapsed nodes)
+    flt <- c() # Flat model export, node selection flags
 
     # n <- length(stateStore$assigns)
     n <- max.id()
@@ -974,6 +1111,12 @@ function(input, output, session) {
       nid <- append(nid, ch)
       pid <- append(pid, stateStore$assigns[ch])
       ttl <- append(ttl, all.titles()[[ch]])
+
+      if (!is.null(stateStore$flat.selection) && ch <= length(stateStore$flat.selection) && !is.null(stateStore$flat.selection[[ch]])) {
+        flt <- append(flt, stateStore$flat.selection[[ch]])
+      } else {
+        flt <- append(flt, FALSE)
+      }
       
       if (ch <= K()) { wgt <- append(wgt, cols[[ch]]) }
 
@@ -1013,7 +1156,7 @@ function(input, output, session) {
       }
     }
 
-    rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl, collapsed=clp, isLeaf=ilf)
+    rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl, collapsed=clp, isLeaf=ilf, flatSelected=flt)
     return(rv)
   })
 

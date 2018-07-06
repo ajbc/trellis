@@ -623,7 +623,11 @@ HTMLWidgets.widget({
             borderColor = null,
             isCollapsed = d.data.collapsed,
             fillColor;
-        if (isfirstSelNode) {
+
+        if (flattenMode && d.data.flatSelected) {
+            borderColor = "rgb(0, 0, 0)";
+            fillColor = "rgb(0, 175, 0)";
+        } else if (isfirstSelNode) {
             borderColor = "rgb(12, 50, 127)";
             fillColor = "rgb(25, 101, 255)";
         } else if (isCollapsed) {
@@ -702,7 +706,7 @@ HTMLWidgets.widget({
         var nodes = [];
         nodes[0] = data;
         for (var i = 0; i < srcData.length; i++) {
-            nodes[srcData[i].nodeID] = { id: srcData[i].nodeID, children: [], terms: [], collapsed: false, isLeaf: false };
+            nodes[srcData[i].nodeID] = { id: srcData[i].nodeID, children: [], terms: [], collapsed: false, isLeaf: false, flatSelected: false };
         }
 
         var rawPoint;
@@ -725,6 +729,7 @@ HTMLWidgets.widget({
 
             cleanPoint.collapsed = rawPoint.collapsed;
             cleanPoint.isLeaf = rawPoint.isLeaf;
+            cleanPoint.flatSelected = rawPoint.flatSelected;
         }
 
         return data;

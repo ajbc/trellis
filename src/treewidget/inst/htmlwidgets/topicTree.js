@@ -563,7 +563,7 @@ HTMLWidgets.widget({
      */
     getTreeFromRawData: function (x) {
         var self = this,
-            data = { id: 0, children: [], terms: [], weight: 0, collapsed: false, isLeaf: false },
+            data = { id: 0, children: [], terms: [], weight: 0, collapsed: false, isLeaf: false, flatSelected: false },
             srcData = HTMLWidgets.dataframeToD3(x.data);
 
         // Sort srcData by node ID
@@ -584,7 +584,7 @@ HTMLWidgets.widget({
         var nodes = [];
         nodes[0] = data;
         for (var i = 0; i < srcData.length; i++) {
-            nodes[srcData[i].nodeID] = { id: srcData[i].nodeID, children: [], terms: [], weight: 0, collapsed: false, isLeaf: false };
+            nodes[srcData[i].nodeID] = { id: srcData[i].nodeID, children: [], terms: [], weight: 0, collapsed: false, isLeaf: false, flatSelected: false };
         }
 
         var rawPoint;
@@ -608,6 +608,7 @@ HTMLWidgets.widget({
 
             cleanPoint.collapsed = rawPoint.collapsed;
             cleanPoint.isLeaf = rawPoint.isLeaf;
+            cleanPoint.flatSelected = rawPoint.flatSelected;
         }
 
         // Updates weight properties of nodes
