@@ -429,13 +429,6 @@ HTMLWidgets.widget({
         return handler;
     },
 
-    setDraggedNode: function (nodeD) {
-        return;
-    },
-
-    releaseDraggedNode: function (nodeD, makeNewGroup) {
-        return;
-    },
 
     selectNode: function (targetD, makeNewGroup) {
         var self = this,

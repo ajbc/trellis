@@ -61,7 +61,17 @@ $(document).ready(function() {
 		selectBubbles();
 	});
 
+	$("#right-bubbles-selector").click(function(event) {
+		event.preventDefault();
+		selectBubbles();
+	});
+
 	$("#tree-selector").click(function(event) {
+		event.preventDefault();
+		selectTree();
+	});
+
+	$("#right-tree-selector").click(function(event) {
 		event.preventDefault();
 		selectTree();
 	});
@@ -88,7 +98,6 @@ $(document).ready(function() {
 
 	$("#exit-flatten-button").click(function(event) {
 		event.preventDefault();
-		console.log("pLEASE");
 		exitFlattenMode();
 	});
 
@@ -137,7 +146,6 @@ $(document).on("shiny:sessioninitialized", function(event) {
 // Once "Start" button is pressed, disable "Start" button and display processing message.
 //     Then notify backend it can process input files
 function processInputFile(msg) {
-	console.log("Processing Files")
 	$("#topic\\.start").attr("disabled", true);
 	$("#init-message").removeClass("inplace-hidden-message");
 	$("#init-message").trigger("shown");
@@ -153,7 +161,6 @@ function initializeMainView(msg) {
 
 // Set shinyFiles input fields to null (for performance)
 function clearFileInputs(msg) {
-	console.log("Clearing file inputs");
 	Shiny.onInputChange("textlocation-modal", null);
 	Shiny.onInputChange("textlocation", null);
 	Shiny.onInputChange("modelfile-modal", null);
@@ -191,7 +198,9 @@ function selectBubbles() {
 	selectedView = BUBBLE_LABEL;
 	
 	$("#bubbles-selector").addClass("selected-view-button");
+	$("#right-bubbles-selector").addClass("selected-view-button");
 	$("#tree-selector").removeClass("selected-view-button");
+	$("#right-tree-selector").removeClass("selected-view-button");
 	
 	$("#bubbles-view").trigger("show");
 	$("#bubbles-view").removeClass("hidden-view");
@@ -202,7 +211,9 @@ function selectBubbles() {
 	$("#tree-view").trigger("hidden");
 	
 	$("#bubbles-selector").attr("disabled", "disabled");
+	$("#right-bubbles-selector").attr("disabled", "disabled");
 	$("#tree-selector").removeAttr("disabled");
+	$("#right-tree-selector").removeAttr("disabled");
 	
 	activeSelector = selectors[BUBBLE_LABEL];
 	Shiny.onInputChange("selectedView", BUBBLE_LABEL);
@@ -218,7 +229,9 @@ function selectTree() {
 	selectedView = TREE_LABEL;
 	
 	$("#tree-selector").addClass("selected-view-button");
+	$("#right-tree-selector").addClass("selected-view-button");
 	$("#bubbles-selector").removeClass("selected-view-button");
+	$("#right-bubbles-selector").removeClass("selected-view-button");
 	
 	$("#tree-view").trigger("show");
 	$("#tree-view").removeClass("hidden-view");
@@ -229,7 +242,9 @@ function selectTree() {
 	$("#bubbles-view").trigger("hidden");
 	
 	$("#tree-selector").attr("disabled", "disabled");
+	$("#right-tree-selector").attr("disabled", "disabled");
 	$("#bubbles-selector").removeAttr("disabled");
+	$("#right-bubbles-selector").removeAttr("disabled");
 	
 	activeSelector = selectors[TREE_LABEL];
 	Shiny.onInputChange("selectedView", TREE_LABEL);
@@ -304,8 +319,6 @@ function enterFlattenMode(msg) {
 function exitFlattenMode(msg) {
 	if (!exportMode) { return; }
 	if (!flattenMode) { return; }
-
-	console.log("EXITING FLATTEN MODE");
 
 	$("#right-bar").removeClass("right-content-flatten-mode");
 	$(".export-mode-control").removeClass("hidden");

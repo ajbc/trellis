@@ -181,8 +181,21 @@
             </div>
         </div>
 
-        <div id="right-bar" class="right-content initial-hidden shinyjs-hide">
-            <button id="exit-flatten-button" class="btn">Cancel</button>
+        <div id="right-bar" class="right-content initial-hidden shinyjs-hide centered">
+            <div id="right-bar-header-content">
+                <h3 id="right-bar-title">Export Flat Model</h3>
+
+                <div id="right-view-selection-container">
+                    <button id="right-bubbles-selector" class="btn view-select-button selected-view-button" disabled="enabled">Bubbles</button>
+                    <button id="right-tree-selector" class="btn view-select-button">Tree</button>
+                </div>
+            </div>
+
+            <div id="right-bar-controls" class="centered">
+                <button id="exit-flatten-button" class="btn btn-danger flatten-button">Cancel</button>
+
+                <button id="export-flat-model" class="btn btn-primary flatten-button">Export</button>
+            </div>
         </div>
 
         <div id="document-details-container" class="document-expanded initial-hidden shinyjs-hide hidden">

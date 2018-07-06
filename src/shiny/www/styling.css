@@ -383,6 +383,39 @@ span#kmeans-initialization-row2 .form-group label {
 }
 
 
+.flatten-button {
+    display: flex;
+    justify-content: space-around;
+    justify-content: space-evenly;
+    width: 80px;
+}
+
+
+#right-bar-controls {
+    display: flex;
+    justify-content: space-around;
+    justify-content: space-evenly;
+    padding-top: 10px;
+}
+
+
+#right-view-selection-container {
+    display: flex;
+    justify-content: space-around;
+    justify-content: space-evenly; /* Not sure if this renders in all browsers */
+}
+
+
+#right-bar-header-content {
+    border-bottom-style: solid;
+    border-bottom-color: black;
+    border-bottom-width: 2px;
+    padding-bottom: 25px;
+    padding-top: 10px;
+    background-color: var(--left-bar-bg-color, gray);
+}
+
+
 .hidden-right-bar-content {
     display: none;
 }
