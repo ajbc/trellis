@@ -215,8 +215,6 @@ function(input, output, session) {
 
       if (i <= length(stateStore$manual.titles) && !is.null(stateStore$manual.titles[[i]])) {
         flat.mantitles[[i]] <- stateStore$manual.titles[[idlist[[i]]]]
-      } else {
-        flat.mantitles[[i]] <- ""
       }
 
       newAs <- append(newAs, paste(i, "0", sep=":"))
