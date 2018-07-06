@@ -627,6 +627,12 @@ span#kmeans-initialization-row2 .form-group label {
 }
 
 
+.flatten-selected-tree-node {
+    fill: rgb(0, 175, 0);
+    stroke: 2px solid black;
+}
+
+
 .terminal-tree-node:hover, .terminal-tree-node.selected {
     fill: darkblue;
     stroke-width: 1px;

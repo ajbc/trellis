@@ -34,15 +34,19 @@ function(input, output, session) {
   find.level.children <- function(id, level) {
     if (id == 0) { id <- "root" }
 
-    # Base cases
-    if ((level <= 0) || (length(children()[[id]]) == 0)) {
+    # Base cases: Reached correct level, reached leaf, or reached collapsed node
+    if ((level <= 0) || (length(children()[[id]]) == 0)
+        || (!is.null(stateStore$collapsed.nodes)
+            && length(stateStore$collapsed.nodes) >= id
+            && !is.na(stateStore$collapsed.nodes[[id]])
+            && stateStore$collapsed.nodes[[id]])) {
       return(c(id))
     }
 
     # Recurse on all children of current node
     idlist <- c()
     for (ch in children()[[id]]) {
-      idlist <- append(idlist, select.level.children(ch, level-1))
+      idlist <- append(idlist, find.level.children(ch, level-1))
     }
 
     return(idlist)
@@ -53,11 +57,14 @@ function(input, output, session) {
     if (id == 0) { id <- "root" }
 
     # Base case
-    if (length(children()[[id]]) == 0) { return(c(id)) }
+    if (length(children()[[id]]) == 0) {
+      return(c(id))
+    }
 
     # Recurse on children
     idlist <- c()
     for (ch in children()[[id]]) {
+      idlist <- append(idlist, ch)
       idlist <- append(idlist, all.descendant.ids(ch))
     }
 
@@ -663,17 +670,20 @@ function(input, output, session) {
   observeEvent(input$flat.node.selection, {
     req(data())
 
-    if (is.null(input$flat.node.selection) || input$flat.node.selection == "") { return() }
+    if (is.null(input$flat.node.selection)) { return() }
+
+    # Exclude timestamp, which is used to ensure difference in input value
+    nodeID <- as.integer(input$flat.node.selection[[1]])
     
     # Handle edge case of root, equivalent of deselcting
     # (A one-node topic model isn't very interesting)
-    if (as.integer(input$flat.node.selection) == 0) {
+    if (nodeID == 0) {
       stateStore$flat.selection = NULL
       return()
     }
 
     # Error case. Shouldn't happen.
-    if (length(stateStore$assigns) < as.integer(input$flat.node.selection)) {
+    if (length(stateStore$assigns) < nodeID) {
       stateStore$flat.selection = NULL
       return()
     }
@@ -683,7 +693,7 @@ function(input, output, session) {
       stateStore$flat.selection <- c()
 
       level <- 1
-      p <- stateStore$assigns[[as.integer(input$flat.node.selection)]]
+      p <- stateStore$assigns[[nodeID]]
 
       while (p > 0) {
         level <- level + 1
@@ -694,10 +704,20 @@ function(input, output, session) {
       for (id in idlist) {
         stateStore$flat.selection[[id]] <- TRUE
       }
+
+      return()
+    }
+
+    # If node is already selected, do nothing
+    if (!is.null(stateStore$flat.selection)
+        && length(stateStore$flat.selection) >= nodeID
+        && !is.na(stateStore$flat.selection[[nodeID]])
+        && stateStore$flat.selection[[nodeID]]) {
+      return()
     }
 
     level <- 1
-    p <- stateStore$assigns[[as.integer(input$flat.node.selection)]]
+    p <- stateStore$assigns[[nodeID]]
     ancestor.flag <- FALSE
 
     # Check if an ancestor of the current node is already selected.
@@ -708,6 +728,7 @@ function(input, output, session) {
           || is.null(stateStore$flat.selection[[p]])
           || is.na(stateStore$flat.selection[[p]])) {
         p <- stateStore$assigns[[p]]
+        level <- level + 1
         next
       }
 
@@ -715,7 +736,7 @@ function(input, output, session) {
       # Deselect p
       if (!is.null(stateStore$flat.selection[[p]]) && stateStore$flat.selection[[p]]) {
         stateStore$flat.selection[[p]] <- FALSE # Deselect p
-        parent.flag <- TRUE
+        ancestor.flag <- TRUE
         break
       }
 
@@ -737,8 +758,11 @@ function(input, output, session) {
       return()
     }
 
+    # Select current node
+    stateStore$flat.selection[[nodeID]] <- TRUE
+
     # Deselect all descendants of original node
-    idlist <- all.descendant.ids(as.integer(input$flat.node.selection))
+    idlist <- all.descendant.ids(nodeID)
 
     for (id in idlist) {
       stateStore$flat.selection[[id]] <- FALSE

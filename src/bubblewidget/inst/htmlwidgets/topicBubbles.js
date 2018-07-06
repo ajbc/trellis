@@ -291,6 +291,8 @@ HTMLWidgets.widget({
 
             // Handle Windows and Mac common behaviors
             if (d3.event.ctrlKey || d3.event.altKey) {
+                // if (flattenMode) { return; }
+                
                 // NOTE(tfs): I think this avoids wierdness with javascript nulls
                 if (n.data.collapsed === true) {
                     // Timestamp to ensure an actual change is registered
@@ -300,7 +302,11 @@ HTMLWidgets.widget({
                     Shiny.onInputChange("collapseNode", [n.data.id, Date.now()]);
                 }
             } else {
-                selfRef.selectNode(n, false);
+                if (flattenMode) {
+                    Shiny.onInputChange("flat.node.selection", [n.data.id, Date.now()]);
+                } else {
+                    selfRef.selectNode(n, false);
+                }
             }
         }
 
@@ -346,6 +352,8 @@ HTMLWidgets.widget({
     // Pass in reference to "self", as the call() method passes a different "this"
     activeDragHandler: function (selfRef) {
         var handler = function (d) {
+            if (flattenMode) { return; } // Disable these behaviors while exporting flat model
+
             coords = d3.mouse(this);
 
             if (d3.event.sourceEvent.altKey) {
@@ -638,6 +646,7 @@ HTMLWidgets.widget({
         } else {
             fillColor = "rgb(255, 255, 255)";
         }
+
         d3.select("#node-" + d.data.id)
             .style("fill", fillColor)
             .style("stroke", borderColor)

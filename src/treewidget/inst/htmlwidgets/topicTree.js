@@ -148,7 +148,7 @@ HTMLWidgets.widget({
         // Root of a tree structure
         self.treeData = self.getTreeFromRawData(rawData);
 
-        self.updateTreeView(false);
+        self.updateTreeView(true);
     },
 
     updateTreeView: function (useTransition) {
@@ -459,18 +459,30 @@ HTMLWidgets.widget({
                     elem.classed("middle-tree-node", false);
                     elem.classed("collapsed-tree-node", true);
                     elem.classed("terminal-tree-node", false);
+                    elem.classed("flatten-selected-tree-node", false);
                     elem.attr("r", self.COLLAPSED_NODE_RADIUS);
                 } else if (d.data.children && d.data.children.length > 0) {
                     // NOTE(tfs): There is probably a cleaner way to do this
                     elem.classed("middle-tree-node", true);
                     elem.classed("terminal-tree-node", false);
                     elem.classed("collapsed-tree-node", false);
+                    elem.classed("flatten-selected-tree-node", false);
                     elem.attr("r", self.CIRCLE_RADIUS);
                 } else {
                     elem.classed("middle-tree-node", false);
                     elem.classed("terminal-tree-node", true);
                     elem.classed("collapsed-tree-node", false);
+                    elem.classed("flatten-selected-tree-node", false);
                     elem.attr("r", self.TERMINAL_NODE_RADIUS);
+                }
+
+                // Override class settings if in flattenMode and selected for flat model
+                //   Keep sizing
+                if (flattenMode && d.data.flatSelected) {
+                    elem.classed("middle-tree-node", false);
+                    elem.classed("collapsed-tree-node", false);
+                    elem.classed("terminal-tree-node", false);
+                    elem.classed("flatten-selected-tree-node", true);
                 }
             });
 
@@ -533,6 +545,8 @@ HTMLWidgets.widget({
 
             // Handle Windows and Mac common behaviors
             if (d3.event.ctrlKey || d3.event.altKey) {
+                // if (flattenMode) { return; }
+
                 // NOTE(tfs): I think this avoids wierdness with javascript nulls
                 if (n.data.collapsed === true) {
                     // Timestamp to ensure an actual change is registered
@@ -542,7 +556,11 @@ HTMLWidgets.widget({
                     Shiny.onInputChange("collapseNode", [n.data.id, Date.now()]);
                 }
             } else {
-                selfRef.selectNode(n, false);
+                if (flattenMode) {
+                    Shiny.onInputChange("flat.node.selection", [n.data.id, Date.now()]);
+                } else {
+                    selfRef.selectNode(n, false);
+                }
             }
         }
 
