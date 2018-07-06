@@ -201,13 +201,10 @@ function(input, output, session) {
       }
     }
 
-    # ab <- matrix(0, nrow=max.id(), ncol=ncol(leaf.beta))
+    # Create new matrices for beta and theta with new K (of flat model)
     flat.beta <- matrix(0, nrow=length(idlist), ncol=ncol(beta()))
-
-    # mtheta <- matrix(0, nrow=nrow(theta), ncol=node.maxID())
     flat.theta <- matrix(0, nrow=nrow(data()$theta), ncol=length(idlist))
 
-    # flat.titles <- list()
     flat.mantitles <- list()
 
     newAs = c()
@@ -215,8 +212,6 @@ function(input, output, session) {
     for (i in seq(length(idlist))) {
       flat.beta[i,] <- all.beta()[idlist[[i]],]
       flat.theta[,i] <- all.theta()[,idlist[[i]]]
-
-      # flat.titles[[i]] <- all.titles()[[idlist[[i]]]]
 
       if (i <= length(stateStore$manual.titles) && !is.null(stateStore$manual.titles[[i]])) {
         flat.mantitles[[i]] <- stateStore$manual.titles[[idlist[[i]]]]
@@ -235,7 +230,6 @@ function(input, output, session) {
     beta <- flat.beta
     theta <- flat.theta
     filenames <- data()$filenames
-    # titles <- flat.titles
     titles <- data()$doc.titles # Titles here refers to file titles
     vocab <- data()$vocab
     aString <- newAString

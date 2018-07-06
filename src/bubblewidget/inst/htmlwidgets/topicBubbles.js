@@ -290,9 +290,7 @@ HTMLWidgets.widget({
             d3.event.stopPropagation();
 
             // Handle Windows and Mac common behaviors
-            if (d3.event.ctrlKey || d3.event.altKey) {
-                // if (flattenMode) { return; }
-                
+            if (d3.event.ctrlKey || d3.event.altKey) {                
                 // NOTE(tfs): I think this avoids wierdness with javascript nulls
                 if (n.data.collapsed === true) {
                     // Timestamp to ensure an actual change is registered
