@@ -159,6 +159,7 @@ function(input, output, session) {
   shinyFileChoose(input, 'modelfile', roots=c(home=file.home), session=session, restrictions=system.file(package='base'))
   shinyDirChoose(input, 'textlocation', roots=c(home=file.home), session=session, restrictions=system.file(package='base'))
   shinyFileSave(input, 'savedata', roots=c(home=file.home), session=session, restrictions=system.file(package='base'))
+  shinyFileSave(input, 'exportflat', roots=c(home=file.home), session=session, restrictions=system.file(package='base'))
 
   observeEvent(input$savedata, {
     if (is.null(input$savedata)) {
@@ -184,6 +185,67 @@ function(input, output, session) {
           dataName=dataName, file=file, collapsed.flags=collapsed.flags)
 
     session$sendCustomMessage(type="clearSaveInput", "")
+  })
+
+  observeEvent(input$exportflat, {
+    # Do nothing if we have no nodes to export
+    if (is.null(stateStore$flat.selection)) { return() }
+
+    idlist <- c()
+
+    for (i in seq(max.id())) {
+      if (length(stateStore$flat.selection) >= i
+          && !is.na(stateStore$flat.selection[[i]]
+          && stateStore$flat.selection[[i]])) {
+        idlist <- append(idlist, i)
+      }
+    }
+
+    # ab <- matrix(0, nrow=max.id(), ncol=ncol(leaf.beta))
+    flat.beta <- matrix(0, nrow=length(idlist), ncol=ncol(beta()))
+
+    # mtheta <- matrix(0, nrow=nrow(theta), ncol=node.maxID())
+    flat.theta <- matrix(0, nrow=nrow(data()$theta), ncol=length(idlist))
+
+    # flat.titles <- list()
+    flat.mantitles <- list()
+
+    newAs = c()
+
+    for (i in seq(length(idlist))) {
+      flat.beta[i,] <- all.beta()[idlist[[i]],]
+      flat.theta[,i] <- all.theta()[,idlist[[i]]]
+
+      # flat.titles[[i]] <- all.titles()[[idlist[[i]]]]
+
+      if (i <= length(stateStore$manual.titles) && !is.null(stateStore$manual.titles[[i]])) {
+        flat.mantitles[[i]] <- stateStore$manual.titles[[idlist[[i]]]]
+      } else {
+        flat.mantitles[[i]] <- ""
+      }
+
+      newAs <- append(newAs, paste(i, "0", sep=":"))
+    }
+
+    newAString <- paste(newAs, collapse=",")
+
+    # All values to be saved
+    sp <- parseSavePath(c(home=file.home), input$exportflat)
+    file <- as.character(sp$datapath)
+    beta <- flat.beta
+    theta <- flat.theta
+    filenames <- data()$filenames
+    # titles <- flat.titles
+    titles <- data()$doc.titles # Titles here refers to file titles
+    vocab <- data()$vocab
+    aString <- newAString
+    mantitles <- flat.mantitles
+    dataName <- chosenDataName()
+    collapsed.flags <- NULL
+
+    save(beta=beta, theta=theta, filenames=filenames, titles=titles,
+          vocab=vocab, assignString=aString, manual.titles=mantitles,
+          dataName=dataName, file=file, collapsed.flags=collapsed.flags)
   })
 
   # On "Start", tell the frontend to disable "Start" button and render a message to the user
@@ -662,7 +724,7 @@ function(input, output, session) {
 
   # Only enable the flat export button if something is selected
   observe({
-    shinyjs::toggleState("export.flat", !is.null(stateStore$flat.selection))
+    shinyjs::toggleState("exportflat", !is.null(stateStore$flat.selection))
   })
 
 
@@ -913,8 +975,10 @@ function(input, output, session) {
     }, warning = function (w) {
       print("Warning while loading file")
       return()
-    }, error = function (w) {
+    }, error = function (e) {
       print("Error while loading file")
+      print(e)
+      print("------------------------")
       return()
     })
 
@@ -994,6 +1058,23 @@ function(input, output, session) {
     }
 
     return(mtheta)
+  })
+
+  all.theta <- reactive({
+    theta <- data()$theta
+    cols <- colSums(theta)
+
+    at <- matrix(0, nrow=nrow(theta), ncol=max.id())
+
+    for (i in seq(max.id())) {
+      if (i <= K()) {
+        at[,i] <- theta[,i]
+      } else {
+        at[,i] <- meta.theta()[,i-K()]
+      }
+    }
+
+    return(at)
   })
 
   # TODO(tfs): Phase this out in favor of dynamically displaying an increasing number

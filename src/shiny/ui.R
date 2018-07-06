@@ -40,5 +40,5 @@ htmlTemplate("template.html",
     outputTree = topicTreeOutput("tree"),
     outputDocumentDetailsTitle = htmlOutput("document.details.title"),
     outputDocumentDetails = htmlOutput("document.details"),
-    outputExportFlat = actionButton("export.flat", "Export")
+    outputExportFlat = shinySaveButton("exportflat", "Export", "Save exported model as . . .", list('RData'=c(".RData")))
 )
