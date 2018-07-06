@@ -290,7 +290,7 @@ HTMLWidgets.widget({
             d3.event.stopPropagation();
 
             // Handle Windows and Mac common behaviors
-            if (d3.event.ctrlKey || d3.event.altKey) {
+            if (d3.event.ctrlKey || d3.event.altKey) {                
                 // NOTE(tfs): I think this avoids wierdness with javascript nulls
                 if (n.data.collapsed === true) {
                     // Timestamp to ensure an actual change is registered
@@ -300,7 +300,11 @@ HTMLWidgets.widget({
                     Shiny.onInputChange("collapseNode", [n.data.id, Date.now()]);
                 }
             } else {
-                selfRef.selectNode(n, false);
+                if (flattenMode) {
+                    Shiny.onInputChange("flat.node.selection", [n.data.id, Date.now()]);
+                } else {
+                    selfRef.selectNode(n, false);
+                }
             }
         }
 
@@ -346,6 +350,8 @@ HTMLWidgets.widget({
     // Pass in reference to "self", as the call() method passes a different "this"
     activeDragHandler: function (selfRef) {
         var handler = function (d) {
+            if (flattenMode) { return; } // Disable these behaviors while exporting flat model
+
             coords = d3.mouse(this);
 
             if (d3.event.sourceEvent.altKey) {
@@ -429,13 +435,6 @@ HTMLWidgets.widget({
         return handler;
     },
 
-    setDraggedNode: function (nodeD) {
-        return;
-    },
-
-    releaseDraggedNode: function (nodeD, makeNewGroup) {
-        return;
-    },
 
     selectNode: function (targetD, makeNewGroup) {
         var self = this,
@@ -630,7 +629,11 @@ HTMLWidgets.widget({
             borderColor = null,
             isCollapsed = d.data.collapsed,
             fillColor;
-        if (isfirstSelNode) {
+
+        if (flattenMode && d.data.flatSelected) {
+            borderColor = "rgb(0, 0, 0)";
+            fillColor = "rgb(0, 175, 0)";
+        } else if (isfirstSelNode) {
             borderColor = "rgb(12, 50, 127)";
             fillColor = "rgb(25, 101, 255)";
         } else if (isCollapsed) {
@@ -641,6 +644,7 @@ HTMLWidgets.widget({
         } else {
             fillColor = "rgb(255, 255, 255)";
         }
+
         d3.select("#node-" + d.data.id)
             .style("fill", fillColor)
             .style("stroke", borderColor)
@@ -709,7 +713,7 @@ HTMLWidgets.widget({
         var nodes = [];
         nodes[0] = data;
         for (var i = 0; i < srcData.length; i++) {
-            nodes[srcData[i].nodeID] = { id: srcData[i].nodeID, children: [], terms: [], collapsed: false, isLeaf: false };
+            nodes[srcData[i].nodeID] = { id: srcData[i].nodeID, children: [], terms: [], collapsed: false, isLeaf: false, flatSelected: false };
         }
 
         var rawPoint;
@@ -732,6 +736,7 @@ HTMLWidgets.widget({
 
             cleanPoint.collapsed = rawPoint.collapsed;
             cleanPoint.isLeaf = rawPoint.isLeaf;
+            cleanPoint.flatSelected = rawPoint.flatSelected;
         }
 
         return data;

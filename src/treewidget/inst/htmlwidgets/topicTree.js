@@ -148,7 +148,7 @@ HTMLWidgets.widget({
         // Root of a tree structure
         self.treeData = self.getTreeFromRawData(rawData);
 
-        self.updateTreeView(false);
+        self.updateTreeView(true);
     },
 
     updateTreeView: function (useTransition) {
@@ -459,18 +459,30 @@ HTMLWidgets.widget({
                     elem.classed("middle-tree-node", false);
                     elem.classed("collapsed-tree-node", true);
                     elem.classed("terminal-tree-node", false);
+                    elem.classed("flatten-selected-tree-node", false);
                     elem.attr("r", self.COLLAPSED_NODE_RADIUS);
                 } else if (d.data.children && d.data.children.length > 0) {
                     // NOTE(tfs): There is probably a cleaner way to do this
                     elem.classed("middle-tree-node", true);
                     elem.classed("terminal-tree-node", false);
                     elem.classed("collapsed-tree-node", false);
+                    elem.classed("flatten-selected-tree-node", false);
                     elem.attr("r", self.CIRCLE_RADIUS);
                 } else {
                     elem.classed("middle-tree-node", false);
                     elem.classed("terminal-tree-node", true);
                     elem.classed("collapsed-tree-node", false);
+                    elem.classed("flatten-selected-tree-node", false);
                     elem.attr("r", self.TERMINAL_NODE_RADIUS);
+                }
+
+                // Override class settings if in flattenMode and selected for flat model
+                //   Keep sizing
+                if (flattenMode && d.data.flatSelected) {
+                    elem.classed("middle-tree-node", false);
+                    elem.classed("collapsed-tree-node", false);
+                    elem.classed("terminal-tree-node", false);
+                    elem.classed("flatten-selected-tree-node", true);
                 }
             });
 
@@ -542,7 +554,11 @@ HTMLWidgets.widget({
                     Shiny.onInputChange("collapseNode", [n.data.id, Date.now()]);
                 }
             } else {
-                selfRef.selectNode(n, false);
+                if (flattenMode) {
+                    Shiny.onInputChange("flat.node.selection", [n.data.id, Date.now()]);
+                } else {
+                    selfRef.selectNode(n, false);
+                }
             }
         }
 
@@ -563,7 +579,7 @@ HTMLWidgets.widget({
      */
     getTreeFromRawData: function (x) {
         var self = this,
-            data = { id: 0, children: [], terms: [], weight: 0, collapsed: false, isLeaf: false },
+            data = { id: 0, children: [], terms: [], weight: 0, collapsed: false, isLeaf: false, flatSelected: false },
             srcData = HTMLWidgets.dataframeToD3(x.data);
 
         // Sort srcData by node ID
@@ -584,7 +600,7 @@ HTMLWidgets.widget({
         var nodes = [];
         nodes[0] = data;
         for (var i = 0; i < srcData.length; i++) {
-            nodes[srcData[i].nodeID] = { id: srcData[i].nodeID, children: [], terms: [], weight: 0, collapsed: false, isLeaf: false };
+            nodes[srcData[i].nodeID] = { id: srcData[i].nodeID, children: [], terms: [], weight: 0, collapsed: false, isLeaf: false, flatSelected: false };
         }
 
         var rawPoint;
@@ -608,6 +624,7 @@ HTMLWidgets.widget({
 
             cleanPoint.collapsed = rawPoint.collapsed;
             cleanPoint.isLeaf = rawPoint.isLeaf;
+            cleanPoint.flatSelected = rawPoint.flatSelected;
         }
 
         // Updates weight properties of nodes

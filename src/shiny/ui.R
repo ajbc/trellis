@@ -39,5 +39,6 @@ htmlTemplate("template.html",
     outputBubbles = topicBubblesOutput("bubbles"),
     outputTree = topicTreeOutput("tree"),
     outputDocumentDetailsTitle = htmlOutput("document.details.title"),
-    outputDocumentDetails = htmlOutput("document.details")
+    outputDocumentDetails = htmlOutput("document.details"),
+    outputExportFlat = shinySaveButton("exportflat", "Export", "Save exported model as . . .", list('RData'=c(".RData")))
 )

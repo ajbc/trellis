@@ -9,7 +9,9 @@ var selectedViewTab
 var selectedLeftTab = DOCUMENT_LABEL;
 var data = null;
 var exportMode = false;
+var flattenMode = false;
 var LEFT_BAR_WIDTH = 300;
+var RIGHT_BAR_WIDTH = 300;
 var activeSelector;
 
 var assignments;
@@ -40,6 +42,12 @@ $(document).ready(function() {
 			$("#main-panel").css({ "max-width": ($(window).width() - (LEFT_BAR_WIDTH + 5)) + "px"});
 			$("#document-details-content").css({ "max-width": ($(window).width() - (LEFT_BAR_WIDTH + 5)) + "px"});
 			$("#doctab-document-container").css({ "height": ($(window).height() - $("#doctab-document-container").position().top) });
+		} else {
+			if (flattenMode) {
+				$("#main-panel").css({ "max-width": ($(window).width() - (RIGHT_BAR_WIDTH + 5)) + "px"});
+				$("#document-details-content").css({ "max-width": ($(window).width() - (RIGHT_BAR_WIDTH + 5)) + "px"});
+				$("#doctab-document-container").css({ "height": ($(window).height() - $("#doctab-document-container").position().top) });
+			}
 		}
 	});
 
@@ -53,7 +61,17 @@ $(document).ready(function() {
 		selectBubbles();
 	});
 
+	$("#right-bubbles-selector").click(function(event) {
+		event.preventDefault();
+		selectBubbles();
+	});
+
 	$("#tree-selector").click(function(event) {
+		event.preventDefault();
+		selectTree();
+	});
+
+	$("#right-tree-selector").click(function(event) {
 		event.preventDefault();
 		selectTree();
 	});
@@ -71,6 +89,16 @@ $(document).ready(function() {
 	$("#export-svg-button").click(function(event) {
 		event.preventDefault();
 		downloadActiveWidgetAsSVG();
+	});
+
+	$("#export-flattened-button").click(function(event) {
+		event.preventDefault();
+		enterFlattenMode();
+	});
+
+	$("#exit-flatten-button").click(function(event) {
+		event.preventDefault();
+		exitFlattenMode();
 	});
 
 	$("#updateTitle").click(function(event) {
@@ -118,7 +146,6 @@ $(document).on("shiny:sessioninitialized", function(event) {
 // Once "Start" button is pressed, disable "Start" button and display processing message.
 //     Then notify backend it can process input files
 function processInputFile(msg) {
-	console.log("Processing Files")
 	$("#topic\\.start").attr("disabled", true);
 	$("#init-message").removeClass("inplace-hidden-message");
 	$("#init-message").trigger("shown");
@@ -134,7 +161,6 @@ function initializeMainView(msg) {
 
 // Set shinyFiles input fields to null (for performance)
 function clearFileInputs(msg) {
-	console.log("Clearing file inputs");
 	Shiny.onInputChange("textlocation-modal", null);
 	Shiny.onInputChange("textlocation", null);
 	Shiny.onInputChange("modelfile-modal", null);
@@ -172,7 +198,9 @@ function selectBubbles() {
 	selectedView = BUBBLE_LABEL;
 	
 	$("#bubbles-selector").addClass("selected-view-button");
+	$("#right-bubbles-selector").addClass("selected-view-button");
 	$("#tree-selector").removeClass("selected-view-button");
+	$("#right-tree-selector").removeClass("selected-view-button");
 	
 	$("#bubbles-view").trigger("show");
 	$("#bubbles-view").removeClass("hidden-view");
@@ -183,7 +211,9 @@ function selectBubbles() {
 	$("#tree-view").trigger("hidden");
 	
 	$("#bubbles-selector").attr("disabled", "disabled");
+	$("#right-bubbles-selector").attr("disabled", "disabled");
 	$("#tree-selector").removeAttr("disabled");
+	$("#right-tree-selector").removeAttr("disabled");
 	
 	activeSelector = selectors[BUBBLE_LABEL];
 	Shiny.onInputChange("selectedView", BUBBLE_LABEL);
@@ -199,7 +229,9 @@ function selectTree() {
 	selectedView = TREE_LABEL;
 	
 	$("#tree-selector").addClass("selected-view-button");
+	$("#right-tree-selector").addClass("selected-view-button");
 	$("#bubbles-selector").removeClass("selected-view-button");
+	$("#right-bubbles-selector").removeClass("selected-view-button");
 	
 	$("#tree-view").trigger("show");
 	$("#tree-view").removeClass("hidden-view");
@@ -210,7 +242,9 @@ function selectTree() {
 	$("#bubbles-view").trigger("hidden");
 	
 	$("#tree-selector").attr("disabled", "disabled");
+	$("#right-tree-selector").attr("disabled", "disabled");
 	$("#bubbles-selector").removeAttr("disabled");
+	$("#right-bubbles-selector").removeAttr("disabled");
 	
 	activeSelector = selectors[TREE_LABEL];
 	Shiny.onInputChange("selectedView", TREE_LABEL);
@@ -259,6 +293,49 @@ function selectDocumentTab() {
 };
 
 
+// Display right panel (only if already in export mode)
+function enterFlattenMode(msg) {
+	if (!exportMode) { return; }
+	if (flattenMode) { return; }
+
+	$("#right-bar").addClass("right-content-flatten-mode");
+	$(".export-mode-control").addClass("hidden");
+
+	var newWidth = Math.min($(window).width() - (RIGHT_BAR_WIDTH + 5), 0.7 * $(window).width());
+	flattenMode = true;
+	Shiny.onInputChange("clear.flat.selection", Date.now());
+
+	$("#main-panel").css({ "left": "0px" });
+	$("#main-panel").css({ "right": "" });
+
+	$("#main-panel").animate({ "width": newWidth }, 500, function() {
+		$("#main-panel").css({ "max-width": ($(window).width() - (RIGHT_BAR_WIDTH + 5)) + "px" });
+		$("#main-panel").css({ "width": "70vw" });
+		$(window).trigger("resize");
+	});
+}
+
+
+// Return to default export mode
+function exitFlattenMode(msg) {
+	if (!exportMode) { return; }
+	if (!flattenMode) { return; }
+
+	$("#right-bar").removeClass("right-content-flatten-mode");
+	$(".export-mode-control").removeClass("hidden");
+
+	flattenMode = false;
+	Shiny.onInputChange("clear.flat.selection", Date.now());
+
+	$("#main-panel").css({ "max-width": "unset" });
+	$("#main-panel").animate({ "width": "100vw" }, 500, function() {
+		$("#main-panel").css({ "right": "0px" });
+		$("#main-panel").css({ "left": "" });
+		$(window).trigger("resize"); // Not the cleanest solution, but seems to work
+	});
+}
+
+
 // Hide left panel and adjust controls
 function enterExportMode(msg) {
 	if (exportMode) {
@@ -285,7 +362,7 @@ function exitExportMode(msg) {
 		exportMode = false;
 		var newWidth = Math.min($(window).width() - (LEFT_BAR_WIDTH + 5), 0.7 * $(window).width());
 		$("#main-panel").animate({ "width": newWidth }, 500, function() {
-			$("#main-panel").css({ "max-width": ($(window).width() - (LEFT_BAR_WIDTH + 5)) + "px"});
+			$("#main-panel").css({ "max-width": ($(window).width() - (LEFT_BAR_WIDTH + 5)) + "px" });
 			$("#main-panel").css({ "width": "70vw" });
 			$(window).trigger("resize");
 		});
