@@ -1,5 +1,6 @@
 var TOPIC_LABEL = "Topic";
 var DOCUMENT_LABEL = "Document";
+var VOCAB_LABEL = "Vocab";
 var TREE_LABEL = "Tree";
 var BUBBLE_LABEL = "Bubbles";
 
@@ -42,11 +43,13 @@ $(document).ready(function() {
 			$("#main-panel").css({ "max-width": ($(window).width() - (LEFT_BAR_WIDTH + 5)) + "px"});
 			$("#document-details-content").css({ "max-width": ($(window).width() - (LEFT_BAR_WIDTH + 5)) + "px"});
 			$("#doctab-document-container").css({ "height": ($(window).height() - $("#doctab-document-container").position().top) });
+			$("#vocabtab-vocab-container").css({ "height": ($(window).height() - $("#vocabtab-vocab-container").position().top) });
 		} else {
 			if (flattenMode) {
 				$("#main-panel").css({ "max-width": ($(window).width() - (RIGHT_BAR_WIDTH + 5)) + "px"});
 				$("#document-details-content").css({ "max-width": ($(window).width() - (RIGHT_BAR_WIDTH + 5)) + "px"});
 				$("#doctab-document-container").css({ "height": ($(window).height() - $("#doctab-document-container").position().top) });
+				$("#vocabtab-vocab-container").css({ "height": ($(window).height() - $("#vocabtab-vocab-container").position().top) });
 			}
 		}
 	});
@@ -84,6 +87,11 @@ $(document).ready(function() {
 	$("#left-bar-document-tab").click(function(event) {
 		event.preventDefault();
 		selectDocumentTab();
+	});
+
+	$("#left-bar-vocab-tab").click(function(event) {
+		event.preventDefault();
+		selectVocabTab();
 	});
 
 	$("#export-svg-button").click(function(event) {
@@ -156,6 +164,7 @@ function processInputFile(msg) {
 // Switch to main view (from initial panel)
 function initializeMainView(msg) {
 	$("#doctab-document-container").css({ "height": ($(window).height() - $("#doctab-document-container").position().top) });
+	$("#vocabtab-vocab-container").css({ "height": ($(window).height() - $("#vocabtab-vocab-container").position().top) });
 };
 
 
@@ -257,18 +266,27 @@ function selectTopicTab() {
 		return;
 	}
 
-	selectedLeftTab = TOPIC_LABEL;
+	if (selectedLeftTab == DOCUMENT_LABEL) {
+		$("#left-bar-document-content").trigger("hide");
+		$("#left-bar-document-content").addClass("hidden-left-bar-content");
+		$("#left-bar-document-content").trigger("hidden");
 
-	$("#left-bar-topic-tab").addClass("active-left-bar-tab");
-	$("#left-bar-document-tab").removeClass("active-left-bar-tab");
+		$("#left-bar-document-tab").removeClass("active-left-bar-tab");
+	} else if (selectedLeftTab == VOCAB_LABEL) {
+		$("#left-bar-vocab-content").trigger("hide");
+		$("#left-bar-vocab-content").addClass("hidden-left-bar-content");
+		$("#left-bar-vocab-content").trigger("hidden");
+
+		$("#left-bar-vocab-tab").removeClass("active-left-bar-tab");
+	}
 
 	$("#left-bar-topic-content").trigger("show");
 	$("#left-bar-topic-content").removeClass("hidden-left-bar-content");
 	$("#left-bar-topic-content").trigger("shown");
 
-	$("#left-bar-document-content").trigger("hide");
-	$("#left-bar-document-content").addClass("hidden-left-bar-content");
-	$("#left-bar-document-content").trigger("hidden");
+	$("#left-bar-topic-tab").addClass("active-left-bar-tab");
+
+	selectedLeftTab = TOPIC_LABEL;
 };
 
 
@@ -278,18 +296,57 @@ function selectDocumentTab() {
 		return;
 	}
 
-	selectedLeftTab = DOCUMENT_LABEL;
-	
-	$("#left-bar-document-tab").addClass("active-left-bar-tab");
-	$("#left-bar-topic-tab").removeClass("active-left-bar-tab");
-	
+	if (selectedLeftTab == TOPIC_LABEL) {
+		$("#left-bar-topic-content").trigger("hide");
+		$("#left-bar-topic-content").addClass("hidden-left-bar-content");
+		$("#left-bar-topic-content").trigger("hidden");
+
+		$("#left-bar-topic-tab").removeClass("active-left-bar-tab");
+	} else if (selectedLeftTab == VOCAB_LABEL) {
+		$("#left-bar-vocab-content").trigger("hide");
+		$("#left-bar-vocab-content").addClass("hidden-left-bar-content");
+		$("#left-bar-vocab-content").trigger("hidden");
+
+		$("#left-bar-vocab-tab").removeClass("active-left-bar-tab");
+	}
+
 	$("#left-bar-document-content").trigger("show");
 	$("#left-bar-document-content").removeClass("hidden-left-bar-content");
 	$("#left-bar-document-content").trigger("shown");
-	
-	$("#left-bar-topic-content").trigger("hide");
-	$("#left-bar-topic-content").addClass("hidden-left-bar-content");
-	$("#left-bar-topic-content").trigger("hidden");
+
+	$("#left-bar-document-tab").addClass("active-left-bar-tab");
+
+	selectedLeftTab = DOCUMENT_LABEL;
+};
+
+
+// Select the vocab tab on left panel
+function selectVocabTab() {
+	if (selectedLeftTab === VOCAB_LABEL) {
+		return;
+	}
+
+	if (selectedLeftTab == TOPIC_LABEL) {
+		$("#left-bar-topic-content").trigger("hide");
+		$("#left-bar-topic-content").addClass("hidden-left-bar-content");
+		$("#left-bar-topic-content").trigger("hidden");
+
+		$("#left-bar-topic-tab").removeClass("active-left-bar-tab");
+	} else if (selectedLeftTab == DOCUMENT_LABEL) {
+		$("#left-bar-document-content").trigger("hide");
+		$("#left-bar-document-content").addClass("hidden-left-bar-content");
+		$("#left-bar-document-content").trigger("hidden");
+
+		$("#left-bar-document-tab").removeClass("active-left-bar-tab");
+	}
+
+	$("#left-bar-vocab-content").trigger("show");
+	$("#left-bar-vocab-content").removeClass("hidden-left-bar-content");
+	$("#left-bar-vocab-content").trigger("shown");
+
+	$("#left-bar-vocab-tab").addClass("active-left-bar-tab");
+
+	selectedLeftTab = VOCAB_LABEL;
 };
 
 
