@@ -606,9 +606,21 @@ function(input, output, session) {
 
   # Display title for currently selected (e.g. hovered) topic.
   #         Topic tab does not display anything if no topic is selected.
-  topic.topictab.title <- reactive ({
+  topic.topictab.title <- reactive({
     if (input$topic.selected == "") {
-      return("Please Select a Topic")
+      return("Please Select a topic")
+    }
+
+    topic <- as.integer(input$topic.selected)
+
+    if (topic == 0) { return("[ROOT]") }
+
+    return(sanitize(all.titles()[topic], type="html"))
+  })
+
+  topic.vocabtab.title <- reactive({
+    if (input$topic.selected == "") {
+      return ("Please select a topic")
     }
 
     topic <- as.integer(input$topic.selected)
@@ -920,6 +932,7 @@ function(input, output, session) {
   })
 
   # Returns the highest ID of any cluster, offset by the number of leaf nodes (K())
+  # TODO(tfs; 2018-07-07): Rename this, cluster.maxID or something similar
   node.maxID <- reactive({
     if (is.null(data())) {
       return(0)
@@ -1075,8 +1088,23 @@ function(input, output, session) {
     return(min(num.documents(), num.documents.shown))
   })
 
+  # Sorted top vocab terms for each topic
+  top.vocab <- reactive({
+    # TODO(tfs; 2018-07-07): Rework for dynamic loading
+    rv <- list()
+
+    for (topic in seq(max.id())) {
+      # Currently showing the same number of vocab terms as documents
+      rv[[topic]] <- data()$vocab[order(all.beta()[topic,], decreasing=TRUE)[1:last.shown.docidx()]]
+    }
+
+    return(rv)
+  })
+
   # List of document titles, sorted by topic relevance, for all topics and meta topics/clusters
   top.documents <- reactive({
+    # TODO(tfs; 2018-07-07): Rework this. Make use of all.theta() and enable dynamic loading
+
     rv <- list()
     theta <- data()$theta
     # meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
@@ -1101,7 +1129,20 @@ function(input, output, session) {
     return(rv)
   })
 
-  # Returns the theta values of all documents corresponding to the selected topic
+  # TODO(tfs; 2018-07-07): Rename to reflect sorted nature
+  # SORTED selected betas
+  betas.selected <- reactive({
+    topic <- as.integer(input$topic.active)
+
+    if (is.na(topic)) { return(list()) }
+
+    sorted <- all.beta()[topic,][order(all.beta()[topic,], decreasing=TRUE)]
+
+    return(sorted)
+  })
+
+  # TODO(tfs; 2018-07-07): Rename to reflect sorted nature
+  # Returns the SORTED theta values of all documents corresponding to the selected topic
   thetas.selected <- reactive({
     topic.theta <- data()$theta
     topic <- as.integer(input$topic.active)
@@ -1146,6 +1187,31 @@ function(input, output, session) {
   })
 
 
+  topic.vocab <- reactive({
+    topic <- as.integer(input$topic.active)
+
+    if (is.na(topic) || topic == 0) {
+      return("")
+    }
+
+    terms <- top.vocab()[[topic]]
+    betas <- betas.selected()
+    rv <- ""
+
+    for (i in 1:length(terms)) {
+      rv <- paste(rv, "<div class=\"vocab-summary\">",
+                  "<div class=\"vocab-summary-fill\" style=\"width:",
+                  paste(as.integer(betas[i] * 100), "%;", sep=""),
+                  "\"></div>",
+                  "<p class=\"vocab-summary-contents\">",
+                  sanitize(terms[i]),
+                  "</p>",
+                  "</div>")
+    }
+    return(rv)
+  })
+
+
   # Display the title of the selected or active topic (document tab)
   output$topic.document.title <- renderUI({
     return(HTML(topic.doctab.title()))
@@ -1161,6 +1227,17 @@ function(input, output, session) {
   # Display the title of the selected topic (topic tab)
   output$topicTabTitle <- renderUI({
     ostr <- paste("<h4 id=\"left-topic-tab-cluster-title\">", topic.topictab.title(), "</h4>")
+    return(HTML(ostr))
+  })
+
+
+  output$topic.vocab <- renderUI({
+    return(HTML(topic.vocab()))
+  })
+
+  # Display title of the selected topic (vocab tab)
+  output$topic.vocabtab.title <- renderUI({
+    ostr <- paste("<h4 id=\"left-vocab-tab-cluster-title\">", topic.vocabtab.title(), "</h4>")
     return(HTML(ostr))
   })
 

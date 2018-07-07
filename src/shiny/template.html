@@ -55,8 +55,8 @@
             </div>
 
             <div id="left-bar-tabs">
-                <!-- These two are connected without whitespace intentionally -->
-                <div id="left-bar-topic-tab" class="left-bar-tab non-selectable"><h4>Topics</h4></div><div id="left-bar-document-tab" class="left-bar-tab active-left-bar-tab non-selectable"><h4>Documents</h4></div>
+                <!-- These three are connected without whitespace intentionally -->
+                <div id="left-bar-topic-tab" class="left-bar-tab left-bar-end-tab non-selectable"><h4>Topics</h4></div><div id="left-bar-document-tab" class="left-bar-tab left-bar-middle-tab active-left-bar-tab non-selectable"><h4>Documents</h4></div><div id="left-bar-vocab-tab" class="left-bar-tab left-bar-end-tab non-selectable"><h4>Vocabulary</h4></div>
             </div>
 
             <div id="left-bar-content-container">
@@ -98,6 +98,17 @@
                     </div>
 
                 </div>
+
+                <div id="left-bar-vocab-content" class="left-bar-content hidden-left-bar-content">
+                    <h4 id="left-vocab-tab-cluster-title">
+                        {{ outputVocabTitle }}
+                    </h4>
+
+                    <div id="vocabtab-vocab-container" class="vocab-bar vocab-container">
+                        {{ outputVocab }}
+                    </div>
+                </div>
+
             </div>
         </div>
 

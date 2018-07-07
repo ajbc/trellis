@@ -47,7 +47,7 @@ run.lda <- function(dtm, k) {
 }
 
 format.trellis <- function(dtm, lda.model, outpath) {
-	beta <- lda.model@beta
+	beta <- exp(lda.model@beta)
 	theta <- lda.model@gamma
 	vocab <- lda.model@terms
 	filenames <- rownames(dtm)
