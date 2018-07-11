@@ -213,7 +213,7 @@ function(input, output, session) {
       flat.beta[i,] <- all.beta()[idlist[[i]],]
       flat.theta[,i] <- all.theta()[,idlist[[i]]]
 
-      if (i <= length(stateStore$manual.titles) && !is.null(stateStore$manual.titles[[i]])) {
+      if (idlist[[i]] <= length(stateStore$manual.titles) && !is.null(stateStore$manual.titles[[idlist[[i]]]])) {
         flat.mantitles[[i]] <- stateStore$manual.titles[[idlist[[i]]]]
       }
 
