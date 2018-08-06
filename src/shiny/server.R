@@ -184,7 +184,7 @@ function(input, output, session) {
           vocab=vocab, assignString=aString, manual.titles=mantitles,
           dataName=dataName, file=file, collapsed.flags=collapsed.flags)
 
-    session$sendCustomMessage(type="clearSaveInput", "")
+    session$sendCustomMessage(type="clearSaveFile", "")
   })
 
   observeEvent(input$exportflat, {
@@ -238,6 +238,8 @@ function(input, output, session) {
     save(beta=beta, theta=theta, filenames=filenames, titles=titles,
           vocab=vocab, assignString=aString, manual.titles=mantitles,
           dataName=dataName, file=file, collapsed.flags=collapsed.flags)
+
+    session$sendCustomMessage(type="clearFlatExportFile", "")
   })
 
   # On "Start", tell the frontend to disable "Start" button and render a message to the user

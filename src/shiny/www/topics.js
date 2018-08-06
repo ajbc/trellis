@@ -140,6 +140,10 @@ $(document).on("shiny:sessioninitialized", function(event) {
 
 	Shiny.addCustomMessageHandler("clearFileInputs", clearFileInputs);
 
+	Shiny.addCustomMessageHandler("clearSaveFile", clearSaveFile);
+
+	Shiny.addCustomMessageHandler("clearFlatExportFile", clearFlatExportFile);
+
 	Shiny.addCustomMessageHandler("cleanTitleInput", cleanTopicInputs);
 
 	// Initialize which view is selected (starts on bubble widget)
@@ -175,6 +179,22 @@ function clearFileInputs(msg) {
 	Shiny.onInputChange("modelfile-modal", null);
 	Shiny.onInputChange("modelfile", null);
 };
+
+
+// Set shinyFiles save file field to null (for performance)
+// Also handily makes repeated saves to the same file count as input changes (triggering save)
+function clearSaveFile(msg) {
+	Shiny.onInputChange("savedata-modal", null);
+	Shiny.onInputChange("savedata", null);
+};
+
+
+// Set shinyFiles flat export field to null (for performance)
+// Also handily makes repeated exports to the same file count as input changes (triggering save)
+function clearFlatExportFile(msg) {
+	Shiny.onInputChange("exportflat-modal", null);
+	Shiny.onInputChange("exportflat", null);
+}
 
 
 // Handle clicking the bottom-right help button (toggling a popup help window)
