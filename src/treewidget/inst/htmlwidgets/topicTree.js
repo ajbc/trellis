@@ -105,7 +105,7 @@ HTMLWidgets.widget({
     zoomHandler: function (selfRef) {
         var handler = function () {
             selfRef.g.attr("transform", "translate(" + d3.event.transform.x + "," + d3.event.transform.y + ")" + "scale(" + d3.event.transform.k + ")");
-            selfRef.rescaleText(selfRef, d3.event.transform.k);
+            selfRef.rescaleText(selfRef, d3.event.transform.k); // Update text sizing to take up less room when zoomed
             d3.event.sourceEvent.stopPropagation();
         };
 
@@ -487,13 +487,6 @@ HTMLWidgets.widget({
                 }
             });
 
-        // text.attr("x", function (d) {
-        //         var margin = 2 + self.COLLAPSED_NODE_RADIUS;
-        //         return d.x + margin;
-        //     })
-        //     .attr("y", function (d) {
-        //         return d.y + self.TEXT_HEIGHT_OFFSET;
-        //     })
         text.each(function (d) {
                 var sel = d3.select(this);
 
@@ -512,28 +505,11 @@ HTMLWidgets.widget({
                 }
             });
 
-        // rects.attr("x", function (d) {
-        //         var margin = 2 + self.COLLAPSED_NODE_RADIUS;
-        //         return d.x + margin - 2;
-        //     })
-        //     .attr("y", function (d) {
-        //         var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
-        //         // Add 4 to adjust for margins. Probably a better way to calculate this.
-        //         return d.y - textheight + 4;
-        //     })
-        //     .attr("width", function (d) {
-        //         var textwidth = $("#tree-label-"+d.data.id)[0].getBBox().width;
-        //         return textwidth + 4;
-        //     })
-        //     .attr("height", function (d) {
-        //         var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
-        //         return textheight;
-        //     });
-
         self.rescaleText(self, d3.zoomTransform(self.g).k);
     },
 
 
+    // Rescale text so it takes up less space as the SVG zooms/scales
     rescaleText: function (selfRef, scale) {
         var text = selfRef.g.selectAll("text"),
             rects = selfRef.g.selectAll("rect");
