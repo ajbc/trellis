@@ -272,6 +272,8 @@ function(input, output, session) {
     }
 
     req(bubbles.data()) # Similarly ensures that bubbles.data() finishes running before displays transition
+    req(all.beta.weighted())
+    req(top.vocab())
     shinyjs::hide(selector=".initial")
     shinyjs::show(selector=".left-content")
     shinyjs::show(selector=".main-content")
