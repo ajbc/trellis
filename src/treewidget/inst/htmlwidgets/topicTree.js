@@ -105,8 +105,8 @@ HTMLWidgets.widget({
     zoomHandler: function (selfRef) {
         var handler = function () {
             selfRef.g.attr("transform", "translate(" + d3.event.transform.x + "," + d3.event.transform.y + ")" + "scale(" + d3.event.transform.k + ")");
-            selfRef.rescaleText(selfRef, d3.event.transform.k); // Update text sizing to take up less room when zoomed
-            d3.event.sourceEvent.stopPropagation();
+            selfRef.rescaleText(selfRef, d3.event.transform.k);
+            // d3.event.sourceEvent.stopPropagation();
         };
 
         return handler;
@@ -487,7 +487,14 @@ HTMLWidgets.widget({
                 }
             });
 
-        text.each(function (d) {
+        text.attr("x", function (d) {
+                var margin = 2 + self.COLLAPSED_NODE_RADIUS;
+                return d.x + margin;
+            })
+            .attr("y", function (d) {
+                return d.y + self.TEXT_HEIGHT_OFFSET;
+            })
+            .each(function (d) {
                 var sel = d3.select(this);
 
                 sel.selectAll("*").remove();
@@ -505,36 +512,54 @@ HTMLWidgets.widget({
                 }
             });
 
-        self.rescaleText(self, d3.zoomTransform(self.g).k);
+        rects.attr("x", function (d) {
+                var margin = 2 + self.COLLAPSED_NODE_RADIUS;
+                return d.x + margin - 2;
+            })
+            .attr("y", function (d) {
+                var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
+                // Add 4 to adjust for margins. Probably a better way to calculate this.
+                return d.y - textheight + 4;
+            })
+            .attr("width", function (d) {
+                var textwidth = $("#tree-label-"+d.data.id)[0].getBBox().width;
+                return textwidth + 4;
+            })
+            .attr("height", function (d) {
+                var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
+                return textheight;
+            });
+
+        // self.rescaleText(self, d3.zoomTransform(self.g).k);
     },
 
 
     // Rescale text so it takes up less space as the SVG zooms/scales
-    rescaleText: function (selfRef, scale) {
-        var text = selfRef.g.selectAll("text"),
-            rects = selfRef.g.selectAll("rect");
+    // rescaleText: function (selfRef, scale) {
+    //     var text = selfRef.g.selectAll("text"),
+    //         rects = selfRef.g.selectAll("rect");
 
-        text.attr("transform", function (d) {
-                var tstring =  "translate(" + (2 + selfRef.COLLAPSED_NODE_RADIUS + d.x);
-                    tstring += "," + ((selfRef.TEXT_HEIGHT_OFFSET/scale) + d.y);
-                    tstring += ")scale(" + (1/scale) + "," + (1/scale) + ")";
+    //     text.attr("transform", function (d) {
+    //             var tstring =  "translate(" + (2 + selfRef.COLLAPSED_NODE_RADIUS + d.x);
+    //                 tstring += "," + ((selfRef.TEXT_HEIGHT_OFFSET/scale) + d.y);
+    //                 tstring += ")scale(" + (1/scale) + "," + (1/scale) + ")";
 
-                return tstring;
-            });
+    //             return tstring;
+    //         });
 
-        rects.attr("transform", function (d) {
-                var tstring =  "translate(" + (selfRef.COLLAPSED_NODE_RADIUS + d.x);
-                    tstring += "," + (d.y - ($("#tree-label-"+d.data.id)[0].getBBox().height - 4)/scale) + ")";
+    //     rects.attr("transform", function (d) {
+    //             var tstring =  "translate(" + (selfRef.COLLAPSED_NODE_RADIUS + d.x);
+    //                 tstring += "," + (d.y - ($("#tree-label-"+d.data.id)[0].getBBox().height - 4)/scale) + ")";
 
-                return tstring;
-            }).attr("width", function (d) {
-                var textwidth = $("#tree-label-"+d.data.id)[0].getBBox().width;
-                return (textwidth / scale) + 4;
-            }).attr("height", function (d) {
-                var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
-                return (textheight / scale);
-            }).attr("scaledata", function (d) { return scale });
-    },
+    //             return tstring;
+    //         }).attr("width", function (d) {
+    //             var textwidth = $("#tree-label-"+d.data.id)[0].getBBox().width;
+    //             return (textwidth / scale) + 4;
+    //         }).attr("height", function (d) {
+    //             var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
+    //             return (textheight / scale);
+    //         }).attr("scaledata", function (d) { return scale });
+    // },
 
 
     // Ref: https://bl.ocks.org/d3noob/43a860bc0024792f8803bba8ca0d5ecd
