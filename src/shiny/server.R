@@ -14,7 +14,7 @@ options(shiny.maxRequestSize=1e4*1024^2)
 #            `num.documents.shown` in favor of dynamically loading
 #            more documents on the left panel as the user scrolls
 file.home <- "~"
-num.documents.shown <- 100
+num.documents.shown <- 50
 
 function(input, output, session) {
   # Initialize a single storage of state.
@@ -210,7 +210,7 @@ function(input, output, session) {
     newAs = c()
 
     for (i in seq(length(idlist))) {
-      flat.beta[i,] <- all.beta()[idlist[[i]],]
+      flat.beta[i,] <- all.beta.weighted()[idlist[[i]],]
       flat.theta[,i] <- all.theta()[,idlist[[i]]]
 
       if (idlist[[i]] <= length(stateStore$manual.titles) && !is.null(stateStore$manual.titles[[idlist[[i]]]])) {
@@ -342,7 +342,7 @@ function(input, output, session) {
 
   # Because beta() only provides values for the initial K() topics,
   #    calculate the beta values for all meta-topics/clusters
-  all.beta <- reactive({
+  all.beta.weighted <- reactive({
     leaf.beta <- beta()
     lids <- leaf.ids()
     weights <- colSums(data()$theta)
@@ -351,7 +351,7 @@ function(input, output, session) {
     ab <- matrix(0, nrow=max.id(), ncol=ncol(leaf.beta))
 
     for (l in seq(K())) {
-      ab[l,] <- leaf.beta[l,]
+      ab[l,] <- leaf.beta[l,] * weights[l]
     }
 
     # Use beta values of leaves (intial topics) to calculate aggregate beta values for meta topics/clusters
@@ -621,11 +621,11 @@ function(input, output, session) {
   })
 
   topic.vocabtab.title <- reactive({
-    if (input$topic.selected == "") {
+    if (input$topic.active == "") {
       return ("Please select a topic")
     }
 
-    topic <- as.integer(input$topic.selected)
+    topic <- as.integer(input$topic.active)
 
     if (topic == 0) { return("[ROOT]") }
 
@@ -930,7 +930,7 @@ function(input, output, session) {
   selected.childBetas <- reactive({
     childIDs <- selected.children()
 
-    return(all.beta()[childIDs,])
+    return(all.beta.weighted()[childIDs,])
   })
 
   # Returns the highest ID of any cluster, offset by the number of leaf nodes (K())
@@ -1094,10 +1094,11 @@ function(input, output, session) {
   top.vocab <- reactive({
     # TODO(tfs; 2018-07-07): Rework for dynamic loading
     rv <- list()
+    ab <- all.beta.weighted()
 
     for (topic in seq(max.id())) {
       # Currently showing the same number of vocab terms as documents
-      rv[[topic]] <- data()$vocab[order(all.beta()[topic,], decreasing=TRUE)[1:last.shown.docidx()]]
+      rv[[topic]] <- data()$vocab[order(ab[topic,], decreasing=TRUE)[1:last.shown.docidx()]]
     }
 
     return(rv)
@@ -1138,7 +1139,7 @@ function(input, output, session) {
 
     if (is.na(topic)) { return(list()) }
 
-    sorted <- all.beta()[topic,][order(all.beta()[topic,], decreasing=TRUE)]
+    sorted <- all.beta.weighted()[topic,][order(all.beta.weighted()[topic,], decreasing=TRUE)]
 
     return(sorted)
   })
