@@ -540,7 +540,7 @@ HTMLWidgets.widget({
 
         text.attr("transform", function (d) {
                 var tstring =  "translate(" + (2 + selfRef.COLLAPSED_NODE_RADIUS + d.x);
-                    tstring += "," + (selfRef.TEXT_HEIGHT_OFFSET + d.y);
+                    tstring += "," + ((selfRef.TEXT_HEIGHT_OFFSET/scale) + d.y);
                     tstring += ")scale(" + (1/scale) + "," + (1/scale) + ")";
 
                 return tstring;
@@ -548,16 +548,16 @@ HTMLWidgets.widget({
 
         rects.attr("transform", function (d) {
                 var tstring =  "translate(" + (selfRef.COLLAPSED_NODE_RADIUS + d.x);
-                    tstring += "," + (d.y - $("#tree-label-"+d.data.id)[0].getBBox().height + 4) + ")";
+                    tstring += "," + (d.y - ($("#tree-label-"+d.data.id)[0].getBBox().height - 4)/scale) + ")";
 
                 return tstring;
             }).attr("width", function (d) {
                 var textwidth = $("#tree-label-"+d.data.id)[0].getBBox().width;
-                return textwidth + 4;
+                return (textwidth / scale) + 4;
             }).attr("height", function (d) {
                 var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
-                return textheight;
-            });
+                return (textheight / scale);
+            }).attr("scaledata", function (d) { return scale });
     },
 
 
