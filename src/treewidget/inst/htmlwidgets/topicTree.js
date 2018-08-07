@@ -64,6 +64,9 @@ HTMLWidgets.widget({
 
     draggedNode: null,
 
+    // Correct for [0, 0] root using nodeSize
+    yOffset: 0,
+
     initialize: function (el, width, height) {
         var self = this;
 
@@ -73,10 +76,9 @@ HTMLWidgets.widget({
         // Ref: https://bl.ocks.org/mbostock/4987520
         // Ref: https://bl.ocks.org/emepyc/7218bc9ea76951d6a78b0c7942e07a00
         var zoomHandler = d3.zoom()
-            .scaleExtent([1, 40])
-            .translateExtent([[0,0], [Infinity, height]])
+            .scaleExtent([0, 40])
+            .translateExtent([[0,-Infinity], [Infinity, Infinity]])
             .on("zoom", self.zoomHandler(self));
-
 
         var svg = d3.select(el)
             .append("svg")
@@ -86,25 +88,21 @@ HTMLWidgets.widget({
             .call(zoomHandler)
             .on("dblclick.zoom", null);
 
+        self.yOffset = (height-(2*self.BORDER_MARGIN)-self.TOP_MARGIN) / 2;
+
         self.g = svg.append("g")
             .attr("id", "tree-root");
 
         // Ref: https://github.com/d3/d3-hierarchy/blob/master/README.md#tree
         self.tree = d3.tree()
             // .size([height-(2*self.BORDER_MARGIN)-self.TOP_MARGIN, width-(2*self.BORDER_MARGIN)])
-            .nodeSize(function (d) {
-                console.log(d);
-                // if (d.data.collapsed) {
-                //     return [self.COLLAPSED_NODE_RADIUS, self.COLLAPSED_NODE_RADIUS];
-                // } else if (self.data.isLeaf) {
-                //     return [self.TERMINAL_NODE_RADIUS, self.TERMINAL_NODE_RADIUS];
-                // } else {
-                //     return [self.CIRCLE_RADIUS, self.CIRCLE_RADIUS];
-                // }
-                return [10,10];
-            })
+            .nodeSize([self.CIRCLE_RADIUS, self.CIRCLE_RADIUS])
             .separation(function (left, right) {
-                return (left.parent.data.id === right.parent.data.id) ? 5 : 10;
+                if (left.data.collapsed || right.data.collapsed) {
+                    return 4;
+                } else {
+                    return (left.parent.data.id === right.parent.data.id) ? 2 : 5;
+                }
             });
 
         self.edgeWidthMap = d3.scaleLinear()
@@ -180,7 +178,7 @@ HTMLWidgets.widget({
         nodes.forEach(function(d) {
             // Flip coordinates
             var tmpX = (d.depth * 180) + offset.top;
-            d.y = d.x + offset.left;
+            d.y = d.x + offset.left + self.yOffset;
             d.x = tmpX;
         });
 
