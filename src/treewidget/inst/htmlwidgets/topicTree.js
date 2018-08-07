@@ -77,7 +77,7 @@ HTMLWidgets.widget({
         // Ref: https://bl.ocks.org/emepyc/7218bc9ea76951d6a78b0c7942e07a00
         var zoomHandler = d3.zoom()
             .scaleExtent([0, 40])
-            .translateExtent([[0,-Infinity], [Infinity, Infinity]])
+            .translateExtent([[-(width/2),-Infinity], [Infinity, Infinity]])
             .on("zoom", self.zoomHandler(self));
 
         var svg = d3.select(el)
