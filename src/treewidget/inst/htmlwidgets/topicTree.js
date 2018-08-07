@@ -52,7 +52,7 @@ HTMLWidgets.widget({
     CIRCLE_RADIUS: 7,
     TERMINAL_NODE_RADIUS: 4,
     COLLAPSED_NODE_RADIUS: 10,
-    FONT_SIZE: 10,
+    FONT_SIZE: 8,
     TEXT_HEIGHT_OFFSET: 2,
 
     MIN_EDGE_WIDTH: 1,
@@ -91,9 +91,20 @@ HTMLWidgets.widget({
 
         // Ref: https://github.com/d3/d3-hierarchy/blob/master/README.md#tree
         self.tree = d3.tree()
-            .size([height-(2*self.BORDER_MARGIN)-self.TOP_MARGIN, width-(2*self.BORDER_MARGIN)])
+            // .size([height-(2*self.BORDER_MARGIN)-self.TOP_MARGIN, width-(2*self.BORDER_MARGIN)])
+            .nodeSize(function (d) {
+                console.log(d);
+                // if (d.data.collapsed) {
+                //     return [self.COLLAPSED_NODE_RADIUS, self.COLLAPSED_NODE_RADIUS];
+                // } else if (self.data.isLeaf) {
+                //     return [self.TERMINAL_NODE_RADIUS, self.TERMINAL_NODE_RADIUS];
+                // } else {
+                //     return [self.CIRCLE_RADIUS, self.CIRCLE_RADIUS];
+                // }
+                return [10,10];
+            })
             .separation(function (left, right) {
-                return (left.parent.data.id === right.parent.data.id) ? 10 : 15;
+                return (left.parent.data.id === right.parent.data.id) ? 5 : 10;
             });
 
         self.edgeWidthMap = d3.scaleLinear()
@@ -105,8 +116,8 @@ HTMLWidgets.widget({
     zoomHandler: function (selfRef) {
         var handler = function () {
             selfRef.g.attr("transform", "translate(" + d3.event.transform.x + "," + d3.event.transform.y + ")" + "scale(" + d3.event.transform.k + ")");
-            selfRef.rescaleText(selfRef, d3.event.transform.k);
-            // d3.event.sourceEvent.stopPropagation();
+            // selfRef.rescaleText(selfRef, d3.event.transform.k);
+            d3.event.sourceEvent.stopPropagation();
         };
 
         return handler;
