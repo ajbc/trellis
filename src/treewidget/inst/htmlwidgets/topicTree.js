@@ -192,13 +192,40 @@ HTMLWidgets.widget({
             .data(nodes.slice(1), self.constancy);
 
         var rects = self.g.selectAll("rect")
-            .data(nodes, self.constancy);
+            .data(nodes.filter(function (d) {
+                return (d.data.collapsed || (d.data.children && d.data.children.length > 0));
+            }), self.constancy);
 
         // Ref: https://stackoverflow.com/questions/38599930/d3-version-4-workaround-for-drag-origin
         var dragHandler = d3.drag()
             .subject(function (n) { return n; })
             .on("drag", self.activeDragHandler(self))
             .on("end", self.dragEndHandler(self));
+
+
+        paths.enter()
+            .append("path")
+            .attr("class", "tree-link")
+            .attr("id", function (d) {
+                return "tree-path-" + d.data.id;
+            });
+
+
+        rects.enter()
+            .append("rect")
+            .attr("class", "tree-label-background")
+            .attr("id", function (d) {
+                return "tree-label-background-" + d.data.id;
+            });
+
+
+        text.enter()
+            .append("text")
+            .attr("class", "tree-label")
+            .attr("id", function (d) {
+                return "tree-label-" + d.data.id;
+            });
+
 
         circles.enter()
             .append("circle")
@@ -224,38 +251,11 @@ HTMLWidgets.widget({
             })
             .call(dragHandler);
 
-        text.enter()
-            .append("text")
-            .attr("class", "tree-label")
-            .attr("id", function (d) {
-                return "tree-label-" + d.data.id;
-            });
-
-
-        paths.enter()
-            .append("path")
-            .attr("class", "tree-link")
-            .attr("id", function (d) {
-                return "tree-path-" + d.data.id;
-            });
-
-
-        rects.enter()
-            .append("rect")
-            .attr("class", "tree-label-background")
-            .attr("id", function (d) {
-                return "tree-label-background-" + d.data.id;
-            });
-
 
         circles.exit().remove();
         text.exit().remove();
         paths.exit().remove();
         rects.exit().remove();
-
-        self.raiseAllRects();
-        self.raiseAllLabels();
-        self.raiseAllCircles();
 
         self.resizeAndReposition(useTransition);
     },
@@ -362,58 +362,6 @@ HTMLWidgets.widget({
         }
 
         return handler;
-    },
-
-
-    // NOTE(tfs): There must be a cleaner way of appraoching this
-    raiseNode: function (selfRef, nodeID) {
-        var rootElemNode = $("#tree-root")[0];
-        rootElemNode.appendChild($("#tree-node-"+nodeID)[0]);
-    },
-
-
-    raiseRect: function (selfRef, nodeID) {
-        var rootElemNode = $("#tree-root")[0];
-        rootElemNode.appendChild($("#tree-label-background-"+nodeID)[0]);  
-    },
-
-
-    raiseLabel: function (selfRef, nodeID) {
-        var rootElemNode = $("#tree-root")[0];
-        rootElemNode.appendChild($("#tree-label-"+nodeID)[0]);
-    },
-
-
-    raiseAllCircles: function () {
-        var self = this,
-            rootElemNode = $("#tree-root")[0];
-
-        self.traverseTree(self.treeData, function (n) {
-            var id = n.id;
-            self.raiseNode(self, id);
-        });
-    },
-
-
-    raiseAllRects: function () {
-        var self = this,
-            rootElemNode = $("#tree-root")[0];
-
-        self.traverseTree(self.treeData, function (n) {
-            var id = n.id;
-            self.raiseRect(self, id);
-        });
-    },
-
-
-    raiseAllLabels: function () {
-        var self = this,
-            rootElemNode = $("#tree-root")[0];
-
-        self.traverseTree(self.treeData, function (n) {
-            var id = n.id;
-            self.raiseLabel(self, id);
-        });
     },
 
 
