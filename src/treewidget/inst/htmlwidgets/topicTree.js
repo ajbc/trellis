@@ -365,6 +365,13 @@ HTMLWidgets.widget({
     },
 
 
+    // NOTE(tfs): There must be a cleaner way of appraoching this
+    raiseNode: function (selfRef, nodeID) {
+        var rootElemNode = $("#tree-root")[0];
+        rootElemNode.appendChild($("#tree-node-"+nodeID)[0]);
+    },
+
+
     /* Move or merge source node with target node.
      */
     moveOrMerge: function (selfRef, sourceID, targetID, makeNewGroup) {
