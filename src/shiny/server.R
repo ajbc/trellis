@@ -14,7 +14,7 @@ options(shiny.maxRequestSize=1e4*1024^2)
 #            `num.documents.shown` in favor of dynamically loading
 #            more documents on the left panel as the user scrolls
 file.home <- "~"
-num.documents.shown <- 100
+num.documents.shown <- 50
 
 function(input, output, session) {
   # Initialize a single storage of state.
@@ -272,6 +272,8 @@ function(input, output, session) {
     }
 
     req(bubbles.data()) # Similarly ensures that bubbles.data() finishes running before displays transition
+    req(all.beta())
+    req(top.vocab())
     shinyjs::hide(selector=".initial")
     shinyjs::show(selector=".left-content")
     shinyjs::show(selector=".main-content")
@@ -342,6 +344,8 @@ function(input, output, session) {
 
   # Because beta() only provides values for the initial K() topics,
   #    calculate the beta values for all meta-topics/clusters
+  # NOTE(tfs; 2018-08-08): Based on original code for cluster top terms,
+  #    aggregate betas are (normalized) sums of all leaf betas, weighted by relevant theta colSums
   all.beta <- reactive({
     leaf.beta <- beta()
     lids <- leaf.ids()
@@ -367,6 +371,9 @@ function(input, output, session) {
           val <- leaf.beta[leafid,] * weights[leafid]
           ab[clusterID,] <- ab[clusterID,] + val
         }
+
+        # Normalize the new distribution
+        ab[clusterID,] = ab[clusterID,] / sum(ab[clusterID,])
       }
     }
 
@@ -515,7 +522,7 @@ function(input, output, session) {
       return(rv)
 
     for (k in seq(K())) {
-      title <- paste(data()$vocab[order(beta()[k,], decreasing=TRUE)][seq(5)], collapse=" ")
+      title <- paste(data()$vocab[order(all.beta()[k,], decreasing=TRUE)][seq(5)], collapse=" ")
       rv <- c(rv, title)
     }
 
@@ -533,28 +540,12 @@ function(input, output, session) {
       return(c())
     }
 
-    marginals <- matrix(0, nrow=node.maxID(), ncol=ncol(beta()))
-    weights <- colSums(data()$theta)
-
-    # NOTE(tfs): This is less efficient than building from the base up,
-    #            but there is currently no explicit tree-structured data storage
-    for (i in seq(node.maxID())) {
-      clusterID <- i+K()
-
-      leaves <- leaf.ids()[[clusterID]]
-
-      val <- 0
-
-      for (leafid in leaves) {
-        val <- beta()[leafid,] * weights[leafid]
-        marginals[clusterID-K(),] <- marginals[clusterID-K(),] + val
-      }
-    }
+    ab <- all.beta()
 
     rv <- c()
     for (cluster in seq(node.maxID())) {
-      title <- paste(data()$vocab[order(marginals[cluster,],
-                                            decreasing=TRUE)][seq(5)], collapse=" ")
+      title <- paste(data()$vocab[order(ab[cluster+K(),],
+                                        decreasing=TRUE)][seq(5)], collapse=" ")
 
       rv <- c(rv, title)
     }
@@ -621,11 +612,11 @@ function(input, output, session) {
   })
 
   topic.vocabtab.title <- reactive({
-    if (input$topic.selected == "") {
+    if (input$topic.active == "") {
       return ("Please select a topic")
     }
 
-    topic <- as.integer(input$topic.selected)
+    topic <- as.integer(input$topic.active)
 
     if (topic == 0) { return("[ROOT]") }
 
@@ -1094,10 +1085,11 @@ function(input, output, session) {
   top.vocab <- reactive({
     # TODO(tfs; 2018-07-07): Rework for dynamic loading
     rv <- list()
+    ab <- all.beta()
 
     for (topic in seq(max.id())) {
       # Currently showing the same number of vocab terms as documents
-      rv[[topic]] <- data()$vocab[order(all.beta()[topic,], decreasing=TRUE)[1:last.shown.docidx()]]
+      rv[[topic]] <- data()$vocab[order(ab[topic,], decreasing=TRUE)[1:last.shown.docidx()]]
     }
 
     return(rv)
@@ -1171,7 +1163,7 @@ function(input, output, session) {
     }
 
     docs <- top.documents()[[topic]]
-    thetas <- thetas.selected() # Used to show relative relevance to topic
+    thetas <- thetas.selected() # Used to show relevance to topic
     rv <- ""
 
     for (i in 1:length(top.documents()[[topic]])) {

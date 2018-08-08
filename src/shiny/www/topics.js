@@ -336,6 +336,8 @@ function selectDocumentTab() {
 
 	$("#left-bar-document-tab").addClass("active-left-bar-tab");
 
+	$("#doctab-document-container").css({ "height": ($(window).height() - $("#doctab-document-container").position().top) });
+
 	selectedLeftTab = DOCUMENT_LABEL;
 };
 
@@ -365,6 +367,8 @@ function selectVocabTab() {
 	$("#left-bar-vocab-content").trigger("shown");
 
 	$("#left-bar-vocab-tab").addClass("active-left-bar-tab");
+
+	$("#vocabtab-vocab-container").css({ "height": ($(window).height() - $("#vocabtab-vocab-container").position().top) });
 
 	selectedLeftTab = VOCAB_LABEL;
 };
