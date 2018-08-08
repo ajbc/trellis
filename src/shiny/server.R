@@ -210,7 +210,7 @@ function(input, output, session) {
     newAs = c()
 
     for (i in seq(length(idlist))) {
-      flat.beta[i,] <- all.beta.weighted()[idlist[[i]],]
+      flat.beta[i,] <- all.beta()[idlist[[i]],]
       flat.theta[,i] <- all.theta()[,idlist[[i]]]
 
       if (idlist[[i]] <= length(stateStore$manual.titles) && !is.null(stateStore$manual.titles[[idlist[[i]]]])) {
@@ -272,7 +272,7 @@ function(input, output, session) {
     }
 
     req(bubbles.data()) # Similarly ensures that bubbles.data() finishes running before displays transition
-    req(all.beta.weighted())
+    req(all.beta())
     req(top.vocab())
     shinyjs::hide(selector=".initial")
     shinyjs::show(selector=".left-content")
@@ -344,7 +344,9 @@ function(input, output, session) {
 
   # Because beta() only provides values for the initial K() topics,
   #    calculate the beta values for all meta-topics/clusters
-  all.beta.weighted <- reactive({
+  # NOTE(tfs; 2018-08-08): Based on original code for cluster top terms,
+  #    aggregate betas are (normalized) sums of all leaf betas, weighted by relevant theta colSums
+  all.beta <- reactive({
     leaf.beta <- beta()
     lids <- leaf.ids()
     weights <- colSums(data()$theta)
@@ -353,7 +355,7 @@ function(input, output, session) {
     ab <- matrix(0, nrow=max.id(), ncol=ncol(leaf.beta))
 
     for (l in seq(K())) {
-      ab[l,] <- leaf.beta[l,] * weights[l]
+      ab[l,] <- leaf.beta[l,]
     }
 
     # Use beta values of leaves (intial topics) to calculate aggregate beta values for meta topics/clusters
@@ -369,6 +371,9 @@ function(input, output, session) {
           val <- leaf.beta[leafid,] * weights[leafid]
           ab[clusterID,] <- ab[clusterID,] + val
         }
+
+        # Normalize the new distribution
+        ab[clusterID,] = ab[clusterID,] / sum(ab[clusterID,])
       }
     }
 
@@ -517,7 +522,7 @@ function(input, output, session) {
       return(rv)
 
     for (k in seq(K())) {
-      title <- paste(data()$vocab[order(beta()[k,], decreasing=TRUE)][seq(5)], collapse=" ")
+      title <- paste(data()$vocab[order(all.beta()[k,], decreasing=TRUE)][seq(5)], collapse=" ")
       rv <- c(rv, title)
     }
 
@@ -535,28 +540,12 @@ function(input, output, session) {
       return(c())
     }
 
-    marginals <- matrix(0, nrow=node.maxID(), ncol=ncol(beta()))
-    weights <- colSums(data()$theta)
-
-    # NOTE(tfs): This is less efficient than building from the base up,
-    #            but there is currently no explicit tree-structured data storage
-    for (i in seq(node.maxID())) {
-      clusterID <- i+K()
-
-      leaves <- leaf.ids()[[clusterID]]
-
-      val <- 0
-
-      for (leafid in leaves) {
-        val <- beta()[leafid,] * weights[leafid]
-        marginals[clusterID-K(),] <- marginals[clusterID-K(),] + val
-      }
-    }
+    ab <- all.beta()
 
     rv <- c()
     for (cluster in seq(node.maxID())) {
-      title <- paste(data()$vocab[order(marginals[cluster,],
-                                            decreasing=TRUE)][seq(5)], collapse=" ")
+      title <- paste(data()$vocab[order(ab[cluster+K(),],
+                                        decreasing=TRUE)][seq(5)], collapse=" ")
 
       rv <- c(rv, title)
     }
@@ -932,7 +921,7 @@ function(input, output, session) {
   selected.childBetas <- reactive({
     childIDs <- selected.children()
 
-    return(all.beta.weighted()[childIDs,])
+    return(all.beta()[childIDs,])
   })
 
   # Returns the highest ID of any cluster, offset by the number of leaf nodes (K())
@@ -1096,7 +1085,7 @@ function(input, output, session) {
   top.vocab <- reactive({
     # TODO(tfs; 2018-07-07): Rework for dynamic loading
     rv <- list()
-    ab <- all.beta.weighted()
+    ab <- all.beta()
 
     for (topic in seq(max.id())) {
       # Currently showing the same number of vocab terms as documents
@@ -1141,7 +1130,7 @@ function(input, output, session) {
 
     if (is.na(topic)) { return(list()) }
 
-    sorted <- all.beta.weighted()[topic,][order(all.beta.weighted()[topic,], decreasing=TRUE)]
+    sorted <- all.beta()[topic,][order(all.beta()[topic,], decreasing=TRUE)]
 
     return(sorted)
   })
@@ -1174,7 +1163,7 @@ function(input, output, session) {
     }
 
     docs <- top.documents()[[topic]]
-    thetas <- thetas.selected() # Used to show relative relevance to topic
+    thetas <- thetas.selected() # Used to show relevance to topic
     rv <- ""
 
     for (i in 1:length(top.documents()[[topic]])) {
