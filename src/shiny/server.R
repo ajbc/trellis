@@ -77,8 +77,28 @@ function(input, output, session) {
   })
 
   # Display user-provided dataset name
-  output$topic.chosenName <- reactive({
+  output$topic.chosenName <- renderText({
     return(chosenDataName())
+  })
+
+  # Display the name of the selected model file
+  output$modelfile.name <- renderText({
+    if (!is.null(input$modelfile)) {
+      name <- as.character(parseFilePaths(c(home=file.home), input$modelfile)$datapath)
+      return(HTML(sanitize(name)))
+    } else {
+      return(HTML(""))
+    }
+  })
+
+  # Display the name of the selected text directory
+  output$textdirectory.name <- renderText({
+    if (!is.null(input$textlocation)) {
+      name <- as.character(parseDirPath(c(home=file.home), isolate(input$textlocation)))
+      return(HTML(sanitize(name)))
+    } else {
+      return(HTML(""))
+    }
   })
 
   # Load data from provided model file and path to directory containing text files (if provided)

@@ -17,10 +17,22 @@
         <div class="initial center-float" id="initial-panel">
             {{ outputTitleName }}
             <br />
+            <div id="initialization-instructions">
+                Select a model file (.rdata) to begin or continue aggregation. If you wish to view text documents within Trellis, additionally select the directory containing all text files in the corpus corresponding to the model file selected.
+            </div>
+            <br />
             <span id="dataset-upload-inputs">
                 {{ inputDataName }}
+                <br/>
                 {{ inputFileUpload }}
                 {{ inputFileLocation }}
+
+                <div id="file-locations-container">
+                    <br />
+                    Model File: {{ outputModelFileName }}
+                    <br />
+                    Text Directory: {{ outputTextDirName }}
+                </div>
             </span>
 
             <br />
@@ -145,9 +157,11 @@
             <div id="help-box" class="hidden-popup">
                 <h2>Instructions</h2>
 
-                For questions or to report issues, see the <a href="https://github.com/ajbc/topic-bubbles">GitHub repository</a>.
+                For questions or to report issues, see the <a href="https://github.com/ajbc/trellis">GitHub repository</a>.
 
                 <hr />
+
+                <h3>Node Interactions</h3>
 
                 Click on a node to select it.<br/>
 
@@ -155,7 +169,19 @@
 
                 You must have a node selected to perform operations in the "topics" tab on the side panel.<br/>
 
+                In the either the tree or bubble visualization, clicking on a node while holding the "alt/option" key will collapse that node.<br/>
+
                 <hr />
+
+                <h3>View Documents</h3>
+
+                With a node selected, click on a document in the "documents" tab on the side panel to view the full text. Note that this only works if a directory of the relevant text files was provided through the initialization panel.<br/>
+
+                While viewing a document, click outside the document pop-up to close the document.<br/>
+
+                <hr />
+
+                <h3>Topic Aggregation Interactions</h3>
 
                 Drag and drop nodes to move or merge them. Any node dragged onto a leaf node will attempt to merge/move to the target leaf's parent node.<br/>
 
@@ -167,13 +193,21 @@
 
                 <hr />
 
+                <h3>Controlling Visualization View</h3>
+
                 Scroll to zoom in on the visualizations.<br/>
 
                 Click and drag while holding the "alt/option" key to pan.<br/>
 
                 <hr />
 
-                In the tree visualization, clicking on a node while holding the "alt/option" key will collapse that node.<br/>
+                <h3>Saving and Exporting</h3>
+
+                The save button in the upper-left corner will output a .rdata file compatible with Trellis. In the future, this file can be loaded as the model file through the initialization panel. All collapsed nodes, assignments, and manual titles will be preserved, as well as the dataset name.<br/>
+
+                The export button in the top-right corner leads to further options. The .SVG button exports an image in SVG format of the current state of the currently active visualization.<br/>
+
+                The "flattened" button opens a new control panel. Click nodes to select them, forming a cut of the tree. Trellis will ensure that you have a cut selected at all times by automatically selecting siblings at the same level as the node a user selects. Once finished, Trellis outputs a file compatible with Trellis.<br/>
             </div>
 
             <div id="help-button-container" class="main-control">
