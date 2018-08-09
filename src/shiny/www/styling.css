@@ -127,6 +127,25 @@ svg {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
+#initialization-instructions {
+    margin-left: 15px;
+    margin-right: 15px;
+}
+
+#modelfile\.name {
+    display: inline-block;
+}
+
+#textdirectory\.name {
+    display: inline-block;
+}
+
+#file-locations-container {
+    text-align: left;
+    width: 70%;
+    margin: auto;
+}
+
 span#dataset-upload-inputs .form-group {
     margin-left: auto;
     margin-right: auto;
@@ -783,6 +802,8 @@ span#kmeans-initialization-row2 .form-group label {
     border-width: 2px;
 
     z-index: 50;
+
+    overflow: scroll;
 }
 
 #help-box.hidden-popup {
