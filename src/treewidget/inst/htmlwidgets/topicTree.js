@@ -77,6 +77,7 @@ HTMLWidgets.widget({
         var zoomHandler = d3.zoom()
             .scaleExtent([0, 40])
             .translateExtent([[-(width/2),-Infinity], [Infinity, Infinity]])
+            // .translateExtent([[0,0], [Infinity, height]])
             .on("zoom", self.zoomHandler(self));
 
         var svg = d3.select(el)
@@ -98,9 +99,9 @@ HTMLWidgets.widget({
             .nodeSize([self.CIRCLE_RADIUS, self.CIRCLE_RADIUS])
             .separation(function (left, right) {
                 if (left.data.collapsed || right.data.collapsed) {
-                    return 4;
+                    return 3;
                 } else {
-                    return (left.parent.data.id === right.parent.data.id) ? 2 : 5;
+                    return (left.parent.data.id === right.parent.data.id) ? 1 : 4;
                 }
             });
 
@@ -128,9 +129,14 @@ HTMLWidgets.widget({
         self.el = el;
 
         self.tree = d3.tree()
-            .size([height-(2*self.BORDER_MARGIN)-self.TOP_MARGIN, width-(2*self.BORDER_MARGIN)])
+            // .size([height-(2*self.BORDER_MARGIN)-self.TOP_MARGIN, width-(2*self.BORDER_MARGIN)])
+            .nodeSize([self.CIRCLE_RADIUS, self.CIRCLE_RADIUS])
             .separation(function (left, right) {
-                return (left.parent.data.id === right.parent.data.id) ? 10 : 15;
+                if (left.data.collapsed || right.data.collapsed) {
+                    return 3;
+                } else {
+                    return (left.parent.data.id === right.parent.data.id) ? 1 : 4;
+                }
             });
 
         // Modify width and height of existing svg element
@@ -178,6 +184,7 @@ HTMLWidgets.widget({
             // Flip coordinates
             var tmpX = (d.depth * 180) + offset.top;
             d.y = d.x + offset.left + self.yOffset;
+            // d.y = d.x + offset.left;
             d.x = tmpX;
         });
 
