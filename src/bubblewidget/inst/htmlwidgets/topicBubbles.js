@@ -237,6 +237,12 @@ HTMLWidgets.widget({
             .attr("id", function (d) {
                 return 'node-' + d.data.id;
             })
+            .attr("cx", function (d) {
+                return (d.parent) ? d.parent.x : d.x;
+            })
+            .attr("cy", function (d) {
+                return (d.parent) ? d.parent.y : d.y;
+            })
             .on("click", self.generateNodeClickHandler(self))
             .on("mouseover", function (d) {
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id,
@@ -265,6 +271,11 @@ HTMLWidgets.widget({
             .attr("class", "label")
             .attr("id", function (d) {
                 return 'label-' + d.data.id;
+            })
+            .attr("transform", function (d) {
+                var x = (d.parent) ? d.parent.x : d.x,
+                    y = (d.parent) ? d.parent.y : d.y;
+                return "translate(" + x + "," + y + ")";
             });
 
         circles.exit().remove();
