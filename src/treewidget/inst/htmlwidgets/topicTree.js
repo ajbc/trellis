@@ -412,6 +412,51 @@ HTMLWidgets.widget({
     },
 
 
+    raiseRect: function (selfRef, nodeID) {
+        var rootElemNode = $("#tree-root")[0];
+        rootElemNode.appendChild($("#tree-label-background-"+nodeID)[0]);  
+    },
+
+
+    raiseLabel: function (selfRef, nodeID) {
+        var rootElemNode = $("#tree-root")[0];
+        rootElemNode.appendChild($("#tree-label-"+nodeID)[0]);
+    },
+
+
+    raiseAllCircles: function () {
+        var self = this,
+            rootElemNode = $("#tree-root")[0];
+
+        self.traverseTree(self.treeData, function (n) {
+            var id = n.id;
+            self.raiseNode(self, id);
+        });
+    },
+
+
+    raiseAllRects: function () {
+        var self = this,
+            rootElemNode = $("#tree-root")[0];
+
+        self.traverseTree(self.treeData, function (n) {
+            var id = n.id;
+            self.raiseRect(self, id);
+        });
+    },
+
+
+    raiseAllLabels: function () {
+        var self = this,
+            rootElemNode = $("#tree-root")[0];
+
+        self.traverseTree(self.treeData, function (n) {
+            var id = n.id;
+            self.raiseLabel(self, id);
+        });
+    },
+
+
     /* Move or merge source node with target node.
      */
     moveOrMerge: function (selfRef, sourceID, targetID, makeNewGroup) {
