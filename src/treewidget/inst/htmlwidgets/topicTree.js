@@ -297,6 +297,10 @@ HTMLWidgets.widget({
         paths.exit().remove();
         rects.exit().remove();
 
+        self.raiseAllRects();
+        self.raiseAllLabels();
+        self.raiseAllCircles();
+
         self.resizeAndReposition(useTransition);
     },
 
