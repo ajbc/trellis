@@ -297,11 +297,11 @@ HTMLWidgets.widget({
         paths.exit().remove();
         rects.exit().remove();
 
+        self.resizeAndReposition(useTransition);
+
         self.raiseAllRects();
         self.raiseAllLabels();
         self.raiseAllCircles();
-
-        self.resizeAndReposition(useTransition);
     },
 
 
