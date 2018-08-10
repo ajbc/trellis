@@ -47,12 +47,11 @@ HTMLWidgets.widget({
     // Constant values
     PAGE_MARGIN: 10,
     TOP_MARGIN: 75,
-    FONT_SIZE: 11,
     BORDER_MARGIN: 10,
     CIRCLE_RADIUS: 7,
     TERMINAL_NODE_RADIUS: 4,
     COLLAPSED_NODE_RADIUS: 10,
-    FONT_SIZE: 8,
+    LABEL_FONT_SIZE: 8,
     TEXT_HEIGHT_OFFSET: 2,
 
     MIN_EDGE_WIDTH: 1,
@@ -64,6 +63,9 @@ HTMLWidgets.widget({
 
     draggedNode: null,
 
+    // Correct for [0, 0] root using nodeSize
+    yOffset: 0,
+
     initialize: function (el, width, height) {
         var self = this;
 
@@ -73,10 +75,9 @@ HTMLWidgets.widget({
         // Ref: https://bl.ocks.org/mbostock/4987520
         // Ref: https://bl.ocks.org/emepyc/7218bc9ea76951d6a78b0c7942e07a00
         var zoomHandler = d3.zoom()
-            .scaleExtent([1, 40])
-            .translateExtent([[0,0], [Infinity, height]])
+            .scaleExtent([0, 40])
+            .translateExtent([[-(width/2),-Infinity], [Infinity, Infinity]])
             .on("zoom", self.zoomHandler(self));
-
 
         var svg = d3.select(el)
             .append("svg")
@@ -86,14 +87,20 @@ HTMLWidgets.widget({
             .call(zoomHandler)
             .on("dblclick.zoom", null);
 
+        self.yOffset = (height-(2*self.BORDER_MARGIN)-self.TOP_MARGIN) / 2;
+
         self.g = svg.append("g")
             .attr("id", "tree-root");
 
         // Ref: https://github.com/d3/d3-hierarchy/blob/master/README.md#tree
         self.tree = d3.tree()
-            .size([height-(2*self.BORDER_MARGIN)-self.TOP_MARGIN, width-(2*self.BORDER_MARGIN)])
+            .nodeSize([self.CIRCLE_RADIUS, self.CIRCLE_RADIUS])
             .separation(function (left, right) {
-                return (left.parent.data.id === right.parent.data.id) ? 10 : 15;
+                if (left.data.collapsed || right.data.collapsed) {
+                    return 3;
+                } else {
+                    return (left.parent.data.id === right.parent.data.id) ? 1 : 4;
+                }
             });
 
         self.edgeWidthMap = d3.scaleLinear()
@@ -119,9 +126,13 @@ HTMLWidgets.widget({
         self.el = el;
 
         self.tree = d3.tree()
-            .size([height-(2*self.BORDER_MARGIN)-self.TOP_MARGIN, width-(2*self.BORDER_MARGIN)])
+            .nodeSize([self.CIRCLE_RADIUS, self.CIRCLE_RADIUS])
             .separation(function (left, right) {
-                return (left.parent.data.id === right.parent.data.id) ? 10 : 15;
+                if (left.data.collapsed || right.data.collapsed) {
+                    return 3;
+                } else {
+                    return (left.parent.data.id === right.parent.data.id) ? 1 : 4;
+                }
             });
 
         // Modify width and height of existing svg element
@@ -168,7 +179,7 @@ HTMLWidgets.widget({
         nodes.forEach(function(d) {
             // Flip coordinates
             var tmpX = (d.depth * 180) + offset.top;
-            d.y = d.x + offset.left;
+            d.y = d.x + offset.left + self.yOffset;
             d.x = tmpX;
         });
 
@@ -182,13 +193,62 @@ HTMLWidgets.widget({
             .data(nodes.slice(1), self.constancy);
 
         var rects = self.g.selectAll("rect")
-            .data(nodes, self.constancy);
+            .data(nodes.filter(function (d) {
+                return (d.data.collapsed || (d.data.children && d.data.children.length > 0));
+            }), self.constancy);
 
         // Ref: https://stackoverflow.com/questions/38599930/d3-version-4-workaround-for-drag-origin
         var dragHandler = d3.drag()
             .subject(function (n) { return n; })
             .on("drag", self.activeDragHandler(self))
             .on("end", self.dragEndHandler(self));
+
+
+        paths.enter()
+            .append("path")
+            .attr("class", "tree-link")
+            .attr("id", function (d) {
+                return "tree-path-" + d.data.id;
+            });
+
+
+        var newRects = rects.enter()
+            .append("rect")
+            .attr("class", "tree-label-background")
+            .attr("id", function (d) {
+                return "tree-label-background-" + d.data.id;
+            })
+            .attr("x", function (d) {
+                var margin = 2 + self.COLLAPSED_NODE_RADIUS;
+                var x = (d.parent) ? d.parent.x : d.x;
+                return x + margin - 2;
+            });
+
+
+        text.enter()
+            .append("text")
+            .attr("class", "tree-label")
+            .attr("id", function (d) {
+                return "tree-label-" + d.data.id;
+            })
+            .attr("x", function (d) {
+                var margin = 2 + self.COLLAPSED_NODE_RADIUS;
+                var x = (d.parent) ? d.parent.x : d.x;
+                return x + margin;
+            })
+            .attr("y", function (d) {
+                var y = (d.parent) ? d.parent.y : d.y;
+                return y + self.TEXT_HEIGHT_OFFSET;
+            });
+
+
+        newRects.attr("y", function (d) {
+                var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
+                // Add 4 to adjust for margins. Probably a better way to calculate this.
+                var y = (d.parent) ? d.parent.y : d.y;
+                return y - textheight + 4;
+            });
+
 
         // Initialize position to parent node's position, for animations
         circles.enter()
@@ -231,50 +291,6 @@ HTMLWidgets.widget({
                 Shiny.onInputChange("topic.active", displayID);
             })
             .call(dragHandler);
-
-        // Initialize position to parent node's position, for animations
-        text.enter()
-            .append("text")
-            .attr("class", "tree-label")
-            .attr("id", function (d) {
-                return "tree-label-" + d.data.id;
-            })
-            .attr("x", function (d) {
-                var margin = 2 + self.COLLAPSED_NODE_RADIUS;
-                var x = (d.parent) ? d.parent.x : d.x;
-                return x + margin;
-            })
-            .attr("y", function (d) {
-                var y = (d.parent) ? d.parent.y : d.y;
-                return y + self.TEXT_HEIGHT_OFFSET;
-            });
-
-
-        paths.enter()
-            .append("path")
-            .attr("class", "tree-link")
-            .attr("id", function (d) {
-                return "tree-path-" + d.data.id;
-            });
-
-        // Initialize position to parent node's position, for animations
-        rects.enter()
-            .append("rect")
-            .attr("class", "tree-label-background")
-            .attr("id", function (d) {
-                return "tree-label-background-" + d.data.id;
-            })
-            .attr("x", function (d) {
-                var margin = 2 + self.COLLAPSED_NODE_RADIUS;
-                var x = (d.parent) ? d.parent.x : d.x;
-                return x + margin - 2;
-            })
-            .attr("y", function (d) {
-                var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
-                // Add 4 to adjust for margins. Probably a better way to calculate this.
-                var y = (d.parent) ? d.parent.y : d.y;
-                return y - textheight + 4;
-            });
 
 
         circles.exit().remove();
@@ -403,7 +419,9 @@ HTMLWidgets.widget({
 
     raiseRect: function (selfRef, nodeID) {
         var rootElemNode = $("#tree-root")[0];
-        rootElemNode.appendChild($("#tree-label-background-"+nodeID)[0]);  
+        if ($("#tree-label-background-"+nodeID).length > 0) {
+            rootElemNode.appendChild($("#tree-label-background-"+nodeID)[0]);
+        }
     },
 
 
@@ -541,13 +559,8 @@ HTMLWidgets.widget({
                     return;
                 }
 
-                if (true || d.data.collapsed || d3.select("#tree-node-"+d.data.id).classed("terminal-tree-node")) {
-                    var len = d.data.terms.length;
-
-                    sel.append("tspan")
-                        .text(d.data.terms.join(" "))
-                        .attr("font-size", self.FONT_SIZE);
-                }
+                sel.text(d.data.terms.join(" "))
+                    .attr("font-size", self.LABEL_FONT_SIZE);
             });
 
         rects.attr("x", function (d) {
@@ -578,6 +591,7 @@ HTMLWidgets.widget({
         return path;
     },
 
+
     generateNodeClickHandler: function (selfRef) {
         var treeNodeClickHandler = function (n) {
             d3.event.stopPropagation();
@@ -604,6 +618,7 @@ HTMLWidgets.widget({
         return treeNodeClickHandler;
     },
 
+
     traverseTree: function (node, processNode) {
         var self = this;
         processNode(node);
@@ -613,6 +628,7 @@ HTMLWidgets.widget({
             });
         }
     },
+
 
     /* Convert R dataframe to tree.
      */
