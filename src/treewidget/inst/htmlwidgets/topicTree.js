@@ -77,7 +77,6 @@ HTMLWidgets.widget({
         var zoomHandler = d3.zoom()
             .scaleExtent([0, 40])
             .translateExtent([[-(width/2),-Infinity], [Infinity, Infinity]])
-            // .translateExtent([[0,0], [Infinity, height]])
             .on("zoom", self.zoomHandler(self));
 
         var svg = d3.select(el)
@@ -95,7 +94,6 @@ HTMLWidgets.widget({
 
         // Ref: https://github.com/d3/d3-hierarchy/blob/master/README.md#tree
         self.tree = d3.tree()
-            // .size([height-(2*self.BORDER_MARGIN)-self.TOP_MARGIN, width-(2*self.BORDER_MARGIN)])
             .nodeSize([self.CIRCLE_RADIUS, self.CIRCLE_RADIUS])
             .separation(function (left, right) {
                 if (left.data.collapsed || right.data.collapsed) {
@@ -114,7 +112,6 @@ HTMLWidgets.widget({
     zoomHandler: function (selfRef) {
         var handler = function () {
             selfRef.g.attr("transform", "translate(" + d3.event.transform.x + "," + d3.event.transform.y + ")" + "scale(" + d3.event.transform.k + ")");
-            // selfRef.rescaleText(selfRef, d3.event.transform.k);
             d3.event.sourceEvent.stopPropagation();
         };
 
@@ -129,7 +126,6 @@ HTMLWidgets.widget({
         self.el = el;
 
         self.tree = d3.tree()
-            // .size([height-(2*self.BORDER_MARGIN)-self.TOP_MARGIN, width-(2*self.BORDER_MARGIN)])
             .nodeSize([self.CIRCLE_RADIUS, self.CIRCLE_RADIUS])
             .separation(function (left, right) {
                 if (left.data.collapsed || right.data.collapsed) {
@@ -184,7 +180,6 @@ HTMLWidgets.widget({
             // Flip coordinates
             var tmpX = (d.depth * 180) + offset.top;
             d.y = d.x + offset.left + self.yOffset;
-            // d.y = d.x + offset.left;
             d.x = tmpX;
         });
 
@@ -585,37 +580,7 @@ HTMLWidgets.widget({
                 var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
                 return textheight;
             });
-
-        // self.rescaleText(self, d3.zoomTransform(self.g).k);
     },
-
-
-    // Rescale text so it takes up less space as the SVG zooms/scales
-    // rescaleText: function (selfRef, scale) {
-    //     var text = selfRef.g.selectAll("text"),
-    //         rects = selfRef.g.selectAll("rect");
-
-    //     text.attr("transform", function (d) {
-    //             var tstring =  "translate(" + (2 + selfRef.COLLAPSED_NODE_RADIUS + d.x);
-    //                 tstring += "," + ((selfRef.TEXT_HEIGHT_OFFSET/scale) + d.y);
-    //                 tstring += ")scale(" + (1/scale) + "," + (1/scale) + ")";
-
-    //             return tstring;
-    //         });
-
-    //     rects.attr("transform", function (d) {
-    //             var tstring =  "translate(" + (selfRef.COLLAPSED_NODE_RADIUS + d.x);
-    //                 tstring += "," + (d.y - ($("#tree-label-"+d.data.id)[0].getBBox().height - 4)/scale) + ")";
-
-    //             return tstring;
-    //         }).attr("width", function (d) {
-    //             var textwidth = $("#tree-label-"+d.data.id)[0].getBBox().width;
-    //             return (textwidth / scale) + 4;
-    //         }).attr("height", function (d) {
-    //             var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
-    //             return (textheight / scale);
-    //         }).attr("scaledata", function (d) { return scale });
-    // },
 
 
     // Ref: https://bl.ocks.org/d3noob/43a860bc0024792f8803bba8ca0d5ecd
@@ -625,6 +590,7 @@ HTMLWidgets.widget({
 
         return path;
     },
+
 
     generateNodeClickHandler: function (selfRef) {
         var treeNodeClickHandler = function (n) {
@@ -652,6 +618,7 @@ HTMLWidgets.widget({
         return treeNodeClickHandler;
     },
 
+
     traverseTree: function (node, processNode) {
         var self = this;
         processNode(node);
@@ -661,6 +628,7 @@ HTMLWidgets.widget({
             });
         }
     },
+
 
     /* Convert R dataframe to tree.
      */
