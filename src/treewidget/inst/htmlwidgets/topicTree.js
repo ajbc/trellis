@@ -190,12 +190,30 @@ HTMLWidgets.widget({
             .on("drag", self.activeDragHandler(self))
             .on("end", self.dragEndHandler(self));
 
+        // Initialize position to parent node's position, for animations
         circles.enter()
             .append("circle")
             .attr("class", "tree-node")
             .attr("opacity", "1.0")
             .attr("id", function (d) {
                 return "tree-node-" + d.data.id;
+            })
+            .attr("cx", function (d) {
+                if (d.parent) {
+                    return d.parent.x;
+                } else {
+                    return d.x;
+                }
+            })
+            .attr("cy", function (d) {
+                if (d.parent) {
+                    return d.parent.y;
+                } else {
+                    return d.y;
+                }
+            })
+            .attr("depth", function (d) {
+                return d.depth;
             })
             .on("click", self.generateNodeClickHandler(self))
             .on("mouseover", function (d) {
@@ -214,11 +232,21 @@ HTMLWidgets.widget({
             })
             .call(dragHandler);
 
+        // Initialize position to parent node's position, for animations
         text.enter()
             .append("text")
             .attr("class", "tree-label")
             .attr("id", function (d) {
                 return "tree-label-" + d.data.id;
+            })
+            .attr("x", function (d) {
+                var margin = 2 + self.COLLAPSED_NODE_RADIUS;
+                var x = (d.parent) ? d.parent.x : d.x;
+                return x + margin;
+            })
+            .attr("y", function (d) {
+                var y = (d.parent) ? d.parent.y : d.y;
+                return y + self.TEXT_HEIGHT_OFFSET;
             });
 
 
@@ -229,12 +257,23 @@ HTMLWidgets.widget({
                 return "tree-path-" + d.data.id;
             });
 
-
+        // Initialize position to parent node's position, for animations
         rects.enter()
             .append("rect")
             .attr("class", "tree-label-background")
             .attr("id", function (d) {
                 return "tree-label-background-" + d.data.id;
+            })
+            .attr("x", function (d) {
+                var margin = 2 + self.COLLAPSED_NODE_RADIUS;
+                var x = (d.parent) ? d.parent.x : d.x;
+                return x + margin - 2;
+            })
+            .attr("y", function (d) {
+                var textheight = $("#tree-label-"+d.data.id)[0].getBBox().height;
+                // Add 4 to adjust for margins. Probably a better way to calculate this.
+                var y = (d.parent) ? d.parent.y : d.y;
+                return y - textheight + 4;
             });
 
 
