@@ -47,12 +47,11 @@ HTMLWidgets.widget({
     // Constant values
     PAGE_MARGIN: 10,
     TOP_MARGIN: 75,
-    FONT_SIZE: 11,
     BORDER_MARGIN: 10,
     CIRCLE_RADIUS: 7,
     TERMINAL_NODE_RADIUS: 4,
     COLLAPSED_NODE_RADIUS: 10,
-    FONT_SIZE: 8,
+    LABEL_FONT_SIZE: 8,
     TEXT_HEIGHT_OFFSET: 2,
 
     MIN_EDGE_WIDTH: 1,
@@ -297,11 +296,11 @@ HTMLWidgets.widget({
         paths.exit().remove();
         rects.exit().remove();
 
-        self.resizeAndReposition(useTransition);
-
         self.raiseAllRects();
         self.raiseAllLabels();
         self.raiseAllCircles();
+
+        self.resizeAndReposition(useTransition);
     },
 
 
@@ -418,7 +417,9 @@ HTMLWidgets.widget({
 
     raiseRect: function (selfRef, nodeID) {
         var rootElemNode = $("#tree-root")[0];
-        rootElemNode.appendChild($("#tree-label-background-"+nodeID)[0]);  
+        if ($("#tree-label-background-"+nodeID).length > 0) {
+            rootElemNode.appendChild($("#tree-label-background-"+nodeID)[0]);
+        }
     },
 
 
@@ -556,13 +557,8 @@ HTMLWidgets.widget({
                     return;
                 }
 
-                if (true || d.data.collapsed || d3.select("#tree-node-"+d.data.id).classed("terminal-tree-node")) {
-                    var len = d.data.terms.length;
-
-                    sel.append("tspan")
-                        .text(d.data.terms.join(" "))
-                        .attr("font-size", self.FONT_SIZE);
-                }
+                sel.text(d.data.terms.join(" "))
+                    .attr("font-size", self.LABEL_FONT_SIZE);
             });
 
         rects.attr("x", function (d) {
