@@ -133,7 +133,7 @@ function(input, output, session) {
       }
     }
 
-    stateStore$stateStore$all.beta <- ab
+    stateStore$all.beta <- ab
   }
 
 
@@ -146,7 +146,7 @@ function(input, output, session) {
       if (i <= K()) {
         at[,i] <- theta[,i]
       } else {
-        if (clusterID > length(leaf.ids()) || is.null(leaf.ids()[[clusterID]])) { next }
+        if (i > length(leaf.ids()) || is.null(leaf.ids()[[i]])) { next }
 
         leaves <- leaf.ids()[[i]]
 
@@ -160,57 +160,125 @@ function(input, output, session) {
   }
 
 
+  clean.aggregate.state <- function(ids) {
+    clean.all.beta(ids)
+    clean.all.theta(ids)
+  }
+
+
+  clean.all.beta <- function(ids) {
+    if (length(ids) <= 0) { return() }
+
+    for (i in ids) {
+      if (i <= K() || i > nrow(stateStore$all.beta)) { next }
+      stateStore$all.beta[i,] <- 0
+    }
+
+    # Prune end rows
+    zidx <- which(rowSums(abs(stateStore$all.beta)) == 0)
+    zidx <- zidx[zidx > K()]
+    zidx <- zidx[order(zidx, decreasing=TRUE)]
+
+    for (i in zidx) {
+      if (i == nrow(stateStore$all.beta)) {
+        stateStore$all.beta <- stateStore$all.beta[-i,]
+      }
+    }
+  }
+
+
+  clean.all.theta <- function(ids) {
+    if (length(ids) <= 0) { return() }
+
+    for (i in ids) {
+      if (i <= K() || i > ncol(stateStore$all.theta)) { next }
+      stateStore$all.theta[,i] <- 0
+    }
+
+    # Prune end cols
+    zidx <- which(colSums(abs(stateStore$all.beta)) == 0)
+    zidx <- zidx[zidx > K()]
+    zidx <- zidx[order(zidx, decreasing=TRUE)]
+
+    for (i in zidx) {
+      if (i == ncol(stateStore$all.beta)) {
+        stateStore$all.theta <- stateStore$all.theta[,-i]
+      }
+    }
+  }
+
+
   update.all.aggregate.state <- function() {
     ids <- seq(max.id())
-    update.aggregate.state(ids)
+    update.aggregate.state(ids, c())
   }
 
 
-  update.aggregate.state <- function(ids) {
-    update.all.beta(ids)
-    update.all.theta(ids)
+  update.aggregate.state <- function(changedIDs, newIDs) {
+    update.all.beta(changedIDs, newIDs)
+    update.all.theta(changedIDs, newIDs)
   }
 
 
-  update.all.beta <- function(ids) {
+  update.all.beta <- function(changedIDs, newIDs) {
     leaf.beta <- beta()
     lids <- leaf.ids()
     weights <- colSums(data()$theta)
 
-    ab <- matrix(0, nrow=max.id(), ncol=ncol(leaf.beta))
+    # ab <- matrix(0, nrow=max.id(), ncol=ncol(leaf.beta))
 
     # Use beta values of leaves (intial topics) to calculate aggregate beta values for meta topics/clusters
     if (max.id() > K()) {
-      for (clusterID in ids) {
+      for (clusterID in changedIDs) {
         if (clusterID <= K()) { next } # We never need to update leaf values
         if (is.na(stateStore$assigns[[clusterID]])) { next }
 
         val <- 0
+        stateStore$all.beta[clusterID] <- 0
 
         leaves <- leaf.ids()[[clusterID]]
 
         for (leafid in leaves) {
           val <- leaf.beta[leafid,] * weights[leafid]
-          ab[clusterID,] <- ab[clusterID,] + val
+          stateStore$all.beta[clusterID,] <- stateStore$all.beta[clusterID,] + val
         }
 
         # Normalize the new distribution
-        ab[clusterID,] = ab[clusterID,] / sum(ab[clusterID,])
+        stateStore$all.beta[clusterID,] = stateStore$all.beta[clusterID,] / sum(stateStore$all.beta[clusterID,])
       }
     }
 
-    stateStore$stateStore$all.beta <- ab
+    if (length(newIDs) <= 0) { return() }
+
+    offset <- nrow(stateStore$all.beta)
+    newmat <- matrix(0, nrow=(max(newIDs)-offset), ncol=ncol(leaf.beta))
+
+    for (clusterID in newIDs) {
+      i <- clusterID - offset
+      val <- 0
+      leaves <- leaf.ids()[[clusterID]]
+
+      for (leafid in leaves) {
+        val <- leaf.beta[leafid,] * weights[leafid]
+        newmat[i,] <- newmat[i,] + val
+      }
+
+      # Normalize the new distribution
+      newmat[i,] = newmat[i,] / sum(newmat[i,])
+    }
+
+    stateStore$all.beta <- rbind(stateStore$all.beta, newmat)
   }
 
 
-  update.all.theta <- function(ids) {
+  update.all.theta <- function(changedIDs, newIDs) {
     theta <- data()$theta
 
-    for (i in ids) {
+    for (i in changedIDs) {
       if (i <= K()) { next } # We never need to update leaf values
       stateStore$all.theta[,i] <- 0
 
-      if (clusterID > length(leaf.ids()) || is.null(leaf.ids()[[clusterID]])) { next }
+      if (i > length(leaf.ids()) || is.null(leaf.ids()[[i]])) { next }
 
       leaves <- leaf.ids()[[i]]
 
@@ -218,6 +286,26 @@ function(input, output, session) {
         stateStore$all.theta[,i] <- stateStore$all.theta[,i] + theta[,leafID]
       }
     }
+
+    if (length(newIDs) <= 0) { return() }
+
+    offset <- ncol(stateStore$all.theta)
+    newmat <- matrix(0, nrow=nrow(stateStore$all.theta), ncol=(max(newIDs)-offset))
+
+    for (i in newIDs) {
+      if (i <= K()) { next } # We never need to update leaf values
+      newmat[,i-offset] <- 0
+
+      if (i > length(leaf.ids()) || is.null(leaf.ids()[[i]])) { next }
+
+      leaves <- leaf.ids()[[i]]
+
+      for (leafID in leaves) {
+        newmat[,i-offset] <- newmat[,i-offset] + theta[,leafID]
+      }
+    }
+
+    stateStore$all.theta <- cbind(stateStore$all.theta, newmat)
   }
 
 
@@ -430,7 +518,7 @@ function(input, output, session) {
     }
 
     init.all.beta()
-    # init.all.theta()
+    init.all.theta()
     # init.top.vocab()
 
     req(bubbles.data()) # Similarly ensures that bubbles.data() finishes running before displays transition
@@ -621,8 +709,6 @@ function(input, output, session) {
       return()
     }
 
-    changedIDs <- c()
-
     selectedTopic <- as.integer(input$topic.selected)
 
     numNewClusters <- isolate(input$runtime.numClusters)
@@ -638,14 +724,16 @@ function(input, output, session) {
 
     childIDs <- selected.children()
 
-    changedIDs <- append(changedIDs, childIDs)
+    changedIDs <- childIDs
 
     maxOldID <- max.id()
+
+    newIDs <- c()
 
     # Add new clusters into assignments
     for (i in seq(numNewClusters)) {
       stateStore$assigns[[i + maxOldID]] = selectedTopic
-      changedIDs <- append(changedIDs, i + maxOldID)
+      newIDs <- append(newIDs, i + maxOldID)
     }
 
     # Update assignments to reflect new clustering
@@ -655,7 +743,7 @@ function(input, output, session) {
       stateStore$assigns[[ch]] = pa
     }
 
-    update.aggregate.state(changedIDs)
+    update.aggregate.state(changedIDs, newIDs)
 
     # Notify frontend of completion
     session$sendCustomMessage("runtimeClusterFinished", "SUCCESS")
@@ -719,6 +807,7 @@ function(input, output, session) {
 
     rv <- c()
     for (cluster in seq(node.maxID())) {
+      print(cluster+K())
       title <- paste(data()$vocab[order(ab[cluster+K(),],
                                         decreasing=TRUE)][seq(5)], collapse=" ")
 
@@ -828,19 +917,30 @@ function(input, output, session) {
     empty.id <- source.id
 
     changedIDs <- c(source.id, target.id)
+    newIDs <- c()
 
-    itr <- stateStore$assigns[[source.id]]
-
-    while(itr > 0) {
+    if (source.id > 0) {
+      itr <- stateStore$assigns[[source.id]]
       changedIDs <- append(changedIDs, itr)
-      itr <- stateStore$assigns[[itr]]
+
+      while(itr > 0) {
+        itr <- stateStore$assigns[[itr]]
+        if (!(itr %in% changedIDs)) {
+          changedIDs <- append(changedIDs, itr)
+        }
+      }
     }
 
-    itr <- stateStore$assigns[[target.id]]
-
-    while(itr > 0) {
+    if (target.id > 0) {
+      itr <- stateStore$assigns[[target.id]]
       changedIDs <- append(changedIDs, itr)
-      itr <- stateStore$assigns[[itr]]
+
+      while(itr > 0) {
+        itr <- stateStore$assigns[[itr]]
+        if (!(itr %in% changedIDs)) {
+          changedIDs <- append(changedIDs, itr)
+        }
+      }
     }
 
     if (shift.held) {
@@ -852,7 +952,7 @@ function(input, output, session) {
         newID <- max.id() + 1
         stateStore$assigns[[newID]] <- target.id
         stateStore$assigns[[source.id]] <- newID
-        changedIDs <- append(changeIDs, newID)
+        newIDs <- append(newIDs, newID)
       } else {
         # Shift is held, source is an aggregate node
         empty.id <- stateStore$assigns[[source.id]]
@@ -879,14 +979,18 @@ function(input, output, session) {
       }
     }
 
+    ids.to.clean <- c()
+
     # Clean up if the update emptied a node
     while(empty.id > 0 && (empty.id > length(leaf.ids()) || is.null(leaf.ids()[[empty.id]]) || length(leaf.ids()[[empty.id]]) <= 0)) {
       nid <- stateStore$assigns[[empty.id]]
+      ids.to.clean <- append(ids.to.clean, empty.id)
       stateStore$assigns[[empty.id]] <- NA
       empty.id <- nid
     }
 
-    update.aggregate.state(changedIDs)
+    clean.aggregate.state(ids.to.clean)
+    update.aggregate.state(changedIDs, newIDs)
   })
 
 
