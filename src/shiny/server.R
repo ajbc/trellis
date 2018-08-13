@@ -277,6 +277,7 @@ function(input, output, session) {
 
     for (i in zidx) {
       if (i == nrow(stateStore$all.beta)) {
+        # print(paste("beta", toString(i), sep=": "))
         stateStore$all.beta <- stateStore$all.beta[-i,]
       }
     }
@@ -292,12 +293,13 @@ function(input, output, session) {
     }
 
     # Prune end cols
-    zidx <- which(colSums(abs(stateStore$all.beta)) == 0)
+    zidx <- which(colSums(abs(stateStore$all.theta)) == 0)
     zidx <- zidx[zidx > K()]
     zidx <- zidx[order(zidx, decreasing=TRUE)]
 
     for (i in zidx) {
-      if (i == ncol(stateStore$all.beta)) {
+      if (i == ncol(stateStore$all.theta)) {
+        # print(paste("theta", toString(i), sep=": "))
         stateStore$all.theta <- stateStore$all.theta[,-i]
       }
     }
@@ -351,14 +353,26 @@ function(input, output, session) {
     lids <- leaf.ids()
     weights <- colSums(data()$theta)
 
+    # print(paste("beta", paste(newIDs, sep=", "), sep=": "))
+
+    if (length(newIDs) > 0) {
+      numNewRows = max(newIDs) - nrow(stateStore$all.beta)
+
+      if (numNewRows > 0) {
+        newmat <- matrix(0, nrow=numNewRows, ncol=ncol(leaf.beta))
+        stateStore$all.beta <- rbind(stateStore$all.beta, newmat)
+        # print(paste("beta new nrow", toString(nrow(stateStore$all.beta)), sep=": "))
+      }
+    }
+
     # Use beta values of leaves (intial topics) to calculate aggregate beta values for meta topics/clusters
     if (max.id() > K()) {
-      for (clusterID in changedIDs) {
+      for (clusterID in append(changedIDs, newIDs)) {
         if (clusterID <= K()) { next } # We never need to update leaf values
         if (is.na(stateStore$assigns[[clusterID]])) { next }
 
         val <- 0
-        stateStore$all.beta[clusterID] <- 0
+        stateStore$all.beta[clusterID,] <- 0
 
         # TODO(tfs; 2018-08-13): Move to stateStore
         leaves <- leaf.ids()[[clusterID]]
@@ -373,40 +387,50 @@ function(input, output, session) {
       }
     }
 
-    if (length(newIDs) <= 0) { return() }
+    # if (length(newIDs) <= 0) { return() }
 
-    print("BETA")
-    print(changedIDs)
-    print(newIDs)
+    # print("BETA")
+    # print(changedIDs)
+    # print(newIDs)
 
-    offset <- nrow(stateStore$all.beta)
-    print(offset)
-    newmat <- matrix(0, nrow=(max(newIDs)-offset), ncol=ncol(leaf.beta))
+    # offset <- nrow(stateStore$all.beta)
+    # print(offset)
+    # newmat <- matrix(0, nrow=(max(newIDs)-offset), ncol=ncol(leaf.beta))
 
-    print("endbeta")
+    # print("endbeta")
 
-    for (clusterID in newIDs) {
-      i <- clusterID - offset
-      val <- 0
-      leaves <- leaf.ids()[[clusterID]]
+    # for (clusterID in newIDs) {
+    #   i <- clusterID - offset
+    #   val <- 0
+    #   leaves <- leaf.ids()[[clusterID]]
 
-      for (leafid in leaves) {
-        val <- leaf.beta[leafid,] * weights[leafid]
-        newmat[i,] <- newmat[i,] + val
-      }
+    #   for (leafid in leaves) {
+    #     val <- leaf.beta[leafid,] * weights[leafid]
+    #     newmat[i,] <- newmat[i,] + val
+    #   }
 
-      # Normalize the new distribution
-      newmat[i,] = newmat[i,] / sum(newmat[i,])
-    }
-
-    stateStore$all.beta <- rbind(stateStore$all.beta, newmat)
+    #   # Normalize the new distribution
+    #   newmat[i,] = newmat[i,] / sum(newmat[i,])
+    # }
   }
 
 
   update.all.theta <- function(changedIDs, newIDs) {
     theta <- data()$theta
 
-    for (i in changedIDs) {
+    # print(paste("theta", paste(newIDs, sep=", "), sep=": "))
+
+    if (length(newIDs) > 0) {
+      numNewCols = max(newIDs) - ncol(stateStore$all.theta)
+
+      if (numNewCols > 0) {
+        newmat <- matrix(0, nrow=nrow(theta), ncol=numNewCols)
+        stateStore$all.theta <- cbind(stateStore$all.theta, newmat)
+        # print(paste("theta new ncol", toString(ncol(stateStore$all.theta)), sep=": "))
+      }
+    }
+
+    for (i in append(changedIDs, newIDs)) {
       if (i <= K()) { next } # We never need to update leaf values
       stateStore$all.theta[,i] <- 0
 
@@ -419,32 +443,32 @@ function(input, output, session) {
       }
     }
 
-    if (length(newIDs) <= 0) { return() }
+    # if (length(newIDs) <= 0) { return() }
 
-    print("THETA")
-    print(changedIDs)
-    print(newIDs)
+    # print("THETA")
+    # print(changedIDs)
+    # print(newIDs)
 
-    offset <- ncol(stateStore$all.theta)
-    print(offset)
-    newmat <- matrix(0, nrow=nrow(stateStore$all.theta), ncol=(max(newIDs)-offset))
+    # offset <- ncol(stateStore$all.theta)
+    # print(offset)
+    # newmat <- matrix(0, nrow=nrow(stateStore$all.theta), ncol=(max(newIDs)-offset))
 
-    print("endtheta")
+    # print("endtheta")
 
-    for (i in newIDs) {
-      if (i <= K()) { next } # We never need to update leaf values
-      newmat[,i-offset] <- 0
+    # for (i in newIDs) {
+    #   if (i <= K()) { next } # We never need to update leaf values
+    #   newmat[,i-offset] <- 0
 
-      if (i > length(leaf.ids()) || is.null(leaf.ids()[[i]])) { next }
+    #   if (i > length(leaf.ids()) || is.null(leaf.ids()[[i]])) { next }
 
-      leaves <- leaf.ids()[[i]]
+    #   leaves <- leaf.ids()[[i]]
 
-      for (leafID in leaves) {
-        newmat[,i-offset] <- newmat[,i-offset] + theta[,leafID]
-      }
-    }
+    #   for (leafID in leaves) {
+    #     newmat[,i-offset] <- newmat[,i-offset] + theta[,leafID]
+    #   }
+    # }
 
-    stateStore$all.theta <- cbind(stateStore$all.theta, newmat)
+    # stateStore$all.theta <- cbind(stateStore$all.theta, newmat)
   }
 
 
@@ -493,7 +517,8 @@ function(input, output, session) {
   update.top.documents.order <- function(changedIDs, newIDs) {
     for (topic in (append(changedIDs, newIDs))) {
       if (topic <= K()) { next }
-      
+
+      # print(paste("utdo", toString(topic), sep=": "))      
       stateStore$top.documents.order[[topic]] <- order(stateStore$all.theta[,topic], decreasing=TRUE)
     }
   }
@@ -502,7 +527,9 @@ function(input, output, session) {
   update.top.vocab.order <- function(changedIDs, newIDs) {
     for (topic in append(changedIDs, newIDs)) {
       if (topic <= K()) { next }
-      stateStore$top.vocab[[topic]] <- order(stateStore$all.beta[topic,], decreasing=TRUE)
+
+      # print(paste("utvo", toString(topic), sep=": "))  
+      stateStore$top.vocab.order[[topic]] <- order(stateStore$all.beta[topic,], decreasing=TRUE)
     }
   }
 
