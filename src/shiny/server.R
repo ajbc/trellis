@@ -40,8 +40,9 @@ function(input, output, session) {
                                all.theta=NULL,
                                all.beta=NULL,
                                calculated.titles=NULL,
-                               display.titles=NULL)
-
+                               display.titles=NULL,
+                               top.documents.order=NULL,
+                               top.vocab.order=NULL)
 
   # Function used to select nodes for flatten mode
   find.level.children <- function(id, level) {
@@ -212,36 +213,43 @@ function(input, output, session) {
   }
 
 
-  # init.child.map <- function() {
-  #   if (is.null(stateStore$assigns)) { return() }
-   
-  #   childmap <- list()
+  init.top.documents.order <- function() {
+    # TODO(tfs; 2018-07-07): Rework this. Make use of all.theta() and enable dynamic loading
 
-  #   n <- max.id()
+    # rv <- list()
+    # theta <- data()$theta
+    # for (topic in seq(K())) {
+    #   rv[[topic]] <- order(theta[,topic], decreasing=TRUE)[1:last.shown.docidx()]] # Top 100 documents
+    # }
 
-  #   for (ch in seq(n)) {
-  #     p <- stateStore$assigns[[ch]]
-  #     if (is.na(p)) { 
-  #       next
-  #     }
-  #     if (p == 0) {
-  #       if (!is.null(childmap$root)) {
-  #         # Root has already been initialized
-  #         childmap$root <- append(childmap$root, ch)
-  #       } else {
-  #         childmap$root <- c(ch)
-  #       }
-  #     } else {
-  #       if (p <= length(childmap) && !is.null(childmap[[p]])) {
-  #         childmap[[p]] <- append(childmap[[p]], ch)
-  #       } else {
-  #         childmap[[p]] <- c(ch)
-  #       }
-  #     }
-  #   }
+    # if (node.maxID() > 0) {
+    #   for (meta.topic in seq(node.maxID())) {
+    #     rv[[meta.topic + K()]] <- order(stateStore$all.theta[,meta.topic + K()], decreasing=TRUE)
+    #   }
+    # }
 
-  #   statStore$child.map <- childmap
-  # }
+    rv <- list()
+    at <- stateStore$all.theta
+    for (topic in seq(max.id())) {
+      rv[[topic]] <- order(at[,topic], decreasing=TRUE)
+    }
+
+    stateStore$top.documents.order <- rv
+  }
+
+
+  init.top.vocab.order <- function() {
+    # TODO(tfs; 2018-07-07): Rework for dynamic loading
+    rv <- list()
+    ab <- stateStore$all.beta
+
+    for (topic in seq(max.id())) {
+      # Currently showing the same number of vocab terms as documents
+      rv[[topic]] <- order(ab[topic,], decreasing=TRUE)
+    }
+
+    stateStore$top.vocab.order <- rv
+  }
 
 
   clean.aggregate.state <- function(ids) {
@@ -249,7 +257,8 @@ function(input, output, session) {
     clean.all.theta(ids)
     clean.calculated.titles(ids)
     clean.display.titles(ids)
-    # clean.child.map(ids)
+    # clean.top.documents.order(ids)
+    # clean.top.vocab.order(ids)
   }
 
 
@@ -309,15 +318,15 @@ function(input, output, session) {
   }
 
 
-  # # Remove all references to deleted nodes
-  # clean.child.map <- function(ids) {
-  #   for (i in ids) {
-  #     p <- stateStore$assigns[[i]]
+  # NOTE(tfs): I don't think we need to clean these.
+  #            If we start leaking memory or something strange, check here
+  # clean.top.documents.order <- function(ids) {
+  #   print("TO BE IMPLEMENTED")
+  # }
 
-  #     while (p > 0) {
-  #       stateStore$child.map[[p]] <- stateStore$child.map[[p]][!(stateStore$child.map[[p]] %in% ids)]
-  #     }
-  #   }
+
+  # clean.top.vocab.order <- function(ids) {
+  #   print("TO BE IMPLEMENTED")
   # }
 
 
@@ -332,7 +341,8 @@ function(input, output, session) {
     update.all.theta(changedIDs, newIDs)
     update.calculated.titles(changedIDs, newIDs)
     update.display.titles(changedIDs, newIDs)
-    # update.child.map(changedIDs, newIDs)
+    update.top.documents.order(changedIDs, newIDs)
+    update.top.vocab.order(changedIDs, newIDs)
   }
 
 
@@ -466,13 +476,21 @@ function(input, output, session) {
   }
 
 
-  # update.child.map <- function(leafIDs) {
-  #   leaves.to.change <- c()
+  update.top.documents.order <- function(changedIDs, newIDs) {
+    for (topic in (append(changedIDs, newIDs))) {
+      if (topic <= K()) { next }
+      
+      stateStore$top.documents.order[[topic]] <- order(stateStore$all.theta[,topic], decreasing=TRUE)
+    }
+  }
 
-  #   for (i in append(changedIDs, newIDs)) {
 
-  #   }
-  # }
+  update.top.vocab.order <- function(changedIDs, newIDs) {
+    for (topic in append(changedIDs, newIDs)) {
+      if (topic <= K()) { next }
+      stateStore$top.vocab[[topic]] <- order(stateStore$all.beta[topic,], decreasing=TRUE)
+    }
+  }
 
 
   # Display the name of the selected text directory
@@ -710,10 +728,10 @@ function(input, output, session) {
     init.all.theta()
     init.calculated.titles()
     init.display.titles()
+    init.top.documents.order()
+    init.top.vocab.order()
 
     req(bubbles.data()) # Similarly ensures that bubbles.data() finishes running before displays transition
-    # req(stateStore$all.beta)
-    # req(top.vocab())
     shinyjs::hide(selector=".initial")
     shinyjs::show(selector=".left-content")
     shinyjs::show(selector=".main-content")
@@ -1521,19 +1539,20 @@ function(input, output, session) {
     # NOTE(tfs): The user should only be able to click on a document if a topic is selected,
     #            But the distinction between selected and active topics may be an issue here
     topic <- as.integer(input$topic.selected)
-    idx <- as.integer(input$document.details.docid)
+    # idx <- as.integer(input$document.details.docid)
 
-    if (is.na(topic) || is.na(idx)) { return() }
+    # if (is.na(topic) || is.na(idx)) { return() }
 
-    # if (topic > K()) {
-    #   ordering <- order(meta.theta()[,topic-K()], decreasing=TRUE)
-    # } else {
-    #   ordering <- order(data()$theta[,topic], decreasing=TRUE)
-    # }
+    # # if (topic > K()) {
+    # #   ordering <- order(meta.theta()[,topic-K()], decreasing=TRUE)
+    # # } else {
+    # #   ordering <- order(data()$theta[,topic], decreasing=TRUE)
+    # # }
 
-    ordering <- order(stateStore$all.theta[,topic], decreasing=TRUE)
+    # ordering <- order(stateStore$all.theta[,topic], decreasing=TRUE)
 
-    return(ordering)
+    # return(ordering)
+    return(stateStore$top.documents.order[[topic]])
   })
 
 
@@ -1667,48 +1686,48 @@ function(input, output, session) {
 
   # TODO(tfs; 2018-08-13): Add to stateStore
   # Sorted top vocab terms for each topic
-  top.vocab <- reactive({
-    # TODO(tfs; 2018-07-07): Rework for dynamic loading
-    rv <- list()
-    ab <- stateStore$all.beta
+  # top.vocab <- reactive({
+  #   # TODO(tfs; 2018-07-07): Rework for dynamic loading
+  #   rv <- list()
+  #   ab <- stateStore$all.beta
 
-    for (topic in seq(max.id())) {
-      # Currently showing the same number of vocab terms as documents
-      rv[[topic]] <- data()$vocab[order(ab[topic,], decreasing=TRUE)[1:last.shown.docidx()]]
-    }
+  #   for (topic in seq(max.id())) {
+  #     # Currently showing the same number of vocab terms as documents
+  #     rv[[topic]] <- data()$vocab[order(ab[topic,], decreasing=TRUE)[1:last.shown.docidx()]]
+  #   }
 
-    return(rv)
-  })
+  #   return(rv)
+  # })
 
 
   # TODO(tfs; 2018-08-13): Add to stateStore
   # List of document titles, sorted by topic relevance, for all topics and meta topics/clusters
-  top.documents <- reactive({
-    # TODO(tfs; 2018-07-07): Rework this. Make use of all.theta() and enable dynamic loading
+  # top.documents <- reactive({
+  #   # TODO(tfs; 2018-07-07): Rework this. Make use of all.theta() and enable dynamic loading
 
-    rv <- list()
-    theta <- data()$theta
-    # meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
-    for (topic in seq(K())) {
-      # rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:100]]
+  #   rv <- list()
+  #   theta <- data()$theta
+  #   # meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
+  #   for (topic in seq(K())) {
+  #     # rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:100]]
       
-      rv[[topic]] <- data()$doc.titles[order(theta[,topic], decreasing=TRUE)[1:last.shown.docidx()]] # Top 100 documents
+  #     rv[[topic]] <- data()$doc.titles[order(theta[,topic], decreasing=TRUE)[1:last.shown.docidx()]] # Top 100 documents
 
-      # meta.theta[,assignments()[topic] - K()] <-
-      #   meta.theta[,assignments()[topic] - K()] + theta[,topic]
-    }
+  #     # meta.theta[,assignments()[topic] - K()] <-
+  #     #   meta.theta[,assignments()[topic] - K()] + theta[,topic]
+  #   }
 
-    if (node.maxID() > 0) {
-      for (meta.topic in seq(node.maxID())) {
-        # rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta()[,meta.topic],
-                                                  # decreasing=TRUE)[1:100]]
-        rv[[meta.topic + K()]] <- data()$doc.titles[order(stateStore$all.theta[,meta.topic + K()],
-                                                  decreasing=TRUE)[1:last.shown.docidx()]]
-      }
-    }
+  #   if (node.maxID() > 0) {
+  #     for (meta.topic in seq(node.maxID())) {
+  #       # rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta()[,meta.topic],
+  #                                                 # decreasing=TRUE)[1:100]]
+  #       rv[[meta.topic + K()]] <- data()$doc.titles[order(stateStore$all.theta[,meta.topic + K()],
+  #                                                 decreasing=TRUE)[1:last.shown.docidx()]]
+  #     }
+  #   }
 
-    return(rv)
-  })
+  #   return(rv)
+  # })
 
 
   # TODO(tfs; 2018-08-13): Integrate stateStore
@@ -1757,11 +1776,15 @@ function(input, output, session) {
       return("")
     }
 
-    docs <- top.documents()[[topic]]
+    # docs <- top.documents()[[topic]]
+    # TODO(tfs; 2018-08-13): Rework for dynamic loading
+    # docs <- data()$doc.titles[order(theta[,topic], decreasing=TRUE)[1:last.shown.docidx()]] # Top 100 documents
+    docs <- data()$doc.titles[stateStore$top.documents.order[[topic]][1:last.shown.docidx()]]
+
     thetas <- thetas.selected() # Used to show relevance to topic
     rv <- ""
 
-    for (i in 1:length(top.documents()[[topic]])) {
+    for (i in 1:length(docs)) {
       rv <- paste(rv, "<div class=\"document-summary\"",
                   paste("onclick=\"clickDocumentSummary(", toString(i), ")\">", sep=""),
                   "<div class=\"document-summary-fill\" style=\"width:",
@@ -1784,7 +1807,11 @@ function(input, output, session) {
       return("")
     }
 
-    terms <- top.vocab()[[topic]]
+    # terms <- top.vocab()[[topic]]
+    # TODO(tfs; 2018-08-03): Rework for dynamic loading
+    # terms <- data()$vocab[order(ab[topic,], decreasing=TRUE)[1:last.shown.docidx()]]
+    terms <- data()$vocab[stateStore$top.vocab.order[[topic]][1:last.shown.docidx()]]
+
     betas <- betas.selected()
     rv <- ""
 
