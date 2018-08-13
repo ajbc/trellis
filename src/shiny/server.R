@@ -303,6 +303,7 @@ function(input, output, session) {
         val <- 0
         stateStore$all.beta[clusterID] <- 0
 
+        # TODO(tfs; 2018-08-13): Move to stateStore
         leaves <- leaf.ids()[[clusterID]]
 
         for (leafid in leaves) {
@@ -1739,7 +1740,6 @@ function(input, output, session) {
       nid <- append(nid, ch)
       pid <- append(pid, stateStore$assigns[ch])
       ttl <- append(ttl, stateStore$display.titles[[ch]])
-      # TODO(tfs; 2018-08-13): Move to stateStore
 
       if (!is.null(stateStore$flat.selection) && ch <= length(stateStore$flat.selection) && !is.null(stateStore$flat.selection[[ch]])) {
         flt <- append(flt, stateStore$flat.selection[[ch]])
