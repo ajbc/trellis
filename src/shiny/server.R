@@ -223,7 +223,7 @@ function(input, output, session) {
 
   # Display the name of the selected text directory
   output$textdirectory.name <- renderText({
-    if (!is.null(input$textlocstateStore$all.thetaion)) {
+    if (!is.null(input$textlocation)) {
       name <- as.character(parseDirPath(c(home=file.home), isolate(input$textlocation)))
       return(HTML(sanitize(name)))
     } else {
@@ -345,14 +345,14 @@ function(input, output, session) {
 
   observeEvent(input$exportflat, {
     # Do nothing if we have no nodes to export
-    if (is.null(flat.selection)) { return() }
+    if (is.null(stateStore$flat.selection)) { return() }
 
     idlist <- c()
 
     for (i in seq(max.id())) {
-      if (length(flat.selection) >= i
-          && !is.na(flat.selection[[i]]
-          && flat.selection[[i]])) {
+      if (length(stateStore$flat.selection) >= i
+          && !is.na(stateStore$flat.selection[[i]]
+          && stateStore$flat.selection[[i]])) {
         idlist <- append(idlist, i)
       }
     }
@@ -366,8 +366,8 @@ function(input, output, session) {
     newAs = c()
 
     for (i in seq(length(idlist))) {
-      flat.beta[i,] <- stateStore$all.beta()[idlist[[i]],]
-      flat.theta[,i] <- all.theta()[,idlist[[i]]]
+      flat.beta[i,] <- stateStore$all.beta[idlist[[i]],]
+      flat.theta[,i] <- stateStore$all.theta[,idlist[[i]]]
 
       if (idlist[[i]] <= length(stateStore$manual.titles) && !is.null(stateStore$manual.titles[[idlist[[i]]]])) {
         flat.mantitles[[i]] <- stateStore$manual.titles[[idlist[[i]]]]
@@ -434,7 +434,7 @@ function(input, output, session) {
     # init.top.vocab()
 
     req(bubbles.data()) # Similarly ensures that bubbles.data() finishes running before displays transition
-    # req(stateStore$all.beta())
+    # req(stateStore$all.beta)
     # req(top.vocab())
     shinyjs::hide(selector=".initial")
     shinyjs::show(selector=".left-content")
@@ -696,7 +696,7 @@ function(input, output, session) {
       return(rv)
 
     for (k in seq(K())) {
-      title <- paste(data()$vocab[order(stateStore$all.beta()[k,], decreasing=TRUE)][seq(5)], collapse=" ")
+      title <- paste(data()$vocab[order(stateStore$all.beta[k,], decreasing=TRUE)][seq(5)], collapse=" ")
       rv <- c(rv, title)
     }
 
@@ -715,7 +715,7 @@ function(input, output, session) {
       return(c())
     }
 
-    ab <- stateStore$all.beta()
+    ab <- stateStore$all.beta
 
     rv <- c()
     for (cluster in seq(node.maxID())) {
@@ -923,7 +923,7 @@ function(input, output, session) {
 
   # Only enable the flat export button if something is selected
   observe({
-    shinyjs::toggleState("exportflat", !is.null(flat.selection))
+    shinyjs::toggleState("exportflat", !is.null(stateStore$flat.selection))
   })
 
 
@@ -939,19 +939,19 @@ function(input, output, session) {
     # Handle edge case of root, equivalent of deselcting
     # (A one-node topic model isn't very interesting)
     if (nodeID == 0) {
-      flat.selection <- NULL
+      stateStore$flat.selection <- NULL
       return()
     }
 
     # Error case. Shouldn't happen.
     if (length(stateStore$assigns) < nodeID) {
-      flat.selection <- NULL
+      stateStore$flat.selection <- NULL
       return()
     }
 
     # If nothing is currently selected, select all nodes of the appropriate level
-    if (is.null(flat.selection)) {
-      flat.selection <- c()
+    if (is.null(stateStore$flat.selection)) {
+      stateStore$flat.selection <- c()
 
       level <- 1
       p <- stateStore$assigns[[nodeID]]
@@ -963,17 +963,17 @@ function(input, output, session) {
 
       idlist <- find.level.children(0, level)
       for (id in idlist) {
-        flat.selection[[id]] <- TRUE
+        stateStore$flat.selection[[id]] <- TRUE
       }
 
       return()
     }
 
     # If node is already selected, do nothing
-    if (!is.null(flat.selection)
-        && length(flat.selection) >= nodeID
-        && !is.na(flat.selection[[nodeID]])
-        && flat.selection[[nodeID]]) {
+    if (!is.null(stateStore$flat.selection)
+        && length(stateStore$flat.selection) >= nodeID
+        && !is.na(stateStore$flat.selection[[nodeID]])
+        && stateStore$flat.selection[[nodeID]]) {
       return()
     }
 
@@ -985,9 +985,9 @@ function(input, output, session) {
     #    If so, select all nodes at the same level as the node id provided
     while (p > 0) {
       # Cases where p is not yet root, but is not collapsed (keep iterating)
-      if (p > length(flat.selection)
-          || is.null(flat.selection[[p]])
-          || is.na(flat.selection[[p]])) {
+      if (p > length(stateStore$flat.selection)
+          || is.null(stateStore$flat.selection[[p]])
+          || is.na(stateStore$flat.selection[[p]])) {
         p <- stateStore$assigns[[p]]
         level <- level + 1
         next
@@ -995,8 +995,8 @@ function(input, output, session) {
 
       # If p is selected, note the level and select all of same level
       # Deselect p
-      if (!is.null(flat.selection[[p]]) && flat.selection[[p]]) {
-        flat.selection[[p]] <- FALSE # Deselect p
+      if (!is.null(stateStore$flat.selection[[p]]) && stateStore$flat.selection[[p]]) {
+        stateStore$flat.selection[[p]] <- FALSE # Deselect p
         ancestor.flag <- TRUE
         break
       }
@@ -1013,27 +1013,27 @@ function(input, output, session) {
 
       # Label all ids
       for (id in idlist) {
-        flat.selection[[id]] <- TRUE
+        stateStore$flat.selection[[id]] <- TRUE
       }
 
       return()
     }
 
     # Select current node
-    flat.selection[[nodeID]] <- TRUE
+    stateStore$flat.selection[[nodeID]] <- TRUE
 
     # Deselect all descendants of original node
     idlist <- all.descendant.ids(nodeID)
 
     for (id in idlist) {
-      flat.selection[[id]] <- FALSE
+      stateStore$flat.selection[[id]] <- FALSE
     }
   })
 
 
   # Clears selection, used when exiting flat export more
-  observeEvent(input$clear.flat.selection, {
-    flat.selection <- NULL
+  observeEvent(input$clear.stateStore$flat.selection, {
+    stateStore$flat.selection <- NULL
   })
 
 
@@ -1129,7 +1129,7 @@ function(input, output, session) {
   selected.childBetas <- reactive({
     childIDs <- selected.children()
 
-    return(stateStore$all.beta()[childIDs,])
+    return(stateStore$all.beta[childIDs,])
   })
 
 
@@ -1168,7 +1168,7 @@ function(input, output, session) {
     #   ordering <- order(data()$theta[,topic], decreasing=TRUE)
     # }
 
-    ordering <- order(stateStore$all.theta()[,topic], decreasing=TRUE)
+    ordering <- order(stateStore$all.theta[,topic], decreasing=TRUE)
 
     return(ordering)
   })
@@ -1307,7 +1307,7 @@ function(input, output, session) {
   top.vocab <- reactive({
     # TODO(tfs; 2018-07-07): Rework for dynamic loading
     rv <- list()
-    ab <- stateStore$all.beta()
+    ab <- stateStore$all.beta
 
     for (topic in seq(max.id())) {
       # Currently showing the same number of vocab terms as documents
@@ -1356,7 +1356,7 @@ function(input, output, session) {
 
     if (is.na(topic)) { return(list()) }
 
-    sorted <- stateStore$all.beta()[topic,][order(stateStore$all.beta()[topic,], decreasing=TRUE)]
+    sorted <- stateStore$all.beta[topic,][order(stateStore$all.beta[topic,], decreasing=TRUE)]
 
     return(sorted)
   })
@@ -1517,8 +1517,8 @@ function(input, output, session) {
       pid <- append(pid, stateStore$assigns[ch])
       ttl <- append(ttl, all.titles()[[ch]])
 
-      if (!is.null(flat.selection) && ch <= length(flat.selection) && !is.null(flat.selection[[ch]])) {
-        flt <- append(flt, flat.selection[[ch]])
+      if (!is.null(stateStore$flat.selection) && ch <= length(stateStore$flat.selection) && !is.null(stateStore$flat.selection[[ch]])) {
+        flt <- append(flt, stateStore$flat.selection[[ch]])
       } else {
         flt <- append(flt, FALSE)
       }
