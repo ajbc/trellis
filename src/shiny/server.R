@@ -33,6 +33,7 @@ function(input, output, session) {
   #    Boolean flag (denoting whether a node is selected for a flat export) or a missing value (false)
   stateStore <- reactiveValues(manual.titles=list(),
                                assigns=NULL,
+                               child.map=NULL,
                                dataname="Data",
                                collapsed.nodes=NULL,
                                flat.selection=NULL,
@@ -47,7 +48,7 @@ function(input, output, session) {
     if (id == 0) { id <- "root" }
 
     # Base cases: Reached correct level, reached leaf, or reached collapsed node
-    if ((level <= 0) || (length(children()[[id]]) == 0)
+    if ((level <= 0) || (length(stateStore$child.map[[toString(id)]]) == 0)
         || (!is.null(stateStore$collapsed.nodes)
             && length(stateStore$collapsed.nodes) >= id
             && !is.na(stateStore$collapsed.nodes[[id]])
@@ -57,7 +58,7 @@ function(input, output, session) {
 
     # Recurse on all children of current node
     idlist <- c()
-    for (ch in children()[[id]]) {
+    for (ch in stateStore$child.map[[toString(id)]]) {
       idlist <- append(idlist, find.level.children(ch, level-1))
     }
 
@@ -70,13 +71,13 @@ function(input, output, session) {
     if (id == 0) { id <- "root" }
 
     # Base case
-    if (length(children()[[id]]) == 0) {
+    if (length(stateStore$child.map[[toString(id)]]) == 0) {
       return(c(id))
     }
 
     # Recurse on children
     idlist <- c()
-    for (ch in children()[[id]]) {
+    for (ch in stateStore$child.map[[toString(id)]]) {
       idlist <- append(idlist, ch)
       idlist <- append(idlist, all.descendant.ids(ch))
     }
@@ -211,11 +212,44 @@ function(input, output, session) {
   }
 
 
+  # init.child.map <- function() {
+  #   if (is.null(stateStore$assigns)) { return() }
+   
+  #   childmap <- list()
+
+  #   n <- max.id()
+
+  #   for (ch in seq(n)) {
+  #     p <- stateStore$assigns[[ch]]
+  #     if (is.na(p)) { 
+  #       next
+  #     }
+  #     if (p == 0) {
+  #       if (!is.null(childmap$root)) {
+  #         # Root has already been initialized
+  #         childmap$root <- append(childmap$root, ch)
+  #       } else {
+  #         childmap$root <- c(ch)
+  #       }
+  #     } else {
+  #       if (p <= length(childmap) && !is.null(childmap[[p]])) {
+  #         childmap[[p]] <- append(childmap[[p]], ch)
+  #       } else {
+  #         childmap[[p]] <- c(ch)
+  #       }
+  #     }
+  #   }
+
+  #   statStore$child.map <- childmap
+  # }
+
+
   clean.aggregate.state <- function(ids) {
     clean.all.beta(ids)
     clean.all.theta(ids)
     clean.calculated.titles(ids)
     clean.display.titles(ids)
+    # clean.child.map(ids)
   }
 
 
@@ -275,6 +309,18 @@ function(input, output, session) {
   }
 
 
+  # # Remove all references to deleted nodes
+  # clean.child.map <- function(ids) {
+  #   for (i in ids) {
+  #     p <- stateStore$assigns[[i]]
+
+  #     while (p > 0) {
+  #       stateStore$child.map[[p]] <- stateStore$child.map[[p]][!(stateStore$child.map[[p]] %in% ids)]
+  #     }
+  #   }
+  # }
+
+
   update.all.aggregate.state <- function() {
     ids <- seq(max.id())
     update.aggregate.state(ids, c())
@@ -286,6 +332,7 @@ function(input, output, session) {
     update.all.theta(changedIDs, newIDs)
     update.calculated.titles(changedIDs, newIDs)
     update.display.titles(changedIDs, newIDs)
+    # update.child.map(changedIDs, newIDs)
   }
 
 
@@ -419,6 +466,15 @@ function(input, output, session) {
   }
 
 
+  # update.child.map <- function(leafIDs) {
+  #   leaves.to.change <- c()
+
+  #   for (i in append(changedIDs, newIDs)) {
+
+  #   }
+  # }
+
+
   # Display the name of the selected text directory
   output$textdirectory.name <- renderText({
     if (!is.null(input$textlocation)) {
@@ -450,17 +506,27 @@ function(input, output, session) {
 
     if ("aString" %in% vals) {
       newA <- c() # Set up new assignments vector
+      newCM <- list() # Set up new childmap
 
       for (ch in seq(nrow(beta))) {
         newA[[ch]] <- 0 # Will be overwritten, but ensures that at least all assignments to 0 are made
+        newCM[[toString(ch)]] <- c()
       }
 
       for (pair in strsplit(aString, ",")[[1]]) {
         rel <- strsplit(pair, ":")[[1]] # Relation between two nodes
 
-        newA[[as.integer(rel[[1]])]] <- as.integer(rel[[2]])
+        ch <- as.integer(rel[[1]])
+        p <- as.integer(rel[[2]])
+
+        newA[[ch]] <- p
+
+        if (!(ch %in% newCM[[toString(p)]])) {
+          newCM[[toString(p)]] <- append(newCM[[toString(p)]], ch)
+        }
       }
 
+      stateStore$child.map <- newCM
       stateStore$assigns <- newA
     }
 
@@ -617,13 +683,26 @@ function(input, output, session) {
     req(data()) # Ensures that data() will finish running before displays transition on the frontend
 
     if (is.null(stateStore$assigns)) {
+      initCM <- list()
       if (input$initialize.kmeans) {
         fit <- initial.kmeansFit()
         initAssigns <- c(fit$cluster + K(), rep(0, input$initial.numClusters))
+
+        initCM[[toString(0)]] <- c(K() + seq(input$initial.numClusters))
+
+        for (i in seq(input$numNewClusters)) {
+          initCM[[toString(i + K())]] <- c()
+        }
+
+        for (i in seq(K())) {
+          initCM[[toString(fit$cluster[[i]] + K())]] <- append(initCM[[toString(fit$cluster[[i]] + K())]], i)
+        }
       } else {
         initAssigns <- c(rep(0, K()))
+        initCM[[toString(0)]] <- seq(K())
       }
 
+      stateStore$child.map <- initCM
       stateStore$assigns <- initAssigns
     }
 
@@ -631,7 +710,6 @@ function(input, output, session) {
     init.all.theta()
     init.calculated.titles()
     init.display.titles()
-    # init.top.vocab()
 
     req(bubbles.data()) # Similarly ensures that bubbles.data() finishes running before displays transition
     # req(stateStore$all.beta)
@@ -759,6 +837,8 @@ function(input, output, session) {
     }
 
     if (input$initialize.kmeans) {
+      session$sendCustomMessage("clusterNotification", "")
+
       return(kmeans(beta(), input$initial.numClusters))
     } else {
       return(NULL)
@@ -832,6 +912,7 @@ function(input, output, session) {
 
     # Calculate a new fit for direct descendants of selected topic/cluster
     # NOTE(tfs): We probably don't need to isolate here, but I'm not 100% sure how observeEvent works
+    session$sendCustomMessage("clusterNotification", "")
     newFit <- kmeans(selected.childBetas(), isolate(input$runtime.numClusters))
 
     childIDs <- selected.children()
@@ -842,9 +923,14 @@ function(input, output, session) {
 
     newIDs <- c()
 
+    # We always add all children to new clusters, so all old children of selected topic can be removed
+    stateStore$child.map[[toString(selectedTopic)]] <- c()
+
     # Add new clusters into assignments
     for (i in seq(numNewClusters)) {
-      stateStore$assigns[[i + maxOldID]] = selectedTopic
+      stateStore$child.map[[toString(selectedTopic)]] <- append(stateStore$child.map[[toString(selectedTopic)]], i + maxOldID)
+      stateStore$child.map[[toString(i + maxOldID)]] <- c()
+      stateStore$assigns[[i + maxOldID]] <- selectedTopic
       newIDs <- append(newIDs, i + maxOldID)
     }
 
@@ -852,9 +938,12 @@ function(input, output, session) {
     for (i in seq(length(childIDs))) {
       ch <- childIDs[[i]]
       pa <- newFit$cluster[[i]] + maxOldID
-      stateStore$assigns[[ch]] = pa
+      
+      stateStore$assigns[[ch]] <- pa
+      stateStore$child.map[[toString(pa)]] <- append(stateStore$child.map[[toString(pa)]], ch)
     }
 
+    leafIDs <- c()
     update.aggregate.state(changedIDs, newIDs)
 
     # Notify frontend of completion
@@ -870,15 +959,22 @@ function(input, output, session) {
     # DO NOT DELETE if selected topic is a leaf (initial cluster)
     if ((topic == 0) || (topic <= K())) { return() }
 
-    childIDs <- children()[[topic]]
+    childIDs <- stateStore$child.map[[toString(topic)]]
+
+    p <- stateStore$assigns[[topic]]
 
     if (length(childIDs) > 0) {
       for (ch in childIDs) {
-        stateStore$assigns[[ch]] = stateStore$assigns[[topic]]
+        stateStore$assigns[[ch]] = p
+        stateStore$child.map[[toString(p)]] <- append(stateStore$child.map[[toString(p)]])
       }
     }
 
     stateStore$assigns[[topic]] <- NA
+    stateStore$child.map[[toString(p)]] <- stateStore$child.map[[toString(p)]][stateStore$child.map[[toString(p)]] != topic]
+
+    # Empty childmap of deleted node
+    stateStore$child.map[[toString(topic)]] <- c()
 
     # NOTE(tfs; 2018-08-13): I think we can just leave this alone.
     #                        If it becomes an issue, we can deal with shrinking/cleaning stateStore
@@ -890,18 +986,18 @@ function(input, output, session) {
 
   # TODO(tfs; 2018-08-13): Add to stateStore
   # Default titles (top 5 most probable words) for each of the initial topics
-  titles <- reactive({
-    rv <- c()
-    if (is.null(data()))
-      return(rv)
+  # titles <- reactive({
+  #   rv <- c()
+  #   if (is.null(data()))
+  #     return(rv)
 
-    for (k in seq(K())) {
-      title <- paste(data()$vocab[order(stateStore$all.beta[k,], decreasing=TRUE)][seq(5)], collapse=" ")
-      rv <- c(rv, title)
-    }
+  #   for (k in seq(K())) {
+  #     title <- paste(data()$vocab[order(stateStore$all.beta[k,], decreasing=TRUE)][seq(5)], collapse=" ")
+  #     rv <- c(rv, title)
+  #   }
 
-    return(rv)
-  })
+  #   return(rv)
+  # })
 
 
   # TODO(tfs; 2018-08-13): Add to stateStore
@@ -1033,6 +1129,7 @@ function(input, output, session) {
 
     newIDs <- c()
 
+    # TODO(tfs; 2018-08-13): Transition to functions for updating child map
     if (shift.held) {
       if (source.is.leaf || stateStore$assigns[[source.id]] == target.id) {
         # Shift is held, source is leaf or source is child of target
@@ -1041,13 +1138,21 @@ function(input, output, session) {
 
         newID <- max.id() + 1
         stateStore$assigns[[newID]] <- target.id
+        stateStore$child.map[[toString(target.id)]] <- append(stateStore$child.map[[toString(target.id)]], newID)
+        stateStore$child.map[[toString(newID)]] <- c(source.id)
         stateStore$assigns[[source.id]] <- newID
         newIDs <- append(newIDs, newID)
       } else {
         # Shift is held, source is an aggregate node
         empty.id <- stateStore$assigns[[source.id]]
 
+        # Remove source from original parent in childmap
+        stateStore$child.map[[toString(stateStore$assigns[[source.id]])]] <- stateStore$child.map[[toString(stateStore$assigns[[source.id]])]][stateStore$child.map[[toString(stateStore$assigns[[source.id]])]] != source.id]
+
         stateStore$assigns[[source.id]] <- target.id
+
+        # Add source to new parent's childmap
+        stateStore$child.map[[toString(target.id)]] <- append(stateStore$child.map[[toString(target.id)]], source.id)
       }
     } else {
       if (stateStore$assigns[[source.id]] == target.id) {
@@ -1057,13 +1162,23 @@ function(input, output, session) {
       if (source.is.leaf) {
         empty.id <- stateStore$assigns[[source.id]]
 
+        # Remove source from original parent in childmap
+        stateStore$child.map[[toString(stateStore$assigns[[source.id]])]] <- stateStore$child.map[[toString(stateStore$assigns[[source.id]])]][stateStore$child.map[[toString(stateStore$assigns[[source.id]])]] != source.id]
+
         # Move a single leaf node
         stateStore$assigns[[source.id]] <- target.id
+
+        # Add source to new parent's childmap
+        stateStore$child.map[[toString(target.id)]] <- append(stateStore$child.map[[toString(target.id)]], source.id)
       } else {
         # Move all children of the source node
-        for (ch in children()[[source.id]]) {
+        for (ch in stateStore$child.map[[toString(source.id)]]) {
           stateStore$assigns[[ch]] <- target.id
+          stateStore$child.map[[toString(target.id)]] <- append(stateStore$child.map[[toString(target.id)]], ch)
         }
+
+        # Empty source node's childmap
+        stateStore$child.map[[toString(source.id)]] <- c()
 
         empty.id <- source.id
       }
@@ -1075,6 +1190,8 @@ function(input, output, session) {
     while(empty.id > 0 && (empty.id > length(leaf.ids()) || is.null(leaf.ids()[[empty.id]]) || length(leaf.ids()[[empty.id]]) <= 0)) {
       nid <- stateStore$assigns[[empty.id]]
       ids.to.clean <- append(ids.to.clean, empty.id)
+      pstr <- toString(stateStore$assigns[[empty.id]])
+      stateStore$child.map[[pstr]] <- stateStore$child.map[[pstr]][stateStore$child.map[[pstr]] != empty.id]
       stateStore$assigns[[empty.id]] <- NA
       empty.id <- nid
     }
@@ -1107,6 +1224,7 @@ function(input, output, session) {
       }
     }
 
+    leafIDs <- c()
     clean.aggregate.state(ids.to.clean)
     update.aggregate.state(changedIDs, newIDs)
   })
@@ -1120,24 +1238,48 @@ function(input, output, session) {
   observeEvent(input$topics, {
     if (is.null(input$topics) || input$topics == "" || input$topics == assignString()) { return() }
     
-    node.ids <- c()
-    parent.ids <- c()
+    # node.ids <- c()
+    # parent.ids <- c()
 
-    for (pair in strsplit(input$topics, ',')[[1]]) {
-      ids <- strsplit(pair, ":")[[1]]
-      node.ids <- c(node.ids, as.integer(ids[[1]]))
-      parent.ids <- c(parent.ids, as.integer(ids[[2]]))
+    # for (pair in strsplit(input$topics, ',')[[1]]) {
+    #   ids <- strsplit(pair, ":")[[1]]
+    #   node.ids <- c(node.ids, as.integer(ids[[1]]))
+    #   parent.ids <- c(parent.ids, as.integer(ids[[2]]))
+    # }
+
+    # pids <- parent.ids[order(node.ids)]
+    # cids <- node.ids[order(node.ids)]
+
+    # # Clear old settings
+    # stateStore$assigns <- c()
+
+    # for (i in seq(length(cids))) {
+    #   stateStore$assigns[[cids[[i]]]] = pids[[i]]
+    # }
+
+    newA <- c() # Set up new assignments vector
+    newCM <- list() # Set up new childmap
+
+    for (ch in seq(nrow(beta))) {
+      newA[[ch]] <- 0 # Will be overwritten, but ensures that at least all assignments to 0 are made
+      newCM[[toString(ch)]] <- c()
     }
 
-    pids <- parent.ids[order(node.ids)]
-    cids <- node.ids[order(node.ids)]
+    for (pair in strsplit(aString, ",")[[1]]) {
+      rel <- strsplit(pair, ":")[[1]] # Relation between two nodes
 
-    # Clear old settings
-    stateStore$assigns <- c()
+      ch <- as.integer(rel[[1]])
+      p <- as.integer(rel[[2]])
 
-    for (i in seq(length(cids))) {
-      stateStore$assigns[[cids[[i]]]] = pids[[i]]
+      newA[[ch]] <- p
+
+      if (!(ch %in% newCM[[p]])) {
+        newCM[[toString(p)]] <- append(newCM[[toString(p)]], ch)
+      }
     }
+
+    stateStore$child.map <- newCM
+    stateStore$assigns <- newA
 
     update.all.aggregate.state()
   })
@@ -1261,36 +1403,36 @@ function(input, output, session) {
 
   # TODO(tfs; 2018-08-13): Add to stateStore
   # Full storage of child IDs for each node (0 is root)
-  children <- reactive({
-    if (is.null(stateStore$assigns)) { return() }
+  # children <- reactive({
+  #   if (is.null(stateStore$assigns)) { return() }
    
-    childmap <- list()
+  #   childmap <- list()
 
-    n <- max.id()
+  #   n <- max.id()
 
-    for (ch in seq(n)) {
-      p <- stateStore$assigns[[ch]]
-      if (is.na(p)) { 
-        next
-      }
-      if (p == 0) {
-        if (!is.null(childmap$root)) {
-          # Root has already been initialized
-          childmap$root <- append(childmap$root, ch)
-        } else {
-          childmap$root <- c(ch)
-        }
-      } else {
-        if (p <= length(childmap) && !is.null(childmap[[p]])) {
-          childmap[[p]] <- append(childmap[[p]], ch)
-        } else {
-          childmap[[p]] <- c(ch)
-        }
-      }
-    }
+  #   for (ch in seq(n)) {
+  #     p <- stateStore$assigns[[ch]]
+  #     if (is.na(p)) { 
+  #       next
+  #     }
+  #     if (p == 0) {
+  #       if (!is.null(childmap$root)) {
+  #         # Root has already been initialized
+  #         childmap$root <- append(childmap$root, ch)
+  #       } else {
+  #         childmap$root <- c(ch)
+  #       }
+  #     } else {
+  #       if (p <= length(childmap) && !is.null(childmap[[p]])) {
+  #         childmap[[p]] <- append(childmap[[p]], ch)
+  #       } else {
+  #         childmap[[p]] <- c(ch)
+  #       }
+  #     }
+  #   }
 
-    return(childmap)
-  })
+  #   return(childmap)
+  # })
 
 
   # TODO(tfs; 2018-08-13): Add to stateStore
@@ -1336,12 +1478,11 @@ function(input, output, session) {
   # TODO(tfs; 2018-08-13): Integrate stateStore
   # List of children for selected topic
   selected.children <- reactive({
-    req(children())
     parentNode <- as.integer(input$topic.selected)
     if (is.na(parentNode) || parentNode == 0) {
-      return(children()$root)
+      return(stateStore$child.map[[toString(0)]])
     } else {
-      return(children()[[parentNode]])
+      return(stateStore$child.map[[toString(parentNode)]])
     }
   })
 
