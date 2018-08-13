@@ -188,7 +188,6 @@ function(input, output, session) {
 
     n <- max.id()
 
-    # ttl <- c(titles(), cluster.titles())
     ttl <- stateStore$calculated.titles
 
     # Select correct title (manual if it exists, else default) for all topics and meta topics/clusters
@@ -214,20 +213,6 @@ function(input, output, session) {
 
 
   init.top.documents.order <- function() {
-    # TODO(tfs; 2018-07-07): Rework this. Make use of all.theta() and enable dynamic loading
-
-    # rv <- list()
-    # theta <- data()$theta
-    # for (topic in seq(K())) {
-    #   rv[[topic]] <- order(theta[,topic], decreasing=TRUE)[1:last.shown.docidx()]] # Top 100 documents
-    # }
-
-    # if (node.maxID() > 0) {
-    #   for (meta.topic in seq(node.maxID())) {
-    #     rv[[meta.topic + K()]] <- order(stateStore$all.theta[,meta.topic + K()], decreasing=TRUE)
-    #   }
-    # }
-
     rv <- list()
     at <- stateStore$all.theta
     for (topic in seq(max.id())) {
@@ -277,7 +262,6 @@ function(input, output, session) {
 
     for (i in zidx) {
       if (i == nrow(stateStore$all.beta)) {
-        # print(paste("beta", toString(i), sep=": "))
         stateStore$all.beta <- stateStore$all.beta[-i,]
       }
     }
@@ -299,7 +283,6 @@ function(input, output, session) {
 
     for (i in zidx) {
       if (i == ncol(stateStore$all.theta)) {
-        # print(paste("theta", toString(i), sep=": "))
         stateStore$all.theta <- stateStore$all.theta[,-i]
       }
     }
@@ -353,15 +336,12 @@ function(input, output, session) {
     lids <- leaf.ids()
     weights <- colSums(data()$theta)
 
-    # print(paste("beta", paste(newIDs, sep=", "), sep=": "))
-
     if (length(newIDs) > 0) {
       numNewRows = max(newIDs) - nrow(stateStore$all.beta)
 
       if (numNewRows > 0) {
         newmat <- matrix(0, nrow=numNewRows, ncol=ncol(leaf.beta))
         stateStore$all.beta <- rbind(stateStore$all.beta, newmat)
-        # print(paste("beta new nrow", toString(nrow(stateStore$all.beta)), sep=": "))
       }
     }
 
@@ -386,39 +366,11 @@ function(input, output, session) {
         stateStore$all.beta[clusterID,] = stateStore$all.beta[clusterID,] / sum(stateStore$all.beta[clusterID,])
       }
     }
-
-    # if (length(newIDs) <= 0) { return() }
-
-    # print("BETA")
-    # print(changedIDs)
-    # print(newIDs)
-
-    # offset <- nrow(stateStore$all.beta)
-    # print(offset)
-    # newmat <- matrix(0, nrow=(max(newIDs)-offset), ncol=ncol(leaf.beta))
-
-    # print("endbeta")
-
-    # for (clusterID in newIDs) {
-    #   i <- clusterID - offset
-    #   val <- 0
-    #   leaves <- leaf.ids()[[clusterID]]
-
-    #   for (leafid in leaves) {
-    #     val <- leaf.beta[leafid,] * weights[leafid]
-    #     newmat[i,] <- newmat[i,] + val
-    #   }
-
-    #   # Normalize the new distribution
-    #   newmat[i,] = newmat[i,] / sum(newmat[i,])
-    # }
   }
 
 
   update.all.theta <- function(changedIDs, newIDs) {
     theta <- data()$theta
-
-    # print(paste("theta", paste(newIDs, sep=", "), sep=": "))
 
     if (length(newIDs) > 0) {
       numNewCols = max(newIDs) - ncol(stateStore$all.theta)
@@ -426,7 +378,6 @@ function(input, output, session) {
       if (numNewCols > 0) {
         newmat <- matrix(0, nrow=nrow(theta), ncol=numNewCols)
         stateStore$all.theta <- cbind(stateStore$all.theta, newmat)
-        # print(paste("theta new ncol", toString(ncol(stateStore$all.theta)), sep=": "))
       }
     }
 
@@ -442,33 +393,6 @@ function(input, output, session) {
         stateStore$all.theta[,i] <- stateStore$all.theta[,i] + theta[,leafID]
       }
     }
-
-    # if (length(newIDs) <= 0) { return() }
-
-    # print("THETA")
-    # print(changedIDs)
-    # print(newIDs)
-
-    # offset <- ncol(stateStore$all.theta)
-    # print(offset)
-    # newmat <- matrix(0, nrow=nrow(stateStore$all.theta), ncol=(max(newIDs)-offset))
-
-    # print("endtheta")
-
-    # for (i in newIDs) {
-    #   if (i <= K()) { next } # We never need to update leaf values
-    #   newmat[,i-offset] <- 0
-
-    #   if (i > length(leaf.ids()) || is.null(leaf.ids()[[i]])) { next }
-
-    #   leaves <- leaf.ids()[[i]]
-
-    #   for (leafID in leaves) {
-    #     newmat[,i-offset] <- newmat[,i-offset] + theta[,leafID]
-    #   }
-    # }
-
-    # stateStore$all.theta <- cbind(stateStore$all.theta, newmat)
   }
 
 
@@ -518,7 +442,6 @@ function(input, output, session) {
     for (topic in (append(changedIDs, newIDs))) {
       if (topic <= K()) { next }
 
-      # print(paste("utdo", toString(topic), sep=": "))      
       stateStore$top.documents.order[[topic]] <- order(stateStore$all.theta[,topic], decreasing=TRUE)
     }
   }
@@ -528,7 +451,6 @@ function(input, output, session) {
     for (topic in append(changedIDs, newIDs)) {
       if (topic <= K()) { next }
 
-      # print(paste("utvo", toString(topic), sep=": "))  
       stateStore$top.vocab.order[[topic]] <- order(stateStore$all.beta[topic,], decreasing=TRUE)
     }
   }
@@ -615,7 +537,16 @@ function(input, output, session) {
     #     * input[["modelfile"]]
     # To free up resources (shinyFiles seems to be fairly expensive/have a fairly high performance impact otherwise)
     session$sendCustomMessage(type="clearFileInputs", "")
-    return(list("beta"=beta, "theta"=theta, "filenames"=filenames, "doc.titles"=titles, "document.location"=document.location, "vocab"=vocab))
+
+    # Remove the global variables so we don't store all our information twice
+    rl <- list("beta"=beta, "theta"=theta, "filenames"=filenames, "doc.titles"=titles, "document.location"=document.location, "vocab"=vocab)
+    rm(beta)
+    rm(theta)
+    rm(filenames)
+    rm(titles)
+    rm(document.location)
+    rm(vocab)
+    return(rl)
   })
 
 
@@ -813,6 +744,7 @@ function(input, output, session) {
   })
 
 
+  # TODO(tfs; 2018-08-13): Integrate into stateStore or turn into a function
   # Encodes the assignment/hierarchy structure as a string:
   #      "[child]:[parent],[child]:[parent],..."
   assignString <- reactive({
@@ -839,45 +771,6 @@ function(input, output, session) {
 
     return(data()$beta)
   })
-
-
-  # Because beta() only provides values for the initial K() topics,
-  #    calculate the beta values for all meta-topics/clusters
-  # NOTE(tfs; 2018-08-08): Based on original code for cluster top terms,
-  #    aggregate betas are (normalized) sums of all leaf betas, weighted by relevant theta colSums
-  # stateStore$all.beta <- reactive({
-  #   leaf.beta <- beta()
-  #   lids <- leaf.ids()
-  #   weights <- colSums(data()$theta)
-
-  #   # Initialzie matrix for beta values
-  #   ab <- matrix(0, nrow=max.id(), ncol=ncol(leaf.beta))
-
-  #   for (l in seq(K())) {
-  #     ab[l,] <- leaf.beta[l,]
-  #   }
-
-  #   # Use beta values of leaves (intial topics) to calculate aggregate beta values for meta topics/clusters
-  #   if (max.id() > K()) {
-  #     for (clusterID in seq(K()+1, max.id())) {
-  #       if (is.na(stateStore$assigns[[clusterID]])) { next }
-
-  #       val <- 0
-
-  #       leaves <- leaf.ids()[[clusterID]]
-
-  #       for (leafid in leaves) {
-  #         val <- leaf.beta[leafid,] * weights[leafid]
-  #         ab[clusterID,] <- ab[clusterID,] + val
-  #       }
-
-  #       # Normalize the new distribution
-  #       ab[clusterID,] = ab[clusterID,] / sum(ab[clusterID,])
-  #     }
-  #   }
-
-  #   return(ab)
-  # })
 
 
   # Number of initial topics in the model
@@ -1043,78 +936,6 @@ function(input, output, session) {
   })
 
 
-  # TODO(tfs; 2018-08-13): Add to stateStore
-  # Default titles (top 5 most probable words) for each of the initial topics
-  # titles <- reactive({
-  #   rv <- c()
-  #   if (is.null(data()))
-  #     return(rv)
-
-  #   for (k in seq(K())) {
-  #     title <- paste(data()$vocab[order(stateStore$all.beta[k,], decreasing=TRUE)][seq(5)], collapse=" ")
-  #     rv <- c(rv, title)
-  #   }
-
-  #   return(rv)
-  # })
-
-
-  # TODO(tfs; 2018-08-13): Add to stateStore
-  # Default titles (top 5 most probable words) for each meta topic/cluster
-  # cluster.titles <- reactive({
-  #   if (is.null(data())) {
-  #     return(c())
-  #   }
-
-  #   if (node.maxID() <= 0) {
-  #     return(c())
-  #   }
-
-  #   ab <- stateStore$all.beta
-
-  #   rv <- c()
-  #   for (cluster in seq(node.maxID())) {
-  #     title <- paste(data()$vocab[order(ab[cluster+K(),],
-  #                                       decreasing=TRUE)][seq(5)], collapse=" ")
-
-  #     rv <- c(rv, title)
-  #   }
-
-  #   return(rv)
-  # })
-
-
-  # TODO(tfs; 2018-08-13): Add to stateStore
-  # Display title for all topics and meta topics/clusters. Manual title if provided, else default title
-  # all.titles <- reactive({
-  #   rv <- c()
-
-  #   n <- max.id()
-
-  #   ttl <- c(titles(), cluster.titles())
-
-  #   # Select correct title (manual if it exists, else default) for all topics and meta topics/clusters
-  #   for (i in seq(n)) {
-  #     if (i > length(stateStore$manual.titles)
-  #     || is.null(stateStore$manual.titles[[i]])
-  #     || stateStore$manual.titles[[i]] == "") {
-  #       if (i > length(ttl) 
-  #       || is.null(ttl[[i]])
-  #       || i > length(stateStore$assigns)
-  #       || is.null(stateStore$assigns[[i]])) {
-  #         rv <- c(rv, "")
-  #       } else {
-  #         rv <- c(rv, ttl[[i]]) 
-  #       }
-  #     } else {
-  #       rv <- c(rv, stateStore$manual.titles[[i]])
-  #     }
-  #   }
-
-  #   return(rv)
-  # })
-
-
   # Display title for currently active (e.g. hovered) topic
   #         Document tab displays contents for any hovered OR selected topic.
   topic.doctab.title <- reactive({
@@ -1158,6 +979,7 @@ function(input, output, session) {
   })
 
 
+  # TODO(tfs; 2018-08-13): Switch to a more fine-grained approach to updating beta and theta here.
   observeEvent(input$updateAssignments, {
     # Fields: sourceID, targetID, makeNewGroup, timestamp
     if (is.null(input$updateAssignments)) {
@@ -1301,25 +1123,6 @@ function(input, output, session) {
   observeEvent(input$topics, {
     if (is.null(input$topics) || input$topics == "" || input$topics == assignString()) { return() }
     
-    # node.ids <- c()
-    # parent.ids <- c()
-
-    # for (pair in strsplit(input$topics, ',')[[1]]) {
-    #   ids <- strsplit(pair, ":")[[1]]
-    #   node.ids <- c(node.ids, as.integer(ids[[1]]))
-    #   parent.ids <- c(parent.ids, as.integer(ids[[2]]))
-    # }
-
-    # pids <- parent.ids[order(node.ids)]
-    # cids <- node.ids[order(node.ids)]
-
-    # # Clear old settings
-    # stateStore$assigns <- c()
-
-    # for (i in seq(length(cids))) {
-    #   stateStore$assigns[[cids[[i]]]] = pids[[i]]
-    # }
-
     newA <- c() # Set up new assignments vector
     newCM <- list() # Set up new childmap
 
@@ -1465,40 +1268,6 @@ function(input, output, session) {
 
 
   # TODO(tfs; 2018-08-13): Add to stateStore
-  # Full storage of child IDs for each node (0 is root)
-  # children <- reactive({
-  #   if (is.null(stateStore$assigns)) { return() }
-   
-  #   childmap <- list()
-
-  #   n <- max.id()
-
-  #   for (ch in seq(n)) {
-  #     p <- stateStore$assigns[[ch]]
-  #     if (is.na(p)) { 
-  #       next
-  #     }
-  #     if (p == 0) {
-  #       if (!is.null(childmap$root)) {
-  #         # Root has already been initialized
-  #         childmap$root <- append(childmap$root, ch)
-  #       } else {
-  #         childmap$root <- c(ch)
-  #       }
-  #     } else {
-  #       if (p <= length(childmap) && !is.null(childmap[[p]])) {
-  #         childmap[[p]] <- append(childmap[[p]], ch)
-  #       } else {
-  #         childmap[[p]] <- c(ch)
-  #       }
-  #     }
-  #   }
-
-  #   return(childmap)
-  # })
-
-
-  # TODO(tfs; 2018-08-13): Add to stateStore
   # Boolean value for each node, noting whether or not the node is a descendant of a collapsed node
   is.collapsed.descendant <- reactive({
     req(data())
@@ -1538,6 +1307,7 @@ function(input, output, session) {
     return(rv)
   })
 
+
   # TODO(tfs; 2018-08-13): Integrate stateStore
   # List of children for selected topic
   selected.children <- reactive({
@@ -1550,7 +1320,6 @@ function(input, output, session) {
   })
 
 
-  # TODO(tfs; 2018-08-13): Integrate stateStore
   # Beta values for all children of selected topic
   selected.childBetas <- reactive({
     childIDs <- selected.children()
@@ -1578,30 +1347,15 @@ function(input, output, session) {
   })
 
 
-  # TODO(tfs; 2018-08-13): Integrate stateStore
   # Returns the ordering of files for the selected topic
   selected.topic.fileorder <- reactive({
     # NOTE(tfs): The user should only be able to click on a document if a topic is selected,
     #            But the distinction between selected and active topics may be an issue here
     topic <- as.integer(input$topic.selected)
-    # idx <- as.integer(input$document.details.docid)
-
-    # if (is.na(topic) || is.na(idx)) { return() }
-
-    # # if (topic > K()) {
-    # #   ordering <- order(meta.theta()[,topic-K()], decreasing=TRUE)
-    # # } else {
-    # #   ordering <- order(data()$theta[,topic], decreasing=TRUE)
-    # # }
-
-    # ordering <- order(stateStore$all.theta[,topic], decreasing=TRUE)
-
-    # return(ordering)
     return(stateStore$top.documents.order[[topic]])
   })
 
 
-  # TODO(tfs; 2018-08-13): Triage
   # Returns the full text contents of a file that the user clicks
   selected.document <- reactive({
     topic <- as.integer(input$topic.selected)
@@ -1627,7 +1381,6 @@ function(input, output, session) {
   })
 
 
-  # TODO(tfs; 2018-08-13): Triage
   # Returns the document title of the document clicked by the user
   output$document.details.title <- renderUI({
     topic <- as.integer(input$topic.selected)
@@ -1683,96 +1436,11 @@ function(input, output, session) {
   })
 
 
-  # Calculates theta values for all meta topics/clusters
-  # meta.theta <- reactive({
-  #   theta <- data()$theta
-  #   mtheta <- matrix(0, nrow=nrow(theta), ncol=node.maxID())
-    
-  #   if (node.maxID() <= 0) {
-  #     return(mtheta)
-  #   }
-
-  #   for (clusterID in seq(K()+1, max.id())) {
-  #     if (clusterID > length(leaf.ids()) || is.null(leaf.ids()[[clusterID]])) { next }
-      
-  #     leaves <- leaf.ids()[[clusterID]]
-
-  #     for (leafID in leaves) {
-  #       mtheta[,clusterID-K()] <- mtheta[,clusterID-K()] + theta[,leafID]
-  #     }
-  #   }
-
-  #   return(mtheta)
-  # })
-
-  # all.theta <- reactive({
-  #   theta <- data()$theta
-  #   cols <- colSums(theta)
-
-  #   at <- matrix(0, nrow=nrow(theta), ncol=max.id())
-
-  #   for (i in seq(max.id())) {
-  #     if (i <= K()) {
-  #       at[,i] <- theta[,i]
-  #     } else {
-  #       at[,i] <- meta.theta()[,i-K()]
-  #     }
-  #   }
-
-  #   return(at)
-  # })
-
   # TODO(tfs): Phase this out in favor of dynamically displaying an increasing number
   #            of document titles on the left panel
   last.shown.docidx <- reactive({
     return(min(num.documents(), num.documents.shown))
   })
-
-
-  # TODO(tfs; 2018-08-13): Add to stateStore
-  # Sorted top vocab terms for each topic
-  # top.vocab <- reactive({
-  #   # TODO(tfs; 2018-07-07): Rework for dynamic loading
-  #   rv <- list()
-  #   ab <- stateStore$all.beta
-
-  #   for (topic in seq(max.id())) {
-  #     # Currently showing the same number of vocab terms as documents
-  #     rv[[topic]] <- data()$vocab[order(ab[topic,], decreasing=TRUE)[1:last.shown.docidx()]]
-  #   }
-
-  #   return(rv)
-  # })
-
-
-  # TODO(tfs; 2018-08-13): Add to stateStore
-  # List of document titles, sorted by topic relevance, for all topics and meta topics/clusters
-  # top.documents <- reactive({
-  #   # TODO(tfs; 2018-07-07): Rework this. Make use of all.theta() and enable dynamic loading
-
-  #   rv <- list()
-  #   theta <- data()$theta
-  #   # meta.theta <- matrix(0, nrow=nrow(theta), ncol=length(assignments()) - K())
-  #   for (topic in seq(K())) {
-  #     # rv[[topic]] <- data()$doc.summaries[order(theta[,topic], decreasing=TRUE)[1:100]]
-      
-  #     rv[[topic]] <- data()$doc.titles[order(theta[,topic], decreasing=TRUE)[1:last.shown.docidx()]] # Top 100 documents
-
-  #     # meta.theta[,assignments()[topic] - K()] <-
-  #     #   meta.theta[,assignments()[topic] - K()] + theta[,topic]
-  #   }
-
-  #   if (node.maxID() > 0) {
-  #     for (meta.topic in seq(node.maxID())) {
-  #       # rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta()[,meta.topic],
-  #                                                 # decreasing=TRUE)[1:100]]
-  #       rv[[meta.topic + K()]] <- data()$doc.titles[order(stateStore$all.theta[,meta.topic + K()],
-  #                                                 decreasing=TRUE)[1:last.shown.docidx()]]
-  #     }
-  #   }
-
-  #   return(rv)
-  # })
 
 
   # TODO(tfs; 2018-08-13): Integrate stateStore
@@ -1812,7 +1480,6 @@ function(input, output, session) {
   })
 
 
-  # TODO(tfs; 2018-08-13): Integrate stateStore
   # Top document titles for selected topic, formatted into HTML elements
   documents <- reactive({
     topic <- as.integer(input$topic.active)
@@ -1821,9 +1488,7 @@ function(input, output, session) {
       return("")
     }
 
-    # docs <- top.documents()[[topic]]
     # TODO(tfs; 2018-08-13): Rework for dynamic loading
-    # docs <- data()$doc.titles[order(theta[,topic], decreasing=TRUE)[1:last.shown.docidx()]] # Top 100 documents
     docs <- data()$doc.titles[stateStore$top.documents.order[[topic]][1:last.shown.docidx()]]
 
     thetas <- thetas.selected() # Used to show relevance to topic
@@ -1844,7 +1509,6 @@ function(input, output, session) {
   })
 
 
-  # TODO(tfs; 2018-08-13): Integrate stateStore
   topic.vocab <- reactive({
     topic <- as.integer(input$topic.active)
 
@@ -1852,9 +1516,7 @@ function(input, output, session) {
       return("")
     }
 
-    # terms <- top.vocab()[[topic]]
     # TODO(tfs; 2018-08-03): Rework for dynamic loading
-    # terms <- data()$vocab[order(ab[topic,], decreasing=TRUE)[1:last.shown.docidx()]]
     terms <- data()$vocab[stateStore$top.vocab.order[[topic]][1:last.shown.docidx()]]
 
     betas <- betas.selected()
@@ -1905,7 +1567,6 @@ function(input, output, session) {
   })
 
 
-  # TODO(tfs; 2018-08-13): Integrate stateStore
   # When user presses the update title button, store the update into backend stateStore
   observeEvent(input$updateTitle, {
     topic <- as.integer(input$topic.selected)
