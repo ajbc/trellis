@@ -375,8 +375,15 @@ function(input, output, session) {
 
     if (length(newIDs) <= 0) { return() }
 
+    print("BETA")
+    print(changedIDs)
+    print(newIDs)
+
     offset <- nrow(stateStore$all.beta)
+    print(offset)
     newmat <- matrix(0, nrow=(max(newIDs)-offset), ncol=ncol(leaf.beta))
+
+    print("endbeta")
 
     for (clusterID in newIDs) {
       i <- clusterID - offset
@@ -414,8 +421,15 @@ function(input, output, session) {
 
     if (length(newIDs) <= 0) { return() }
 
+    print("THETA")
+    print(changedIDs)
+    print(newIDs)
+
     offset <- ncol(stateStore$all.theta)
+    print(offset)
     newmat <- matrix(0, nrow=nrow(stateStore$all.theta), ncol=(max(newIDs)-offset))
+
+    print("endtheta")
 
     for (i in newIDs) {
       if (i <= K()) { next } # We never need to update leaf values
@@ -984,7 +998,7 @@ function(input, output, session) {
     if (length(childIDs) > 0) {
       for (ch in childIDs) {
         stateStore$assigns[[ch]] = p
-        stateStore$child.map[[toString(p)]] <- append(stateStore$child.map[[toString(p)]])
+        stateStore$child.map[[toString(p)]] <- append(stateStore$child.map[[toString(p)]], ch)
       }
     }
 
@@ -1240,6 +1254,10 @@ function(input, output, session) {
           changedIDs <- append(changedIDs, itr)
         }
       }
+    }
+
+    if (source.id %in% ids.to.clean) {
+      changedIDs <- changedIDs[changedIDs != source.id]
     }
 
     leafIDs <- c()
