@@ -8,13 +8,16 @@ library(topicBubbles)
 library(topicTree)
 library(xtable) # Used to sanitize output
 
+
 options(shiny.maxRequestSize=1e4*1024^2)
+
 
 # NOTE(tfs): Constants in use for now. The goal is to remove
 #            `num.documents.shown` in favor of dynamically loading
 #            more documents on the left panel as the user scrolls
 file.home <- "~"
-num.documents.shown <- 50
+num.documents.shown <- 100
+
 
 function(input, output, session) {
   # Initialize a single storage of state.
@@ -28,7 +31,14 @@ function(input, output, session) {
   # flat.selection:
   #    Similar to collapsed.nodes
   #    Boolean flag (denoting whether a node is selected for a flat export) or a missing value (false)
-  stateStore <- reactiveValues(manual.titles=list(), assigns=NULL, dataname="Data", collapsed.nodes=NULL, flat.selection=NULL)
+  stateStore <- reactiveValues(manual.titles=list(),
+                               assigns=NULL,
+                               dataname="Data",
+                               collapsed.nodes=NULL,
+                               flat.selection=NULL,
+                               all.theta=NULL,
+                               all.beta=NULL)
+
 
   # Function used to select nodes for flatten mode
   find.level.children <- function(id, level) {
@@ -51,6 +61,7 @@ function(input, output, session) {
 
     return(idlist)
   }
+
 
   # Provide all descendants of a node (as a list)
   all.descendant.ids <- function(id) {
@@ -91,15 +102,135 @@ function(input, output, session) {
     }
   })
 
+
+  init.all.beta <- function() {
+    leaf.beta <- beta()
+    lids <- leaf.ids()
+    weights <- colSums(data()$theta)
+
+    ab <- matrix(0, nrow=max.id(), ncol=ncol(leaf.beta))
+
+    for (l in seq(K())) {
+      ab[l,] <- leaf.beta[l,]
+    }
+
+    # Use beta values of leaves (intial topics) to calculate aggregate beta values for meta topics/clusters
+    if (max.id() > K()) {
+      for (clusterID in seq(K()+1, max.id())) {
+        if (is.na(stateStore$assigns[[clusterID]])) { next }
+
+        val <- 0
+
+        leaves <- leaf.ids()[[clusterID]]
+
+        for (leafid in leaves) {
+          val <- leaf.beta[leafid,] * weights[leafid]
+          ab[clusterID,] <- ab[clusterID,] + val
+        }
+
+        # Normalize the new distribution
+        ab[clusterID,] = ab[clusterID,] / sum(ab[clusterID,])
+      }
+    }
+
+    stateStore$stateStore$all.beta <- ab
+  }
+
+
+  init.all.theta <- function(ids) {
+    theta <- data()$theta
+
+    at <- matrix(0, nrow=nrow(theta), ncol=max.id())
+
+    for (i in seq(max.id())) {
+      if (i <= K()) {
+        at[,i] <- theta[,i]
+      } else {
+        if (clusterID > length(leaf.ids()) || is.null(leaf.ids()[[clusterID]])) { next }
+
+        leaves <- leaf.ids()[[i]]
+
+        for (leafID in leaves) {
+          at[,i] <- at[,i] + theta[,leafID]
+        }
+      }
+    }
+
+    stateStore$all.theta <- at
+  }
+
+
+  update.all.aggregate.state <- function() {
+    ids <- seq(max.id())
+    update.aggregate.state(ids)
+  }
+
+
+  update.aggregate.state <- function(ids) {
+    update.all.beta(ids)
+    update.all.theta(ids)
+  }
+
+
+  update.all.beta <- function(ids) {
+    leaf.beta <- beta()
+    lids <- leaf.ids()
+    weights <- colSums(data()$theta)
+
+    ab <- matrix(0, nrow=max.id(), ncol=ncol(leaf.beta))
+
+    # Use beta values of leaves (intial topics) to calculate aggregate beta values for meta topics/clusters
+    if (max.id() > K()) {
+      for (clusterID in ids) {
+        if (clusterID <= K()) { next } # We never need to update leaf values
+        if (is.na(stateStore$assigns[[clusterID]])) { next }
+
+        val <- 0
+
+        leaves <- leaf.ids()[[clusterID]]
+
+        for (leafid in leaves) {
+          val <- leaf.beta[leafid,] * weights[leafid]
+          ab[clusterID,] <- ab[clusterID,] + val
+        }
+
+        # Normalize the new distribution
+        ab[clusterID,] = ab[clusterID,] / sum(ab[clusterID,])
+      }
+    }
+
+    stateStore$stateStore$all.beta <- ab
+  }
+
+
+  update.all.theta <- function(ids) {
+    theta <- data()$theta
+
+    for (i in ids) {
+      if (i <= K()) { next } # We never need to update leaf values
+      stateStore$all.theta[,i] <- 0
+
+      if (clusterID > length(leaf.ids()) || is.null(leaf.ids()[[clusterID]])) { next }
+
+      leaves <- leaf.ids()[[i]]
+
+      for (leafID in leaves) {
+        stateStore$all.theta[,i] <- stateStore$all.theta[,i] + theta[,leafID]
+      }
+    }
+  }
+
+
   # Display the name of the selected text directory
   output$textdirectory.name <- renderText({
-    if (!is.null(input$textlocation)) {
+    if (!is.null(input$textlocstateStore$all.thetaion)) {
       name <- as.character(parseDirPath(c(home=file.home), isolate(input$textlocation)))
       return(HTML(sanitize(name)))
     } else {
       return(HTML(""))
     }
   })
+
 
   # Load data from provided model file and path to directory containing text files (if provided)
   data <- reactive({
@@ -164,10 +295,12 @@ function(input, output, session) {
     return(list("beta"=beta, "theta"=theta, "filenames"=filenames, "doc.titles"=titles, "document.location"=document.location, "vocab"=vocab))
   })
 
+
   # Find the number of documents (titles) according to the loaded model file
   num.documents <- reactive({
     return(length(data()$doc.titles))
   })
+
 
   # Handle enabling/disabling the "Start" button on the initial panel.
   #        Model file must be provided, but `input$textlocation` is optional
@@ -175,11 +308,13 @@ function(input, output, session) {
     shinyjs::toggleState("topic.start", !is.null(input$modelfile))
   })
 
+
   # Setup shinyFiles for model file selection and text file directory selection
   shinyFileChoose(input, 'modelfile', roots=c(home=file.home), session=session, restrictions=system.file(package='base'))
   shinyDirChoose(input, 'textlocation', roots=c(home=file.home), session=session, restrictions=system.file(package='base'))
   shinyFileSave(input, 'savedata', roots=c(home=file.home), session=session, restrictions=system.file(package='base'))
   shinyFileSave(input, 'exportflat', roots=c(home=file.home), session=session, restrictions=system.file(package='base'))
+
 
   observeEvent(input$savedata, {
     if (is.null(input$savedata)) {
@@ -207,16 +342,17 @@ function(input, output, session) {
     session$sendCustomMessage(type="clearSaveFile", "")
   })
 
+
   observeEvent(input$exportflat, {
     # Do nothing if we have no nodes to export
-    if (is.null(stateStore$flat.selection)) { return() }
+    if (is.null(flat.selection)) { return() }
 
     idlist <- c()
 
     for (i in seq(max.id())) {
-      if (length(stateStore$flat.selection) >= i
-          && !is.na(stateStore$flat.selection[[i]]
-          && stateStore$flat.selection[[i]])) {
+      if (length(flat.selection) >= i
+          && !is.na(flat.selection[[i]]
+          && flat.selection[[i]])) {
         idlist <- append(idlist, i)
       }
     }
@@ -230,7 +366,7 @@ function(input, output, session) {
     newAs = c()
 
     for (i in seq(length(idlist))) {
-      flat.beta[i,] <- all.beta()[idlist[[i]],]
+      flat.beta[i,] <- stateStore$all.beta()[idlist[[i]],]
       flat.theta[,i] <- all.theta()[,idlist[[i]]]
 
       if (idlist[[i]] <= length(stateStore$manual.titles) && !is.null(stateStore$manual.titles[[idlist[[i]]]])) {
@@ -262,6 +398,7 @@ function(input, output, session) {
     session$sendCustomMessage(type="clearFlatExportFile", "")
   })
 
+
   # On "Start", tell the frontend to disable "Start" button and render a message to the user
   #             This is separated out to ensure it fires before shinyFiles
   #             resource usage could potentially cause the message to not display.
@@ -275,6 +412,7 @@ function(input, output, session) {
 
     session$sendCustomMessage(type="processingFile", "")
   })
+
 
   # Triggered by topics.js handler for "processingFile", should remove race condition/force sequentiality
   observeEvent(input$start.processing, {
@@ -291,9 +429,13 @@ function(input, output, session) {
       stateStore$assigns <- initAssigns
     }
 
+    init.all.beta()
+    # init.all.theta()
+    # init.top.vocab()
+
     req(bubbles.data()) # Similarly ensures that bubbles.data() finishes running before displays transition
-    req(all.beta())
-    req(top.vocab())
+    # req(stateStore$all.beta())
+    # req(top.vocab())
     shinyjs::hide(selector=".initial")
     shinyjs::show(selector=".left-content")
     shinyjs::show(selector=".main-content")
@@ -366,39 +508,39 @@ function(input, output, session) {
   #    calculate the beta values for all meta-topics/clusters
   # NOTE(tfs; 2018-08-08): Based on original code for cluster top terms,
   #    aggregate betas are (normalized) sums of all leaf betas, weighted by relevant theta colSums
-  all.beta <- reactive({
-    leaf.beta <- beta()
-    lids <- leaf.ids()
-    weights <- colSums(data()$theta)
+  # stateStore$all.beta <- reactive({
+  #   leaf.beta <- beta()
+  #   lids <- leaf.ids()
+  #   weights <- colSums(data()$theta)
 
-    # Initialzie matrix for beta values
-    ab <- matrix(0, nrow=max.id(), ncol=ncol(leaf.beta))
+  #   # Initialzie matrix for beta values
+  #   ab <- matrix(0, nrow=max.id(), ncol=ncol(leaf.beta))
 
-    for (l in seq(K())) {
-      ab[l,] <- leaf.beta[l,]
-    }
+  #   for (l in seq(K())) {
+  #     ab[l,] <- leaf.beta[l,]
+  #   }
 
-    # Use beta values of leaves (intial topics) to calculate aggregate beta values for meta topics/clusters
-    if (max.id() > K()) {
-      for (clusterID in seq(K()+1, max.id())) {
-        if (is.na(stateStore$assigns[[clusterID]])) { next }
+  #   # Use beta values of leaves (intial topics) to calculate aggregate beta values for meta topics/clusters
+  #   if (max.id() > K()) {
+  #     for (clusterID in seq(K()+1, max.id())) {
+  #       if (is.na(stateStore$assigns[[clusterID]])) { next }
 
-        val <- 0
+  #       val <- 0
 
-        leaves <- leaf.ids()[[clusterID]]
+  #       leaves <- leaf.ids()[[clusterID]]
 
-        for (leafid in leaves) {
-          val <- leaf.beta[leafid,] * weights[leafid]
-          ab[clusterID,] <- ab[clusterID,] + val
-        }
+  #       for (leafid in leaves) {
+  #         val <- leaf.beta[leafid,] * weights[leafid]
+  #         ab[clusterID,] <- ab[clusterID,] + val
+  #       }
 
-        # Normalize the new distribution
-        ab[clusterID,] = ab[clusterID,] / sum(ab[clusterID,])
-      }
-    }
+  #       # Normalize the new distribution
+  #       ab[clusterID,] = ab[clusterID,] / sum(ab[clusterID,])
+  #     }
+  #   }
 
-    return(ab)
-  })
+  #   return(ab)
+  # })
 
 
   # Number of initial topics in the model
@@ -479,6 +621,8 @@ function(input, output, session) {
       return()
     }
 
+    changedIDs <- c()
+
     selectedTopic <- as.integer(input$topic.selected)
 
     numNewClusters <- isolate(input$runtime.numClusters)
@@ -494,11 +638,14 @@ function(input, output, session) {
 
     childIDs <- selected.children()
 
+    changedIDs <- append(changedIDs, childIDs)
+
     maxOldID <- max.id()
 
     # Add new clusters into assignments
     for (i in seq(numNewClusters)) {
       stateStore$assigns[[i + maxOldID]] = selectedTopic
+      changedIDs <- append(changedIDs, i + maxOldID)
     }
 
     # Update assignments to reflect new clustering
@@ -507,6 +654,8 @@ function(input, output, session) {
       pa <- newFit$cluster[[i]] + maxOldID
       stateStore$assigns[[ch]] = pa
     }
+
+    update.aggregate.state(changedIDs)
 
     # Notify frontend of completion
     session$sendCustomMessage("runtimeClusterFinished", "SUCCESS")
@@ -531,10 +680,15 @@ function(input, output, session) {
 
     stateStore$assigns[[topic]] <- NA
 
+    # NOTE(tfs; 2018-08-13): I think we can just leave this alone.
+    #                        If it becomes an issue, we can deal with shrinking/cleaning stateStore
+    # delete.aggregate.state(topic)
+
     session$sendCustomMessage("nodeDeleted", "SUCCESS")
   })
 
 
+  # TODO(tfs; 2018-08-13): Add to stateStore
   # Default titles (top 5 most probable words) for each of the initial topics
   titles <- reactive({
     rv <- c()
@@ -542,7 +696,7 @@ function(input, output, session) {
       return(rv)
 
     for (k in seq(K())) {
-      title <- paste(data()$vocab[order(all.beta()[k,], decreasing=TRUE)][seq(5)], collapse=" ")
+      title <- paste(data()$vocab[order(stateStore$all.beta()[k,], decreasing=TRUE)][seq(5)], collapse=" ")
       rv <- c(rv, title)
     }
 
@@ -550,6 +704,7 @@ function(input, output, session) {
   })
 
 
+  # TODO(tfs; 2018-08-13): Add to stateStore
   # Default titles (top 5 most probable words) for each meta topic/cluster
   cluster.titles <- reactive({
     if (is.null(data())) {
@@ -560,7 +715,7 @@ function(input, output, session) {
       return(c())
     }
 
-    ab <- all.beta()
+    ab <- stateStore$all.beta()
 
     rv <- c()
     for (cluster in seq(node.maxID())) {
@@ -574,6 +729,7 @@ function(input, output, session) {
   })
 
 
+  # TODO(tfs; 2018-08-13): Add to stateStore
   # Display title for all topics and meta topics/clusters. Manual title if provided, else default title
   all.titles <- reactive({
     rv <- c()
@@ -603,6 +759,7 @@ function(input, output, session) {
     return(rv)
   })
 
+
   # Display title for currently active (e.g. hovered) topic
   #         Document tab displays contents for any hovered OR selected topic.
   topic.doctab.title <- reactive({
@@ -616,6 +773,7 @@ function(input, output, session) {
 
     return(sanitize(all.titles()[topic], type="html"))
   })
+
 
   # Display title for currently selected (e.g. hovered) topic.
   #         Topic tab does not display anything if no topic is selected.
@@ -631,6 +789,7 @@ function(input, output, session) {
     return(sanitize(all.titles()[topic], type="html"))
   })
 
+
   topic.vocabtab.title <- reactive({
     if (input$topic.active == "") {
       return ("Please select a topic")
@@ -642,6 +801,7 @@ function(input, output, session) {
 
     return(sanitize(all.titles()[topic], type="html"))
   })
+
 
   observeEvent(input$updateAssignments, {
     # Fields: sourceID, targetID, makeNewGroup, timestamp
@@ -667,6 +827,22 @@ function(input, output, session) {
 
     empty.id <- source.id
 
+    changedIDs <- c(source.id, target.id)
+
+    itr <- stateStore$assigns[[source.id]]
+
+    while(itr > 0) {
+      changedIDs <- append(changedIDs, itr)
+      itr <- stateStore$assigns[[itr]]
+    }
+
+    itr <- stateStore$assigns[[target.id]]
+
+    while(itr > 0) {
+      changedIDs <- append(changedIDs, itr)
+      itr <- stateStore$assigns[[itr]]
+    }
+
     if (shift.held) {
       if (source.is.leaf || stateStore$assigns[[source.id]] == target.id) {
         # Shift is held, source is leaf or source is child of target
@@ -676,6 +852,7 @@ function(input, output, session) {
         newID <- max.id() + 1
         stateStore$assigns[[newID]] <- target.id
         stateStore$assigns[[source.id]] <- newID
+        changedIDs <- append(changeIDs, newID)
       } else {
         # Shift is held, source is an aggregate node
         empty.id <- stateStore$assigns[[source.id]]
@@ -708,7 +885,10 @@ function(input, output, session) {
       stateStore$assigns[[empty.id]] <- NA
       empty.id <- nid
     }
+
+    update.aggregate.state(changedIDs)
   })
+
 
   # Handle changes to assignments from the frontend.
   #     To maintain ground truth, update stateStore on the backend.
@@ -736,12 +916,14 @@ function(input, output, session) {
     for (i in seq(length(cids))) {
       stateStore$assigns[[cids[[i]]]] = pids[[i]]
     }
+
+    update.all.aggregate.state()
   })
 
 
   # Only enable the flat export button if something is selected
   observe({
-    shinyjs::toggleState("exportflat", !is.null(stateStore$flat.selection))
+    shinyjs::toggleState("exportflat", !is.null(flat.selection))
   })
 
 
@@ -757,19 +939,19 @@ function(input, output, session) {
     # Handle edge case of root, equivalent of deselcting
     # (A one-node topic model isn't very interesting)
     if (nodeID == 0) {
-      stateStore$flat.selection = NULL
+      flat.selection = NULL
       return()
     }
 
     # Error case. Shouldn't happen.
     if (length(stateStore$assigns) < nodeID) {
-      stateStore$flat.selection = NULL
+      flat.selection = NULL
       return()
     }
 
     # If nothing is currently selected, select all nodes of the appropriate level
-    if (is.null(stateStore$flat.selection)) {
-      stateStore$flat.selection <- c()
+    if (is.null(flat.selection)) {
+      flat.selection <- c()
 
       level <- 1
       p <- stateStore$assigns[[nodeID]]
@@ -781,17 +963,17 @@ function(input, output, session) {
 
       idlist <- find.level.children(0, level)
       for (id in idlist) {
-        stateStore$flat.selection[[id]] <- TRUE
+        flat.selection[[id]] <- TRUE
       }
 
       return()
     }
 
     # If node is already selected, do nothing
-    if (!is.null(stateStore$flat.selection)
-        && length(stateStore$flat.selection) >= nodeID
-        && !is.na(stateStore$flat.selection[[nodeID]])
-        && stateStore$flat.selection[[nodeID]]) {
+    if (!is.null(flat.selection)
+        && length(flat.selection) >= nodeID
+        && !is.na(flat.selection[[nodeID]])
+        && flat.selection[[nodeID]]) {
       return()
     }
 
@@ -803,9 +985,9 @@ function(input, output, session) {
     #    If so, select all nodes at the same level as the node id provided
     while (p > 0) {
       # Cases where p is not yet root, but is not collapsed (keep iterating)
-      if (p > length(stateStore$flat.selection)
-          || is.null(stateStore$flat.selection[[p]])
-          || is.na(stateStore$flat.selection[[p]])) {
+      if (p > length(flat.selection)
+          || is.null(flat.selection[[p]])
+          || is.na(flat.selection[[p]])) {
         p <- stateStore$assigns[[p]]
         level <- level + 1
         next
@@ -813,8 +995,8 @@ function(input, output, session) {
 
       # If p is selected, note the level and select all of same level
       # Deselect p
-      if (!is.null(stateStore$flat.selection[[p]]) && stateStore$flat.selection[[p]]) {
-        stateStore$flat.selection[[p]] <- FALSE # Deselect p
+      if (!is.null(flat.selection[[p]]) && flat.selection[[p]]) {
+        flat.selection[[p]] <- FALSE # Deselect p
         ancestor.flag <- TRUE
         break
       }
@@ -831,30 +1013,31 @@ function(input, output, session) {
 
       # Label all ids
       for (id in idlist) {
-        stateStore$flat.selection[[id]] <- TRUE
+        flat.selection[[id]] <- TRUE
       }
 
       return()
     }
 
     # Select current node
-    stateStore$flat.selection[[nodeID]] <- TRUE
+    flat.selection[[nodeID]] <- TRUE
 
     # Deselect all descendants of original node
     idlist <- all.descendant.ids(nodeID)
 
     for (id in idlist) {
-      stateStore$flat.selection[[id]] <- FALSE
+      flat.selection[[id]] <- FALSE
     }
   })
 
 
   # Clears selection, used when exiting flat export more
   observeEvent(input$clear.flat.selection, {
-    stateStore$flat.selection = NULL
+    flat.selection = NULL
   })
 
 
+  # TODO(tfs; 2018-08-13): Add to stateStore
   # Full storage of child IDs for each node (0 is root)
   children <- reactive({
     if (is.null(stateStore$assigns)) { return() }
@@ -887,6 +1070,8 @@ function(input, output, session) {
     return(childmap)
   })
 
+
+  # TODO(tfs; 2018-08-13): Add to stateStore
   # Boolean value for each node, noting whether or not the node is a descendant of a collapsed node
   is.collapsed.descendant <- reactive({
     req(data())
@@ -926,6 +1111,7 @@ function(input, output, session) {
     return(rv)
   })
 
+  # TODO(tfs; 2018-08-13): Integrate stateStore
   # List of children for selected topic
   selected.children <- reactive({
     req(children())
@@ -937,12 +1123,15 @@ function(input, output, session) {
     }
   })
 
+
+  # TODO(tfs; 2018-08-13): Integrate stateStore
   # Beta values for all children of selected topic
   selected.childBetas <- reactive({
     childIDs <- selected.children()
 
-    return(all.beta()[childIDs,])
+    return(stateStore$all.beta()[childIDs,])
   })
+
 
   # Returns the highest ID of any cluster, offset by the number of leaf nodes (K())
   # TODO(tfs; 2018-07-07): Rename this, cluster.maxID or something similar
@@ -954,6 +1143,7 @@ function(input, output, session) {
     return(max.id() - K())
   })
 
+
   # Format HTML for list of documents sorted by topic relevance
   output$topic.doctab.summary <- renderUI({
     out.string <- paste("<hr/>\n<h3>Topic Summary</h3>\n",
@@ -961,6 +1151,8 @@ function(input, output, session) {
     return(HTML(out.string))
   })
 
+
+  # TODO(tfs; 2018-08-13): Integrate stateStore
   # Returns the ordering of files for the selected topic
   selected.topic.fileorder <- reactive({
     # NOTE(tfs): The user should only be able to click on a document if a topic is selected,
@@ -970,15 +1162,19 @@ function(input, output, session) {
 
     if (is.na(topic) || is.na(idx)) { return() }
 
-    if (topic > K()) {
-      ordering <- order(meta.theta()[,topic-K()], decreasing=TRUE)
-    } else {
-      ordering <- order(data()$theta[,topic], decreasing=TRUE)
-    }
+    # if (topic > K()) {
+    #   ordering <- order(meta.theta()[,topic-K()], decreasing=TRUE)
+    # } else {
+    #   ordering <- order(data()$theta[,topic], decreasing=TRUE)
+    # }
+
+    ordering <- order(stateStore$all.theta()[,topic], decreasing=TRUE)
 
     return(ordering)
   })
 
+
+  # TODO(tfs; 2018-08-13): Triage
   # Returns the full text contents of a file that the user clicks
   selected.document <- reactive({
     topic <- as.integer(input$topic.selected)
@@ -1003,6 +1199,8 @@ function(input, output, session) {
     return(contents)
   })
 
+
+  # TODO(tfs; 2018-08-13): Triage
   # Returns the document title of the document clicked by the user
   output$document.details.title <- renderUI({
     topic <- as.integer(input$topic.selected)
@@ -1029,6 +1227,7 @@ function(input, output, session) {
   })
 
 
+  # TODO(tfs; 2018-08-13): Add to stateStore
   # Mapping of each cluster to all of its descendant leaves (initial topics)
   leaf.ids <- reactive({
     if (is.null(stateStore$assigns)) { return() }
@@ -1056,44 +1255,45 @@ function(input, output, session) {
     return(leafmap)
   })
 
+
   # Calculates theta values for all meta topics/clusters
-  meta.theta <- reactive({
-    theta <- data()$theta
-    mtheta <- matrix(0, nrow=nrow(theta), ncol=node.maxID())
+  # meta.theta <- reactive({
+  #   theta <- data()$theta
+  #   mtheta <- matrix(0, nrow=nrow(theta), ncol=node.maxID())
     
-    if (node.maxID() <= 0) {
-      return(mtheta)
-    }
+  #   if (node.maxID() <= 0) {
+  #     return(mtheta)
+  #   }
 
-    for (clusterID in seq(K()+1, max.id())) {
-      if (clusterID > length(leaf.ids()) || is.null(leaf.ids()[[clusterID]])) { next }
+  #   for (clusterID in seq(K()+1, max.id())) {
+  #     if (clusterID > length(leaf.ids()) || is.null(leaf.ids()[[clusterID]])) { next }
       
-      leaves <- leaf.ids()[[clusterID]]
+  #     leaves <- leaf.ids()[[clusterID]]
 
-      for (leafID in leaves) {
-        mtheta[,clusterID-K()] <- mtheta[,clusterID-K()] + theta[,leafID]
-      }
-    }
+  #     for (leafID in leaves) {
+  #       mtheta[,clusterID-K()] <- mtheta[,clusterID-K()] + theta[,leafID]
+  #     }
+  #   }
 
-    return(mtheta)
-  })
+  #   return(mtheta)
+  # })
 
-  all.theta <- reactive({
-    theta <- data()$theta
-    cols <- colSums(theta)
+  # all.theta <- reactive({
+  #   theta <- data()$theta
+  #   cols <- colSums(theta)
 
-    at <- matrix(0, nrow=nrow(theta), ncol=max.id())
+  #   at <- matrix(0, nrow=nrow(theta), ncol=max.id())
 
-    for (i in seq(max.id())) {
-      if (i <= K()) {
-        at[,i] <- theta[,i]
-      } else {
-        at[,i] <- meta.theta()[,i-K()]
-      }
-    }
+  #   for (i in seq(max.id())) {
+  #     if (i <= K()) {
+  #       at[,i] <- theta[,i]
+  #     } else {
+  #       at[,i] <- meta.theta()[,i-K()]
+  #     }
+  #   }
 
-    return(at)
-  })
+  #   return(at)
+  # })
 
   # TODO(tfs): Phase this out in favor of dynamically displaying an increasing number
   #            of document titles on the left panel
@@ -1101,11 +1301,13 @@ function(input, output, session) {
     return(min(num.documents(), num.documents.shown))
   })
 
+
+  # TODO(tfs; 2018-08-13): Add to stateStore
   # Sorted top vocab terms for each topic
   top.vocab <- reactive({
     # TODO(tfs; 2018-07-07): Rework for dynamic loading
     rv <- list()
-    ab <- all.beta()
+    ab <- stateStore$all.beta()
 
     for (topic in seq(max.id())) {
       # Currently showing the same number of vocab terms as documents
@@ -1115,6 +1317,8 @@ function(input, output, session) {
     return(rv)
   })
 
+
+  # TODO(tfs; 2018-08-13): Add to stateStore
   # List of document titles, sorted by topic relevance, for all topics and meta topics/clusters
   top.documents <- reactive({
     # TODO(tfs; 2018-07-07): Rework this. Make use of all.theta() and enable dynamic loading
@@ -1135,7 +1339,7 @@ function(input, output, session) {
       for (meta.topic in seq(node.maxID())) {
         # rv[[meta.topic + K()]] <- data()$doc.summaries[order(meta.theta()[,meta.topic],
                                                   # decreasing=TRUE)[1:100]]
-        rv[[meta.topic + K()]] <- data()$doc.titles[order(meta.theta()[,meta.topic],
+        rv[[meta.topic + K()]] <- data()$doc.titles[order(stateStore$all.theta[,meta.topic + K()],
                                                   decreasing=TRUE)[1:last.shown.docidx()]]
       }
     }
@@ -1143,6 +1347,8 @@ function(input, output, session) {
     return(rv)
   })
 
+
+  # TODO(tfs; 2018-08-13): Integrate stateStore
   # TODO(tfs; 2018-07-07): Rename to reflect sorted nature
   # SORTED selected betas
   betas.selected <- reactive({
@@ -1150,11 +1356,13 @@ function(input, output, session) {
 
     if (is.na(topic)) { return(list()) }
 
-    sorted <- all.beta()[topic,][order(all.beta()[topic,], decreasing=TRUE)]
+    sorted <- stateStore$all.beta()[topic,][order(stateStore$all.beta()[topic,], decreasing=TRUE)]
 
     return(sorted)
   })
 
+
+  # TODO(tfs; 2018-08-13): Integrate stateStore
   # TODO(tfs; 2018-07-07): Rename to reflect sorted nature
   # Returns the SORTED theta values of all documents corresponding to the selected topic
   thetas.selected <- reactive({
@@ -1165,15 +1373,19 @@ function(input, output, session) {
       return(list())
     }
 
-    if (topic <= K()) {
-      sorted <- topic.theta[,topic][order(topic.theta[,topic], decreasing=TRUE)]
-    } else {
-      sorted <- meta.theta()[,topic-K()][order(meta.theta()[,topic-K()], decreasing=TRUE)]
-    }
+    # if (topic <= K()) {
+    #   sorted <- topic.theta[,topic][order(topic.theta[,topic], decreasing=TRUE)]
+    # } else {
+    #   sorted <- meta.theta()[,topic-K()][order(meta.theta()[,topic-K()], decreasing=TRUE)]
+    # }
+
+    sorted <- stateStore$all.theta[,topic][order(stateStore$all.theta[,topic], decreasing=TRUE)]
 
     return(sorted)
   })
 
+
+  # TODO(tfs; 2018-08-13): Integrate stateStore
   # Top document titles for selected topic, formatted into HTML elements
   documents <- reactive({
     topic <- as.integer(input$topic.active)
@@ -1201,6 +1413,7 @@ function(input, output, session) {
   })
 
 
+  # TODO(tfs; 2018-08-13): Integrate stateStore
   topic.vocab <- reactive({
     topic <- as.integer(input$topic.active)
 
@@ -1249,12 +1462,15 @@ function(input, output, session) {
     return(HTML(topic.vocab()))
   })
 
+
   # Display title of the selected topic (vocab tab)
   output$topic.vocabtab.title <- renderUI({
     ostr <- paste("<h4 id=\"left-vocab-tab-cluster-title\">", topic.vocabtab.title(), "</h4>")
     return(HTML(ostr))
   })
 
+
+  # TODO(tfs; 2018-08-13): Integrate stateStore
   # When user presses the update title button, store the update into backend stateStore
   observeEvent(input$updateTitle, {
     topic <- as.integer(input$topic.selected)
@@ -1269,6 +1485,7 @@ function(input, output, session) {
 
     session$sendCustomMessage("cleanTitleInput", "")
   })
+
 
   # Aggregate and format data necessary for the bubble/tree widgets, in parallel lists:
   #     parentID:    list of parent ids
@@ -1300,8 +1517,8 @@ function(input, output, session) {
       pid <- append(pid, stateStore$assigns[ch])
       ttl <- append(ttl, all.titles()[[ch]])
 
-      if (!is.null(stateStore$flat.selection) && ch <= length(stateStore$flat.selection) && !is.null(stateStore$flat.selection[[ch]])) {
-        flt <- append(flt, stateStore$flat.selection[[ch]])
+      if (!is.null(flat.selection) && ch <= length(flat.selection) && !is.null(flat.selection[[ch]])) {
+        flt <- append(flt, flat.selection[[ch]])
       } else {
         flt <- append(flt, FALSE)
       }
@@ -1348,8 +1565,10 @@ function(input, output, session) {
     return(rv)
   })
 
+
   # Render bubble widget
   output$bubbles <- renderTopicBubbles({ topicBubbles(bubbles.data()) })
+
 
   # Render tree widget
   output$tree <- renderTopicTree({ topicTree(bubbles.data()) })
