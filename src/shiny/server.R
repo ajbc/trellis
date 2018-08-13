@@ -37,7 +37,9 @@ function(input, output, session) {
                                collapsed.nodes=NULL,
                                flat.selection=NULL,
                                all.theta=NULL,
-                               all.beta=NULL)
+                               all.beta=NULL,
+                               calculated.titles=NULL,
+                               display.titles=NULL)
 
 
   # Function used to select nodes for flatten mode
@@ -160,9 +162,60 @@ function(input, output, session) {
   }
 
 
+  init.calculated.titles <- function() {
+    if (is.null(data())) { return() }
+
+    if (node.maxID() <= 0) { return() }
+
+    ab <- stateStore$all.beta
+
+    rv <- c()
+    for (cluster in seq(max.id())) {
+      title <- paste(data()$vocab[order(ab[cluster,],
+                                        decreasing=TRUE)][seq(5)], collapse=" ")
+
+      rv <- c(rv, title)
+    }
+
+    stateStore$calculated.titles <- rv
+  }
+
+
+  init.display.titles <- function() {
+    rv <- c()
+
+    n <- max.id()
+
+    # ttl <- c(titles(), cluster.titles())
+    ttl <- stateStore$calculated.titles
+
+    # Select correct title (manual if it exists, else default) for all topics and meta topics/clusters
+    for (i in seq(n)) {
+      if (i > length(stateStore$manual.titles)
+      || is.null(stateStore$manual.titles[[i]])
+      || stateStore$manual.titles[[i]] == "") {
+        if (i > length(ttl) 
+        || is.null(ttl[[i]])
+        || i > length(stateStore$assigns)
+        || is.null(stateStore$assigns[[i]])) {
+          rv <- c(rv, "")
+        } else {
+          rv <- c(rv, ttl[[i]]) 
+        }
+      } else {
+        rv <- c(rv, stateStore$manual.titles[[i]])
+      }
+    }
+
+    stateStore$display.titles <- rv
+  }
+
+
   clean.aggregate.state <- function(ids) {
     clean.all.beta(ids)
     clean.all.theta(ids)
+    clean.calculated.titles(ids)
+    clean.display.titles(ids)
   }
 
 
@@ -208,6 +261,20 @@ function(input, output, session) {
   }
 
 
+  clean.calculated.titles <- function(ids) {
+    for (i in ids) {
+      stateStore$calculated.titles[[i]] <- NA
+    }
+  }
+
+
+  clean.display.titles <- function(ids) {
+    for (i in ids) {
+      stateStore$calculated.titles[[i]] <- NA
+    }
+  }
+
+
   update.all.aggregate.state <- function() {
     ids <- seq(max.id())
     update.aggregate.state(ids, c())
@@ -217,6 +284,8 @@ function(input, output, session) {
   update.aggregate.state <- function(changedIDs, newIDs) {
     update.all.beta(changedIDs, newIDs)
     update.all.theta(changedIDs, newIDs)
+    update.calculated.titles(changedIDs, newIDs)
+    update.display.titles(changedIDs, newIDs)
   }
 
 
@@ -224,8 +293,6 @@ function(input, output, session) {
     leaf.beta <- beta()
     lids <- leaf.ids()
     weights <- colSums(data()$theta)
-
-    # ab <- matrix(0, nrow=max.id(), ncol=ncol(leaf.beta))
 
     # Use beta values of leaves (intial topics) to calculate aggregate beta values for meta topics/clusters
     if (max.id() > K()) {
@@ -306,6 +373,48 @@ function(input, output, session) {
     }
 
     stateStore$all.theta <- cbind(stateStore$all.theta, newmat)
+  }
+
+
+  update.calculated.titles <- function(changedIDs, newIDs) {
+    ab <- stateStore$all.beta
+
+    for (i in append(changedIDs, newIDs)) {
+      if (i <= K()) { next } # We shouldn't need to ever update the calculated title of a leaf
+
+      title <- paste(data()$vocab[order(ab[i,],
+                                        decreasing=TRUE)][seq(5)], collapse=" ")
+
+      stateStore$calculated.titles[[i]] <- title
+    }
+  }
+
+
+  update.display.titles <- function(changedIDs, newIDs) {
+    ttl <- stateStore$calculated.titles
+
+    for (i in append(changedIDs, newIDs)) {
+      if (i == 0) { next } # Never change root title
+
+      title <- ""
+
+      if (i > length(stateStore$manual.titles)
+      || is.null(stateStore$manual.titles[[i]])
+      || stateStore$manual.titles[[i]] == "") {
+        if (i > length(ttl) 
+        || is.null(ttl[[i]])
+        || i > length(stateStore$assigns)
+        || is.null(stateStore$assigns[[i]])) {
+          title <- ""
+        } else {
+          title <- ttl[[i]]
+        }
+      } else {
+        title <- stateStore$manual.titles[[i]]
+      }
+
+      stateStore$display.titles[[i]] <- title
+    }
   }
 
 
@@ -519,6 +628,8 @@ function(input, output, session) {
 
     init.all.beta()
     init.all.theta()
+    init.calculated.titles()
+    init.display.titles()
     # init.top.vocab()
 
     req(bubbles.data()) # Similarly ensures that bubbles.data() finishes running before displays transition
@@ -794,59 +905,58 @@ function(input, output, session) {
 
   # TODO(tfs; 2018-08-13): Add to stateStore
   # Default titles (top 5 most probable words) for each meta topic/cluster
-  cluster.titles <- reactive({
-    if (is.null(data())) {
-      return(c())
-    }
+  # cluster.titles <- reactive({
+  #   if (is.null(data())) {
+  #     return(c())
+  #   }
 
-    if (node.maxID() <= 0) {
-      return(c())
-    }
+  #   if (node.maxID() <= 0) {
+  #     return(c())
+  #   }
 
-    ab <- stateStore$all.beta
+  #   ab <- stateStore$all.beta
 
-    rv <- c()
-    for (cluster in seq(node.maxID())) {
-      print(cluster+K())
-      title <- paste(data()$vocab[order(ab[cluster+K(),],
-                                        decreasing=TRUE)][seq(5)], collapse=" ")
+  #   rv <- c()
+  #   for (cluster in seq(node.maxID())) {
+  #     title <- paste(data()$vocab[order(ab[cluster+K(),],
+  #                                       decreasing=TRUE)][seq(5)], collapse=" ")
 
-      rv <- c(rv, title)
-    }
+  #     rv <- c(rv, title)
+  #   }
 
-    return(rv)
-  })
+  #   return(rv)
+  # })
 
 
   # TODO(tfs; 2018-08-13): Add to stateStore
   # Display title for all topics and meta topics/clusters. Manual title if provided, else default title
-  all.titles <- reactive({
-    rv <- c()
+  # all.titles <- reactive({
+  #   rv <- c()
 
-    n <- max.id()
+  #   n <- max.id()
 
-    ttl <- c(titles(), cluster.titles())
+  #   ttl <- c(titles(), cluster.titles())
 
-    # Select correct title (manual if it exists, else default) for all topics and meta topics/clusters
-    for (i in seq(n)) {
-      if (i > length(stateStore$manual.titles)
-      || is.null(stateStore$manual.titles[[i]])
-      || stateStore$manual.titles[[i]] == "") {
-        if (i > length(ttl) 
-        || is.null(ttl[[i]])
-        || i > length(stateStore$assigns)
-        || is.null(stateStore$assigns[[i]])) {
-          rv <- c(rv, "")
-        } else {
-          rv <- c(rv, ttl[[i]]) 
-        }
-      } else {
-        rv <- c(rv, stateStore$manual.titles[[i]])
-      }
-    }
+  #   # Select correct title (manual if it exists, else default) for all topics and meta topics/clusters
+  #   for (i in seq(n)) {
+  #     if (i > length(stateStore$manual.titles)
+  #     || is.null(stateStore$manual.titles[[i]])
+  #     || stateStore$manual.titles[[i]] == "") {
+  #       if (i > length(ttl) 
+  #       || is.null(ttl[[i]])
+  #       || i > length(stateStore$assigns)
+  #       || is.null(stateStore$assigns[[i]])) {
+  #         rv <- c(rv, "")
+  #       } else {
+  #         rv <- c(rv, ttl[[i]]) 
+  #       }
+  #     } else {
+  #       rv <- c(rv, stateStore$manual.titles[[i]])
+  #     }
+  #   }
 
-    return(rv)
-  })
+  #   return(rv)
+  # })
 
 
   # Display title for currently active (e.g. hovered) topic
@@ -860,7 +970,7 @@ function(input, output, session) {
 
     if (topic == 0) { return("[ROOT]") }
 
-    return(sanitize(all.titles()[topic], type="html"))
+    return(sanitize(stateStore$display.titles[topic], type="html"))
   })
 
 
@@ -875,7 +985,7 @@ function(input, output, session) {
 
     if (topic == 0) { return("[ROOT]") }
 
-    return(sanitize(all.titles()[topic], type="html"))
+    return(sanitize(stateStore$display.titles[topic], type="html"))
   })
 
 
@@ -888,7 +998,7 @@ function(input, output, session) {
 
     if (topic == 0) { return("[ROOT]") }
 
-    return(sanitize(all.titles()[topic], type="html"))
+    return(sanitize(stateStore$display.titles[topic], type="html"))
   })
 
 
@@ -916,32 +1026,11 @@ function(input, output, session) {
 
     empty.id <- source.id
 
-    changedIDs <- c(source.id, target.id)
+    changedIDs <- c()
+    if (source.id > 0) { changedIDs <- append(changedIDs, source.id) }
+    if (target.id > 0) { changedIDs <- append(changedIDs, target.id) }
+
     newIDs <- c()
-
-    if (source.id > 0) {
-      itr <- stateStore$assigns[[source.id]]
-      changedIDs <- append(changedIDs, itr)
-
-      while(itr > 0) {
-        itr <- stateStore$assigns[[itr]]
-        if (!(itr %in% changedIDs)) {
-          changedIDs <- append(changedIDs, itr)
-        }
-      }
-    }
-
-    if (target.id > 0) {
-      itr <- stateStore$assigns[[target.id]]
-      changedIDs <- append(changedIDs, itr)
-
-      while(itr > 0) {
-        itr <- stateStore$assigns[[itr]]
-        if (!(itr %in% changedIDs)) {
-          changedIDs <- append(changedIDs, itr)
-        }
-      }
-    }
 
     if (shift.held) {
       if (source.is.leaf || stateStore$assigns[[source.id]] == target.id) {
@@ -987,6 +1076,34 @@ function(input, output, session) {
       ids.to.clean <- append(ids.to.clean, empty.id)
       stateStore$assigns[[empty.id]] <- NA
       empty.id <- nid
+    }
+
+    if (source.id > 0 && !(source.id %in% ids.to.clean)) {
+      itr <- stateStore$assigns[[source.id]]
+      if (!itr %in% changedIDs && !(itr %in% ids.to.clean) && itr > 0  && !(itr %in% newIDs)) {
+        changedIDs <- append(changedIDs, itr)
+      }
+
+      while(itr > 0) {
+        itr <- stateStore$assigns[[itr]]
+        if (!(itr %in% changedIDs) && !(itr %in% ids.to.clean) && itr > 0  && !(itr %in% newIDs)) {
+          changedIDs <- append(changedIDs, itr)
+        }
+      }
+    }
+
+    if (target.id > 0 && !(target.id %in% ids.to.clean)) {
+      itr <- stateStore$assigns[[target.id]]
+      if (!(itr %in% changedIDs) && !(itr %in% ids.to.clean) && itr > 0  && !(itr %in% newIDs)) {
+        changedIDs <- append(changedIDs, itr)
+      }
+
+      while(itr > 0) {
+        itr <- stateStore$assigns[[itr]]
+        if (!(itr %in% changedIDs) && !(itr %in% ids.to.clean) && itr > 0  && !(itr %in% newIDs)) {
+          changedIDs <- append(changedIDs, itr)
+        }
+      }
     }
 
     clean.aggregate.state(ids.to.clean)
@@ -1586,6 +1703,7 @@ function(input, output, session) {
     }
 
     stateStore$manual.titles[[topic]] <- newTitle
+    update.display.titles(c(topic), c())
 
     session$sendCustomMessage("cleanTitleInput", "")
   })
@@ -1615,11 +1733,13 @@ function(input, output, session) {
     cols <- c(colSums(data()$theta)) # Weights for each node, based on representation in the corpus
 
     for (ch in seq(n)) {
+      # TODO(tfs; 2018-08-13): Move to stateStore
       if (is.collapsed.descendant()[[ch]]) { next } # Skip descendants of collapsed nodes
       if (is.na(stateStore$assigns[[ch]])) { next } # Continue
       nid <- append(nid, ch)
       pid <- append(pid, stateStore$assigns[ch])
-      ttl <- append(ttl, all.titles()[[ch]])
+      ttl <- append(ttl, stateStore$display.titles[[ch]])
+      # TODO(tfs; 2018-08-13): Move to stateStore
 
       if (!is.null(stateStore$flat.selection) && ch <= length(stateStore$flat.selection) && !is.null(stateStore$flat.selection[[ch]])) {
         flt <- append(flt, stateStore$flat.selection[[ch]])
@@ -1648,6 +1768,7 @@ function(input, output, session) {
       for (i in seq(max.id() - K())) {
         ind <- i + K()
 
+        # TODO(tfs; 2018-08-13): Move to stateStore
         if (is.na(stateStore$assigns[[ind]]) || is.collapsed.descendant()[[ind]]) { next }
 
         if (ind <= length(stateStore$collapsed.nodes) && !is.null(stateStore$collapsed.nodes[[ind]]) && !is.na(stateStore$collapsed.nodes[[ind]]) && stateStore$collapsed.nodes[[ind]]) {
