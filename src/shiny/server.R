@@ -939,13 +939,13 @@ function(input, output, session) {
     # Handle edge case of root, equivalent of deselcting
     # (A one-node topic model isn't very interesting)
     if (nodeID == 0) {
-      flat.selection = NULL
+      flat.selection <- NULL
       return()
     }
 
     # Error case. Shouldn't happen.
     if (length(stateStore$assigns) < nodeID) {
-      flat.selection = NULL
+      flat.selection <- NULL
       return()
     }
 
@@ -1033,7 +1033,7 @@ function(input, output, session) {
 
   # Clears selection, used when exiting flat export more
   observeEvent(input$clear.flat.selection, {
-    flat.selection = NULL
+    flat.selection <- NULL
   })
 
 
