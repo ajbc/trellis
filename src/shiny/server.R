@@ -969,6 +969,7 @@ function(input, output, session) {
 
     childIDs <- selected.children()
 
+    # NOTE(tfs): Theoretically, we don't need to update the selected topic at all (same leaf set)
     changedIDs <- childIDs
 
     maxOldID <- max.id()
@@ -986,10 +987,14 @@ function(input, output, session) {
       newIDs <- append(newIDs, i + maxOldID)
     }
 
+    print(newIDs)
+
     # Update assignments to reflect new clustering
     for (i in seq(length(childIDs))) {
       ch <- childIDs[[i]]
       pa <- newFit$cluster[[i]] + maxOldID
+      print(pa)
+      print("BLARGH")
       
       stateStore$assigns[[ch]] <- pa
       stateStore$child.map[[toString(pa)]] <- append(stateStore$child.map[[toString(pa)]], ch)
@@ -1162,7 +1167,7 @@ function(input, output, session) {
       if (source.is.leaf || stateStore$assigns[[source.id]] == target.id) {
         # Shift is held, source is leaf or source is child of target
         #   Generates new node
-        empty.id <- stateStore$assigns[[source.id]]
+        empty.id <- originP
 
         newID <- max.id() + 1
 
@@ -1171,11 +1176,14 @@ function(input, output, session) {
 
         # Update assignments and child maps
         stateStore$assigns[[newID]] <- target.id
-        stateStore$child.map[[toString(target.id)]] <- append(stateStore$child.map[[toString(target.id)]], newID)
         stateStore$child.map[[toString(newID)]] <- c(source.id)
+        stateStore$child.map[[toString(target.id)]] <- append(stateStore$child.map[[toString(target.id)]], newID)
         stateStore$assigns[[source.id]] <- newID
         newIDs <- append(newIDs, newID)
       } else {
+        # TODO(tfs; 2018-08-14): See if this is actually intended behavior
+        if (originP == target.id) { return() }
+
         # Shift is held, source is an aggregate node
         empty.id <- stateStore$assigns[[source.id]]
 
@@ -1220,6 +1228,15 @@ function(input, output, session) {
       }
     }
 
+    pitr <- originP
+
+    # TODO(tfs; 2018-08-14): Update to handle where source is ancestor/descendant of target
+    # Remove leaves from origin's ancestors
+    while (pitr > 0) {
+      stateStore$leaf.map[[toString(pitr)]] <- stateStore$leaf.map[[toString(pitr)]][!(stateStore$leaf.map[[toString(pitr)]] %in% origin.leaves)]
+      pitr <- stateStore$assigns[[pitr]]
+    }
+
     # Append to target and ancestors
     if (target.id > 0) {
       stateStore$leaf.map[[toString(target.id)]] <- append(stateStore$leaf.map[[toString(target.id)]], origin.leaves)
@@ -1229,14 +1246,6 @@ function(input, output, session) {
         stateStore$leaf.map[[toString(p)]] <- append(stateStore$leaf.map[[toString(p)]], origin.leaves)
         p <- stateStore$assigns[[p]]
       }
-    }
-
-    pitr <- originP
-
-    # Remove leaves from origin's ancestors
-    while (pitr > 0) {
-      stateStore$leaf.map[[toString(pitr)]] <- stateStore$leaf.map[[toString(pitr)]][!(stateStore$leaf.map[[toString(pitr)]] %in% origin.leaves)]
-      pitr <- stateStore$assigns[[pitr]]
     }
 
     ids.to.clean <- c()
@@ -1257,6 +1266,7 @@ function(input, output, session) {
 
     clean.aggregate.state(ids.to.clean)
     update.aggregate.state(changedIDs, newIDs)
+    print(stateStore$assigns)
   })
 
 
