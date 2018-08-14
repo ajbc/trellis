@@ -36,6 +36,9 @@ function(input, output, session) {
   # flat.selection:
   #    Similar to collapsed.nodes
   #    Boolean flag (denoting whether a node is selected for a flat export) or a missing value (false)
+
+  # TODO(tfs; 2018-08-14): For speed, it looks (according to profvis) like we should switch to global variables.
+  #                        We could then use reactiveValues as a flag or set of flags to update outputs
   stateStore <- reactiveValues(manual.titles=list(),
                                assigns=NULL,
                                child.map=NULL,
