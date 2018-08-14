@@ -279,8 +279,8 @@ function(input, output, session) {
     clean.all.theta(ids)
     clean.calculated.titles(ids)
     clean.display.titles(ids)
-    clean.top.documents.order(ids)
-    clean.top.vocab.order(ids)
+    # clean.top.documents.order(ids)
+    # clean.top.vocab.order(ids)
   }
 
 
@@ -342,14 +342,14 @@ function(input, output, session) {
 
   clean.top.documents.order <- function(ids) {
     for (i in ids) {
-      stateStore$top.documents.order[[i]] <- NULL
+      stateStore$top.documents.order[[i]] <- c()
     }
   }
   
 
   clean.top.vocab.order <- function(ids) {
     for (i in ids) {
-      stateStore$top.vocab.order[[i]] <- NULL
+      stateStore$top.vocab.order[[i]] <- c()
     }
   }
 
@@ -997,14 +997,10 @@ function(input, output, session) {
       newIDs <- append(newIDs, i + maxOldID)
     }
 
-    print(newIDs)
-
     # Update assignments to reflect new clustering
     for (i in seq(length(childIDs))) {
       ch <- childIDs[[i]]
       pa <- newFit$cluster[[i]] + maxOldID
-      print(pa)
-      print("BLARGH")
       
       stateStore$assigns[[ch]] <- pa
       stateStore$child.map[[toString(pa)]] <- append(stateStore$child.map[[toString(pa)]], ch)
@@ -1277,7 +1273,6 @@ function(input, output, session) {
 
     clean.aggregate.state(ids.to.clean)
     update.aggregate.state(changedIDs, newIDs)
-    print(stateStore$assigns)
   })
 
 
