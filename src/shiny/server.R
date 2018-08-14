@@ -1196,7 +1196,7 @@ function(input, output, session) {
         stateStore$child.map[[toString(target.id)]] <- append(stateStore$child.map[[toString(target.id)]], source.id)
       }
     } else {
-      if (stateStore$assigns[[source.id]] == target.id) {
+      if (originP == target.id) {
         return()
       }
 
@@ -1214,15 +1214,16 @@ function(input, output, session) {
         # Add source to new parent's childmap
         stateStore$child.map[[toString(target.id)]] <- append(stateStore$child.map[[toString(target.id)]], source.id)
       } else {
-        # NOTE(tfs): This appears to be the only setting where the previous parent is reset correctly?
+        # NOTE(tfs): This case is definitely broken
         # Move all children of the source node
         for (ch in stateStore$child.map[[toString(source.id)]]) {
           stateStore$assigns[[ch]] <- target.id
           stateStore$child.map[[toString(target.id)]] <- append(stateStore$child.map[[toString(target.id)]], ch)
         }
 
-        # Empty source node's childmap
+        # Empty source node's childmap and leafmap (by definition, this action deletes the node)
         stateStore$child.map[[toString(source.id)]] <- c()
+        stateStore$leaf.map[[toString(source.id)]] <- c()
 
         empty.id <- source.id
       }
