@@ -43,9 +43,10 @@ function(input, output, session) {
                                calculated.titles=NULL,
                                display.titles=NULL,
                                top.documents.order=NULL,
-                               top.documents=NULL,
-                               top.vocab.order=NULL,
-                               top.vocab=NULL)
+                               # top.documents=NULL,
+                               top.vocab.order=NULL
+                               # top.vocab=NULL)
+                               )
 
   # Function used to select nodes for flatten mode
   find.level.children <- function(id, level) {
@@ -175,7 +176,7 @@ function(input, output, session) {
 
     rv <- c()
     for (cluster in seq(max.id())) {
-      title <- paste(stateStore$top.vocab[[cluster]][seq(5)], collapse=" ")
+      title <- paste(data()$vocab[stateStore$top.vocab.order[[cluster]][seq(5)]], collapse=" ")
 
       rv <- c(rv, title)
     }
@@ -224,15 +225,15 @@ function(input, output, session) {
   }
 
 
-  init.top.documents <- function() {
-    td <- list()
+  # init.top.documents <- function() {
+  #   td <- list()
 
-    for (i in seq(max.id())) {
-      td[[i]] <- data()$doc.titles[stateStore$top.documents.order[[i]]]
-    }
+  #   for (i in seq(max.id())) {
+  #     td[[i]] <- data()$doc.titles[stateStore$top.documents.order[[i]]]
+  #   }
 
-    stateStore$top.documents <- td
-  }
+  #   stateStore$top.documents <- td
+  # }
 
 
   init.top.vocab.order <- function() {
@@ -249,15 +250,15 @@ function(input, output, session) {
   }
 
 
-  init.top.vocab <- function() {
-    tv <- list()
+  # init.top.vocab <- function() {
+  #   tv <- list()
 
-    for (i in seq(max.id())) {
-      tv[[i]] <- data()$vocab[stateStore$top.vocab.order[[i]]]
-    }
+  #   for (i in seq(max.id())) {
+  #     tv[[i]] <- data()$vocab[stateStore$top.vocab.order[[i]]]
+  #   }
 
-    stateStore$top.vocab <- tv
-  }
+  #   stateStore$top.vocab <- tv
+  # }
 
 
   clean.aggregate.state <- function(ids) {
@@ -329,7 +330,7 @@ function(input, output, session) {
   # NOTE(tfs): I don't think we need to clean these.
   #            If we start leaking memory or something strange, check here
  
- 
+
   update.all.aggregate.state <- function() {
     ids <- seq(max.id())
     update.aggregate.state(ids, c())
@@ -340,9 +341,9 @@ function(input, output, session) {
     update.all.beta(changedIDs, newIDs)
     update.all.theta(changedIDs, newIDs)
     update.top.documents.order(changedIDs, newIDs)
-    update.top.documents(changedIDs, newIDs)
+    # update.top.documents(changedIDs, newIDs)
     update.top.vocab.order(changedIDs, newIDs)
-    update.top.vocab(changedIDs, newIDs)
+    # update.top.vocab(changedIDs, newIDs)
     update.calculated.titles(changedIDs, newIDs)
     update.display.titles(changedIDs, newIDs)
   }
@@ -470,13 +471,13 @@ function(input, output, session) {
   }
 
 
-  update.top.documents <- function(changedIDs, newIDs) {
-    for (topic in (append(changedIDs, newIDs))) {
-      if (topic <= K()) { next }
+  # update.top.documents <- function(changedIDs, newIDs) {
+  #   for (topic in (append(changedIDs, newIDs))) {
+  #     if (topic <= K()) { next }
 
-      stateStore$top.documents[[topic]] <- data()$doc.titles[stateStore$top.documents.order[[topic]]]
-    }
-  }
+  #     stateStore$top.documents[[topic]] <- data()$doc.titles[stateStore$top.documents.order[[topic]]]
+  #   }
+  # }
 
 
   update.top.vocab.order <- function(changedIDs, newIDs) {
@@ -488,13 +489,13 @@ function(input, output, session) {
   }
 
 
-  update.top.vocab <- function(changedIDs, newIDs) {
-    for (topic in append(changedIDs, newIDs)) {
-      if (topic <= K()) { next }
+  # update.top.vocab <- function(changedIDs, newIDs) {
+  #   for (topic in append(changedIDs, newIDs)) {
+  #     if (topic <= K()) { next }
 
-      stateStore$top.vocab[[topic]] <- data()$vocab[stateStore$top.vocab.order[[topic]]]
-    }
-  }
+  #     stateStore$top.vocab[[topic]] <- data()$vocab[stateStore$top.vocab.order[[topic]]]
+  #   }
+  # }
 
 
   # Display the name of the selected text directory
@@ -779,9 +780,9 @@ function(input, output, session) {
     init.all.beta()
     init.all.theta()
     init.top.documents.order()
-    init.top.documents()
+    # init.top.documents()
     init.top.vocab.order()
-    init.top.vocab()
+    # init.top.vocab()
     init.calculated.titles()
     init.display.titles()
 
@@ -1629,7 +1630,8 @@ function(input, output, session) {
     }
 
     # TODO(tfs; 2018-08-13): Rework for dynamic loading
-    docs <- stateStore$top.documents[[topic]][1:last.shown.docidx()]
+    # docs <- stateStore$top.documents[[topic]][1:last.shown.docidx()]
+    docs <- data()$doc.titles[stateStore$top.documents.order[[topic]][1:last.shown.docidx()]]
 
     thetas <- thetas.selected() # Used to show relevance to topic
     rv <- ""
@@ -1657,7 +1659,8 @@ function(input, output, session) {
     }
 
     # TODO(tfs; 2018-08-03): Rework for dynamic loading
-    terms <- stateStore$top.vocab[[topic]][1:last.shown.docidx()]
+    # terms <- stateStore$top.vocab[[topic]][1:last.shown.docidx()]
+    terms <- data()$vocab[stateStore$top.vocab.order[[topic]][1:last.shown.docidx()]]
 
     betas <- betas.selected()
     rv <- ""
