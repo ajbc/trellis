@@ -279,8 +279,8 @@ function(input, output, session) {
     clean.all.theta(ids)
     clean.calculated.titles(ids)
     clean.display.titles(ids)
-    # clean.top.documents.order(ids)
-    # clean.top.vocab.order(ids)
+    clean.top.documents.order(ids)
+    clean.top.vocab.order(ids)
   }
 
 
@@ -340,9 +340,19 @@ function(input, output, session) {
   }
 
 
-  # NOTE(tfs): I don't think we need to clean these.
-  #            If we start leaking memory or something strange, check here
- 
+  clean.top.documents.order <- function(ids) {
+    for (i in ids) {
+      stateStore$top.documents.order[[i]] <- NULL
+    }
+  }
+  
+
+  clean.top.vocab.order <- function(ids) {
+    for (i in ids) {
+      stateStore$top.vocab.order[[i]] <- NULL
+    }
+  }
+
 
   update.all.aggregate.state <- function() {
     ids <- seq(max.id())
@@ -1665,6 +1675,7 @@ function(input, output, session) {
 
     # TODO(tfs; 2018-08-13): Rework for dynamic loading
     # docs <- stateStore$top.documents[[topic]][1:last.shown.docidx()]
+    # TODO(tfs): Why is this causing an index out of bounds sometimes?
     docs <- data()$doc.titles[stateStore$top.documents.order[[topic]][1:last.shown.docidx()]]
 
     thetas <- thetas.selected() # Used to show relevance to topic
