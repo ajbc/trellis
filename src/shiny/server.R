@@ -328,16 +328,8 @@ function(input, output, session) {
 
   # NOTE(tfs): I don't think we need to clean these.
   #            If we start leaking memory or something strange, check here
-  # clean.top.documents.order <- function(ids) {
-  #   print("TO BE IMPLEMENTED")
-  # }
-
-
-  # clean.top.vocab.order <- function(ids) {
-  #   print("TO BE IMPLEMENTED")
-  # }
-
-
+ 
+ 
   update.all.aggregate.state <- function() {
     ids <- seq(max.id())
     update.aggregate.state(ids, c())
@@ -360,6 +352,8 @@ function(input, output, session) {
     leaf.beta <- beta()
     # lids <- leaf.ids()
     # lids <- stateStore$leaf.map
+
+    # TODO(tfs; 2018-08-13): Store this in stateStore or a separate reactive variable
     weights <- colSums(data()$theta)
 
     if (length(newIDs) > 0) {
@@ -498,7 +492,7 @@ function(input, output, session) {
     for (topic in append(changedIDs, newIDs)) {
       if (topic <= K()) { next }
 
-      stateStore$top.vocab.order[[topic]] <- data()$vocab[stateStore$top.vocab.order[[topic]]]
+      stateStore$top.vocab[[topic]] <- data()$vocab[stateStore$top.vocab.order[[topic]]]
     }
   }
 
@@ -555,7 +549,7 @@ function(input, output, session) {
         }
       }
 
-      for (i in seq(max.id())) {
+      for (i in seq(max(K(), max(newA[!is.na(newA)])))) {
         newLM[[toString(i)]] <- c()
       }
 
@@ -761,7 +755,7 @@ function(input, output, session) {
 
       initLM <- list()
 
-      for (i in seq(max.id())) {
+      for (i in seq(max(K(), max(initAssigns[!is.na(initAssigns)])))) {
         initLM[[toString(i)]] <- c()
       }
 
@@ -776,15 +770,6 @@ function(input, output, session) {
           p <- initAssigns[[p]]
         }
       }
-
-      print("beep")
-      print(initAssigns)
-      print("---------")
-      print(initLM)
-      print("---------")
-      print(initCM)
-      print("---------")
-      print("boop")
 
       stateStore$leaf.map <- initLM
       stateStore$child.map <- initCM
@@ -838,7 +823,6 @@ function(input, output, session) {
   # Returns the highest topic id number
   max.id <- reactive({
     # NOTE(tfs): max() returns NA if NA exists
-    print(stateStore$assigns)
     return(max(K(), max(stateStore$assigns[!is.na(stateStore$assigns)])))
   })
 
@@ -998,11 +982,11 @@ function(input, output, session) {
     for (i in newIDs) {
       cluster.leaves <- c()
 
-      for (ch in stateStore$child.map[[i]]) {
+      for (ch in stateStore$child.map[[toString(i)]]) {
         cluster.leaves <- append(cluster.leaves, stateStore$leaf.map[[ch]])
       }
 
-      stateStore$leaf.map[[i]] <- cluster.leaves
+      stateStore$leaf.map[[toString(i)]] <- cluster.leaves
     }
 
     # Relies on child.map, leaf.map, and assigns being already updated
@@ -1117,10 +1101,6 @@ function(input, output, session) {
 
     empty.id <- source.id
 
-    print("HALP")
-    print(stateStore$assigns)
-    print(source.id)
-    print("hep")
     originP <- stateStore$assigns[[source.id]]
     origin.leaves <- stateStore$leaf.map[[toString(source.id)]]
 
@@ -1210,9 +1190,7 @@ function(input, output, session) {
     ids.to.clean <- c()
 
     # Clean up if the update emptied a node
-    print("AKAKAKAKA")
     while(empty.id > 0 && (is.null(stateStore$leaf.map[[toString(empty.id)]]) || length(stateStore$leaf.map[[toString(empty.id)]]) <= 0)) {
-      print("eep")
       nid <- stateStore$assigns[[empty.id]]
       ids.to.clean <- append(ids.to.clean, empty.id)
       pstr <- toString(stateStore$assigns[[empty.id]])
@@ -1220,7 +1198,6 @@ function(input, output, session) {
       stateStore$assigns[[empty.id]] <- NA
       empty.id <- nid
     }
-    print("tapapapa")
 
     if (source.id > 0 && !(source.id %in% ids.to.clean)) {
       itr <- stateStore$assigns[[source.id]]
