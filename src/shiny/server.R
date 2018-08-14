@@ -169,14 +169,11 @@ function(input, output, session) {
   init.calculated.titles <- function() {
     if (is.null(data())) { return() }
 
-    if (node.maxID() <= 0) { return() }
-
     ab <- stateStore$all.beta
 
     rv <- c()
     for (cluster in seq(max.id())) {
-      title <- paste(data()$vocab[order(ab[cluster,],
-                                        decreasing=TRUE)][seq(5)], collapse=" ")
+      title <- paste(stateStore$top.vocab[[cluster]][seq(5)], collapse=" ")
 
       rv <- c(rv, title)
     }
@@ -348,12 +345,12 @@ function(input, output, session) {
   update.aggregate.state <- function(changedIDs, newIDs) {
     update.all.beta(changedIDs, newIDs)
     update.all.theta(changedIDs, newIDs)
-    update.calculated.titles(changedIDs, newIDs)
-    update.display.titles(changedIDs, newIDs)
     update.top.documents.order(changedIDs, newIDs)
     update.top.documents(changedIDs, newIDs)
     update.top.vocab.order(changedIDs, newIDs)
     update.top.vocab(changedIDs, newIDs)
+    update.calculated.titles(changedIDs, newIDs)
+    update.display.titles(changedIDs, newIDs)
   }
 
 
@@ -746,12 +743,13 @@ function(input, output, session) {
 
     init.all.beta()
     init.all.theta()
-    init.calculated.titles()
-    init.display.titles()
     init.top.documents.order()
     init.top.documents()
     init.top.vocab.order()
     init.top.vocab()
+    init.calculated.titles()
+    init.display.titles()
+
 
     req(bubbles.data()) # Similarly ensures that bubbles.data() finishes running before displays transition
     shinyjs::hide(selector=".initial")
@@ -990,7 +988,7 @@ function(input, output, session) {
   #         Document tab displays contents for any hovered OR selected topic.
   topic.doctab.title <- reactive({
     if (input$topic.active == "") {
-      return("Please Hover or Select a Topic")
+      return("Please Hover Over or Select a Topic")
     }
 
     topic <- as.integer(input$topic.active)
