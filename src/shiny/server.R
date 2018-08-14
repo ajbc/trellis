@@ -127,26 +127,70 @@ function(input, output, session) {
 
     ab <- matrix(0, nrow=max.id(), ncol=ncol(leaf.beta))
 
-    for (l in seq(K())) {
-      ab[l,] <- leaf.beta[l,]
-    }
+    # for (l in seq(K())) {
+    #   ab[l,] <- leaf.beta[l,]
+    # }
+
+    ab[seq(K()),] <- leaf.beta[seq(K()),]
 
     # Use beta values of leaves (intial topics) to calculate aggregate beta values for meta topics/clusters
     if (max.id() > K()) {
+    #   for (clusterID in append(changedIDs, newIDs)) {
+    #     if (clusterID <= K()) { next } # We never need to update leaf values
+    #     if (is.na(stateStore$assigns[[clusterID]])) { next }
+
+    #     # vals <- 0
+    #     # stateStore$all.beta[clusterID,] <- 0
+
+    #     # TODO(tfs; 2018-08-13): Move to stateStore
+    #     leaves <- stateStore$leaf.map[[toString(clusterID)]]
+
+    #     # vals <- colSums(leaf.beta[leaves,] * weights[leaves])
+    #     vals <- leaf.beta[leaves,] * weights[leaves]
+
+    #     if (!is.null(dim(vals)) && dim(vals) > 1) {
+    #       vals <- colSums(vals)
+    #     }
+
+    #     vals <- vals / sum(vals)
+
+
+    #     # for (leafid in leaves) {
+    #     #   vals <- vals + (leaf.beta[leafid,] * weights[leafid])
+    #     #   # stateStore$all.beta[clusterID,] <- stateStore$all.beta[clusterID,] + vals
+    #     # }
+
+    #     # stateStore$all.beta[clusterID,] <- vals
+
+    #     # Normalize the new distribution
+    #     # TODO(tfs; 2018-08-14): Switched to storing weighted betas? Could allow for more specific updates/higher efficiency
+    #     # stateStore$all.beta[clusterID,] <- stateStore$all.beta[clusterID,] / sum(stateStore$all.beta[clusterID,])
+    #     stateStore$all.beta[clusterID,] <- vals
+    #   }
+    # }
+
       for (clusterID in seq(K()+1, max.id())) {
         if (is.na(stateStore$assigns[[clusterID]])) { next }
 
-        val <- 0
+        # val <- 0
 
         leaves <- stateStore$leaf.map[[toString(clusterID)]]
 
-        for (leafid in leaves) {
-          val <- leaf.beta[leafid,] * weights[leafid]
-          ab[clusterID,] <- ab[clusterID,] + val
+        vals <- leaf.beta[leaves,] * weights[leaves]
+
+        if (!is.null(dim(vals)) && dim(vals) > 1) {
+          vals <- colSums(vals)
         }
 
+        vals <- vals / sum(vals)
+
+        # for (leafid in leaves) {
+        #   val <- leaf.beta[leafid,] * weights[leafid]
+        #   ab[clusterID,] <- ab[clusterID,] + val
+        # }
+
         # Normalize the new distribution
-        ab[clusterID,] = ab[clusterID,] / sum(ab[clusterID,])
+        ab[clusterID,] <- vals / sum(vals)
       }
     }
 
@@ -159,6 +203,29 @@ function(input, output, session) {
 
     at <- matrix(0, nrow=nrow(theta), ncol=max.id())
 
+    # if (i <= K()) { next } # We never need to update leaf values
+    #   # stateStore$all.theta[,i] <- 0
+
+    #   if (is.null(stateStore$leaf.map[[toString(i)]])) { next }
+
+    #   # vals <- 0
+
+    #   leaves <- stateStore$leaf.map[[toString(i)]]
+
+    #   # for (leafID in leaves) {
+    #   #   # stateStore$all.theta[,i] <- stateStore$all.theta[,i] + theta[,leafID]
+    #   #   vals <- vals + theta[,leafID]
+    #   # }
+
+    #   vals <- theta[,leaves]
+
+    #   if (length(leaves) > 1) {
+    #     vals <- rowSums(vals)
+    #   }
+
+    #   stateStore$all.theta[,i] <- vals
+    # }
+
     for (i in seq(max.id())) {
       if (i <= K()) {
         at[,i] <- theta[,i]
@@ -167,9 +234,17 @@ function(input, output, session) {
 
         leaves <- stateStore$leaf.map[[toString(i)]]
 
-        for (leafID in leaves) {
-          at[,i] <- at[,i] + theta[,leafID]
+        # for (leafID in leaves) {
+        #   at[,i] <- at[,i] + theta[,leafID]
+        # }
+
+        vals <- theta[,leaves]
+
+        if (length(leaves) > 1) {
+          vals <- rowSums(vals)
         }
+
+        at[,i] <- vals
       }
     }
 
