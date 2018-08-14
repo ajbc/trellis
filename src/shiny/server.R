@@ -1213,8 +1213,6 @@ function(input, output, session) {
           stateStore$child.map[[toString(target.id)]] <- append(stateStore$child.map[[toString(target.id)]], ch)
         }
 
-        stateStore$child.map[[toString]]
-
         # Empty source node's childmap
         stateStore$child.map[[toString(source.id)]] <- c()
 
