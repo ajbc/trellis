@@ -19,6 +19,11 @@ file.home <- "~"
 num.documents.shown <- 100
 
 
+# TODO(tfs; 2018-08-14): MINIMIZE USE OF $ ACCESSOR
+#                        According to the profvis profiler, $ seems to be very slow
+#                        (at least for reactiveValuse)
+
+
 function(input, output, session) {
   # Initialize a single storage of state.
   # This will serve as the ground truth for the logic/data of the tool
@@ -218,7 +223,7 @@ function(input, output, session) {
     rv <- list()
     at <- stateStore$all.theta
     for (topic in seq(max.id())) {
-      rv[[topic]] <- order(at[,topic], decreasing=TRUE)
+      rv[[topic]] <- order(at[,topic], decreasing=TRUE)[1:last.shown.docidx()]
     }
 
     stateStore$top.documents.order <- rv
@@ -243,7 +248,7 @@ function(input, output, session) {
 
     for (topic in seq(max.id())) {
       # Currently showing the same number of vocab terms as documents
-      rv[[topic]] <- order(ab[topic,], decreasing=TRUE)
+      rv[[topic]] <- order(ab[topic,], decreasing=TRUE)[1:last.shown.docidx()]
     }
 
     stateStore$top.vocab.order <- rv
@@ -349,6 +354,8 @@ function(input, output, session) {
   }
 
 
+  # TODO(tfs; 2018-08-14): According to profvis, most of the time spent updating is in this method.
+  #                        Should switch over to something more detailed, similar to CM, LM, assigns
   update.all.beta <- function(changedIDs, newIDs) {
     leaf.beta <- beta()
     # lids <- leaf.ids()
@@ -373,19 +380,33 @@ function(input, output, session) {
         if (clusterID <= K()) { next } # We never need to update leaf values
         if (is.na(stateStore$assigns[[clusterID]])) { next }
 
-        val <- 0
-        stateStore$all.beta[clusterID,] <- 0
+        # vals <- 0
+        # stateStore$all.beta[clusterID,] <- 0
 
         # TODO(tfs; 2018-08-13): Move to stateStore
         leaves <- stateStore$leaf.map[[toString(clusterID)]]
 
-        for (leafid in leaves) {
-          val <- leaf.beta[leafid,] * weights[leafid]
-          stateStore$all.beta[clusterID,] <- stateStore$all.beta[clusterID,] + val
+        # vals <- colSums(leaf.beta[leaves,] * weights[leaves])
+        vals <- leaf.beta[leaves,] * weights[leaves]
+
+        if (!is.null(dim(vals)) && dim(vals) > 1) {
+          vals <- colSums(vals)
         }
 
+        vals <- vals / sum(vals)
+
+
+        # for (leafid in leaves) {
+        #   vals <- vals + (leaf.beta[leafid,] * weights[leafid])
+        #   # stateStore$all.beta[clusterID,] <- stateStore$all.beta[clusterID,] + vals
+        # }
+
+        # stateStore$all.beta[clusterID,] <- vals
+
         # Normalize the new distribution
-        stateStore$all.beta[clusterID,] = stateStore$all.beta[clusterID,] / sum(stateStore$all.beta[clusterID,])
+        # TODO(tfs; 2018-08-14): Switched to storing weighted betas? Could allow for more specific updates/higher efficiency
+        # stateStore$all.beta[clusterID,] <- stateStore$all.beta[clusterID,] / sum(stateStore$all.beta[clusterID,])
+        stateStore$all.beta[clusterID,] <- vals
       }
     }
   }
@@ -407,15 +428,26 @@ function(input, output, session) {
     # TODO(tfs; 2018-08-13): Switch this to build from leaves up, then normalize after the fact
     for (i in append(changedIDs, newIDs)) {
       if (i <= K()) { next } # We never need to update leaf values
-      stateStore$all.theta[,i] <- 0
+      # stateStore$all.theta[,i] <- 0
 
       if (is.null(stateStore$leaf.map[[toString(i)]])) { next }
 
+      # vals <- 0
+
       leaves <- stateStore$leaf.map[[toString(i)]]
 
-      for (leafID in leaves) {
-        stateStore$all.theta[,i] <- stateStore$all.theta[,i] + theta[,leafID]
+      # for (leafID in leaves) {
+      #   # stateStore$all.theta[,i] <- stateStore$all.theta[,i] + theta[,leafID]
+      #   vals <- vals + theta[,leafID]
+      # }
+
+      vals <- theta[,leaves]
+
+      if (length(leaves) > 1) {
+        vals <- rowSums(vals)
       }
+
+      stateStore$all.theta[,i] <- vals
     }
   }
 
@@ -520,12 +552,16 @@ function(input, output, session) {
     # Loads `beta`, `theta`, `filenames`, `titles`, and `vocab`
     load(as.character(path$datapath))
 
+    # print("----file loaded")
+
     # Optionally load pre-saved data
     vals <- ls()
 
     if ("dataName" %in% vals) {
       stateStore$dataname <- dataName
     }
+
+    # print("----dataname loaded (or not)")
 
     if ("aString" %in% vals) {
       newA <- c() # Set up new assignments vector
@@ -550,12 +586,12 @@ function(input, output, session) {
         }
       }
 
-      for (i in seq(max(K(), max(newA[!is.na(newA)])))) {
+      for (i in seq(max(nrow(beta), max(newA[!is.na(newA)])))) {
         newLM[[toString(i)]] <- c()
       }
 
       # TODO(tfs; 2018-08-13): It would be great to find a faster way to do/maintain this
-      for (i in seq(K())) {
+      for (i in seq(nrow(beta))) {
         p <- newA[[i]]
 
         while(p > 0) {
@@ -569,13 +605,19 @@ function(input, output, session) {
       stateStore$assigns <- newA
     }
 
+    # print("---- astring processed, or not")
+
     if ("mantitles" %in% vals) {
       stateStore$manual.titles <- mantitles
     }
 
+    # print("---- mantitles processed, or not")
+
     if ("collapsed.flags" %in% vals) {
       stateStore$collapsed.nodes <- collapsed.flags
     }
+
+    # print("---- collapsed flags processed")
 
     # Parse path to text file directory
     document.location <- NULL
@@ -588,6 +630,8 @@ function(input, output, session) {
       document.location <- as.character(parseDirPath(c(home=file.home), isolate(input$textlocation)))
     }
 
+    # print("---- doc location loaded")
+
     # Tell frontend to initiate clearing of:
     #     * input[["textlocation-modal"]]
     #     * input[["textlocation"]]
@@ -595,6 +639,8 @@ function(input, output, session) {
     #     * input[["modelfile"]]
     # To free up resources (shinyFiles seems to be fairly expensive/have a fairly high performance impact otherwise)
     session$sendCustomMessage(type="clearFileInputs", "")
+
+    # print("---- files cleared")
 
     # Remove the global variables so we don't store all our information twice
     rl <- list("beta"=beta, "theta"=theta, "filenames"=filenames, "doc.titles"=titles, "document.location"=document.location, "vocab"=vocab)
@@ -728,7 +774,10 @@ function(input, output, session) {
 
   # Triggered by topics.js handler for "processingFile", should remove race condition/force sequentiality
   observeEvent(input$start.processing, {
+    # print("loading data")
     req(data()) # Ensures that data() will finish running before displays transition on the frontend
+
+    # print("data loaded")
 
     if (is.null(stateStore$assigns)) {
       initCM <- list()
@@ -777,18 +826,28 @@ function(input, output, session) {
       stateStore$assigns <- initAssigns
     }
 
+    # print("assigns, lm, cm, initialized")
+
     # TODO(tfs; 2018-08-14): Figure out what is taking so long to initialize
+    # print("begin init")
     init.all.beta()
+    # print("all beta done")
     init.all.theta()
+    # print("all theta done")
     init.top.documents.order()
+    # print("top doc order done")
     # init.top.documents()
     init.top.vocab.order()
+    # print("top vocab order done")
     # init.top.vocab()
     init.calculated.titles()
+    # print("calc titles done")
     init.display.titles()
+    # print("display titles done")
 
 
     req(bubbles.data()) # Similarly ensures that bubbles.data() finishes running before displays transition
+    # print("bubbles data calculated")
     shinyjs::hide(selector=".initial")
     shinyjs::show(selector=".left-content")
     shinyjs::show(selector=".main-content")
