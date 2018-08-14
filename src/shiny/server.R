@@ -42,7 +42,9 @@ function(input, output, session) {
                                calculated.titles=NULL,
                                display.titles=NULL,
                                top.documents.order=NULL,
-                               top.vocab.order=NULL)
+                               top.documents=NULL,
+                               top.vocab.order=NULL,
+                               top.vocab=NULL)
 
   # Function used to select nodes for flatten mode
   find.level.children <- function(id, level) {
@@ -223,6 +225,17 @@ function(input, output, session) {
   }
 
 
+  init.top.documents <- function() {
+    td <- list()
+
+    for (i in seq(max.id())) {
+      td[[i]] <- data()$doc.titles[stateStore$top.documents.order[[i]]]
+    }
+
+    stateStore$top.documents <- td
+  }
+
+
   init.top.vocab.order <- function() {
     # TODO(tfs; 2018-07-07): Rework for dynamic loading
     rv <- list()
@@ -234,6 +247,17 @@ function(input, output, session) {
     }
 
     stateStore$top.vocab.order <- rv
+  }
+
+
+  init.top.vocab <- function() {
+    tv <- list()
+
+    for (i in seq(max.id())) {
+      tv[[i]] <- data()$vocab[stateStore$top.vocab.order[[i]]]
+    }
+
+    stateStore$top.vocab <- tv
   }
 
 
@@ -327,7 +351,9 @@ function(input, output, session) {
     update.calculated.titles(changedIDs, newIDs)
     update.display.titles(changedIDs, newIDs)
     update.top.documents.order(changedIDs, newIDs)
+    update.top.documents(changedIDs, newIDs)
     update.top.vocab.order(changedIDs, newIDs)
+    update.top.vocab(changedIDs, newIDs)
   }
 
 
@@ -447,11 +473,29 @@ function(input, output, session) {
   }
 
 
+  update.top.documents <- function(changedIDs, newIDs) {
+    for (topic in (append(changedIDs, newIDs))) {
+      if (topic <= K()) { next }
+
+      stateStore$top.documents[[topic]] <- data()$doc.titles[stateStore$top.documents.order[[topic]]]
+    }
+  }
+
+
   update.top.vocab.order <- function(changedIDs, newIDs) {
     for (topic in append(changedIDs, newIDs)) {
       if (topic <= K()) { next }
 
       stateStore$top.vocab.order[[topic]] <- order(stateStore$all.beta[topic,], decreasing=TRUE)
+    }
+  }
+
+
+  update.top.vocab <- function(changedIDs, newIDs) {
+    for (topic in append(changedIDs, newIDs)) {
+      if (topic <= K()) { next }
+
+      stateStore$top.vocab.order[[topic]] <- data()$vocab[stateStore$top.vocab.order[[topic]]]
     }
   }
 
@@ -690,6 +734,10 @@ function(input, output, session) {
       } else {
         initAssigns <- c(rep(0, K()))
         initCM[[toString(0)]] <- seq(K())
+
+        for (i in seq(K())) {
+          initCM[[toString(i)]] <- c()
+        }
       }
 
       stateStore$child.map <- initCM
@@ -701,7 +749,9 @@ function(input, output, session) {
     init.calculated.titles()
     init.display.titles()
     init.top.documents.order()
+    init.top.documents()
     init.top.vocab.order()
+    init.top.vocab()
 
     req(bubbles.data()) # Similarly ensures that bubbles.data() finishes running before displays transition
     shinyjs::hide(selector=".initial")
@@ -1489,7 +1539,7 @@ function(input, output, session) {
     }
 
     # TODO(tfs; 2018-08-13): Rework for dynamic loading
-    docs <- data()$doc.titles[stateStore$top.documents.order[[topic]][1:last.shown.docidx()]]
+    docs <- stateStore$top.documents[[topic]][1:last.shown.docidx()]
 
     thetas <- thetas.selected() # Used to show relevance to topic
     rv <- ""
@@ -1517,7 +1567,7 @@ function(input, output, session) {
     }
 
     # TODO(tfs; 2018-08-03): Rework for dynamic loading
-    terms <- data()$vocab[stateStore$top.vocab.order[[topic]][1:last.shown.docidx()]]
+    terms <- stateStore$top.vocab[[topic]][1:last.shown.docidx()]
 
     betas <- betas.selected()
     rv <- ""
