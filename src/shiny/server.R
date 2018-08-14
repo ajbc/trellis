@@ -34,6 +34,7 @@ function(input, output, session) {
   stateStore <- reactiveValues(manual.titles=list(),
                                assigns=NULL,
                                child.map=NULL,
+                               leaf.map=NULL,
                                dataname="Data",
                                collapsed.nodes=NULL,
                                flat.selection=NULL,
@@ -111,7 +112,8 @@ function(input, output, session) {
 
   init.all.beta <- function() {
     leaf.beta <- beta()
-    lids <- leaf.ids()
+    # lids <- leaf.ids()
+    # lids <- stateStore$leaf.map
     weights <- colSums(data()$theta)
 
     ab <- matrix(0, nrow=max.id(), ncol=ncol(leaf.beta))
@@ -127,7 +129,7 @@ function(input, output, session) {
 
         val <- 0
 
-        leaves <- leaf.ids()[[clusterID]]
+        leaves <- stateStore$leaf.map[[toString(clusterID)]]
 
         for (leafid in leaves) {
           val <- leaf.beta[leafid,] * weights[leafid]
@@ -152,9 +154,9 @@ function(input, output, session) {
       if (i <= K()) {
         at[,i] <- theta[,i]
       } else {
-        if (i > length(leaf.ids()) || is.null(leaf.ids()[[i]])) { next }
+        if (is.null(stateStore$leaf.map[[toString(i)]])) { next }
 
-        leaves <- leaf.ids()[[i]]
+        leaves <- stateStore$leaf.map[[toString(i)]]
 
         for (leafID in leaves) {
           at[,i] <- at[,i] + theta[,leafID]
@@ -356,7 +358,8 @@ function(input, output, session) {
 
   update.all.beta <- function(changedIDs, newIDs) {
     leaf.beta <- beta()
-    lids <- leaf.ids()
+    # lids <- leaf.ids()
+    # lids <- stateStore$leaf.map
     weights <- colSums(data()$theta)
 
     if (length(newIDs) > 0) {
@@ -368,6 +371,7 @@ function(input, output, session) {
       }
     }
 
+    # TODO(tfs; 2018-08-13): Switch this to build from leaves up, then normalize after the fact
     # Use beta values of leaves (intial topics) to calculate aggregate beta values for meta topics/clusters
     if (max.id() > K()) {
       for (clusterID in append(changedIDs, newIDs)) {
@@ -378,7 +382,7 @@ function(input, output, session) {
         stateStore$all.beta[clusterID,] <- 0
 
         # TODO(tfs; 2018-08-13): Move to stateStore
-        leaves <- leaf.ids()[[clusterID]]
+        leaves <- stateStore$leaf.map[[toString(clusterID)]]
 
         for (leafid in leaves) {
           val <- leaf.beta[leafid,] * weights[leafid]
@@ -404,13 +408,15 @@ function(input, output, session) {
       }
     }
 
+
+    # TODO(tfs; 2018-08-13): Switch this to build from leaves up, then normalize after the fact
     for (i in append(changedIDs, newIDs)) {
       if (i <= K()) { next } # We never need to update leaf values
       stateStore$all.theta[,i] <- 0
 
-      if (i > length(leaf.ids()) || is.null(leaf.ids()[[i]])) { next }
+      if (is.null(stateStore$leaf.map[[toString(i)]])) { next }
 
-      leaves <- leaf.ids()[[i]]
+      leaves <- stateStore$leaf.map[[toString(i)]]
 
       for (leafID in leaves) {
         stateStore$all.theta[,i] <- stateStore$all.theta[,i] + theta[,leafID]
@@ -529,6 +535,7 @@ function(input, output, session) {
     if ("aString" %in% vals) {
       newA <- c() # Set up new assignments vector
       newCM <- list() # Set up new childmap
+      newLM <- list() # Set up new leafmap
 
       for (ch in seq(nrow(beta))) {
         newA[[ch]] <- 0 # Will be overwritten, but ensures that at least all assignments to 0 are made
@@ -548,6 +555,21 @@ function(input, output, session) {
         }
       }
 
+      for (i in seq(max.id())) {
+        newLM[[toString(i)]] <- c()
+      }
+
+      # TODO(tfs; 2018-08-13): It would be great to find a faster way to do/maintain this
+      for (i in seq(K())) {
+        p <- newA[[i]]
+
+        while(p > 0) {
+          newLM[[toString(p)]] <- append(newLM[[toString(p)]], i)
+          p <- newA[[p]]
+        }
+      }
+
+      stateStore$leaf.map <- newLM
       stateStore$child.map <- newCM
       stateStore$assigns <- newA
     }
@@ -737,6 +759,34 @@ function(input, output, session) {
         }
       }
 
+      initLM <- list()
+
+      for (i in seq(max.id())) {
+        initLM[[toString(i)]] <- c()
+      }
+
+      # TODO(tfs; 2018-08-13): It would be great to find a faster way to do/maintain this
+      for (i in seq(K())) {
+        initLM[[toString(i)]] <- c(i) # A leaf is the only memeber in it's own leafmap entry
+
+        p <- initAssigns[[i]]
+
+        while(p > 0) {
+          initLM[[toString(p)]] <- append(initLM[[toString(p)]], i)
+          p <- initAssigns[[p]]
+        }
+      }
+
+      print("beep")
+      print(initAssigns)
+      print("---------")
+      print(initLM)
+      print("---------")
+      print(initCM)
+      print("---------")
+      print("boop")
+
+      stateStore$leaf.map <- initLM
       stateStore$child.map <- initCM
       stateStore$assigns <- initAssigns
     }
@@ -788,6 +838,7 @@ function(input, output, session) {
   # Returns the highest topic id number
   max.id <- reactive({
     # NOTE(tfs): max() returns NA if NA exists
+    print(stateStore$assigns)
     return(max(K(), max(stateStore$assigns[!is.na(stateStore$assigns)])))
   })
 
@@ -943,7 +994,18 @@ function(input, output, session) {
       stateStore$child.map[[toString(pa)]] <- append(stateStore$child.map[[toString(pa)]], ch)
     }
 
-    leafIDs <- c()
+    # Save the leaf maps of all new clusters
+    for (i in newIDs) {
+      cluster.leaves <- c()
+
+      for (ch in stateStore$child.map[[i]]) {
+        cluster.leaves <- append(cluster.leaves, stateStore$leaf.map[[ch]])
+      }
+
+      stateStore$leaf.map[[i]] <- cluster.leaves
+    }
+
+    # Relies on child.map, leaf.map, and assigns being already updated
     update.aggregate.state(changedIDs, newIDs)
 
     # Notify frontend of completion
@@ -973,8 +1035,9 @@ function(input, output, session) {
     stateStore$assigns[[topic]] <- NA
     stateStore$child.map[[toString(p)]] <- stateStore$child.map[[toString(p)]][stateStore$child.map[[toString(p)]] != topic]
 
-    # Empty childmap of deleted node
+    # Empty childmap and leafmap of deleted node
     stateStore$child.map[[toString(topic)]] <- c()
+    stateStore$leaf.map[[toString(topic)]] <- c()
 
     # NOTE(tfs; 2018-08-13): I think we can just leave this alone.
     #                        If it becomes an issue, we can deal with shrinking/cleaning stateStore
@@ -1041,6 +1104,8 @@ function(input, output, session) {
     target.id <- input$updateAssignments[[2]]
     shift.held <- input$updateAssignments[[3]]
 
+    if (source.id == 0) { return() } # We won't move the root
+
     # Leaf checks currently rely on all initial topics (leaves) to have IDs 1-K()
     source.is.leaf <- (source.id <= K() && K() > 0)
     target.is.leaf <- (target.id <= K() && target.id > 0)
@@ -1051,6 +1116,13 @@ function(input, output, session) {
     if (source.id == target.id) { return() }
 
     empty.id <- source.id
+
+    print("HALP")
+    print(stateStore$assigns)
+    print(source.id)
+    print("hep")
+    originP <- stateStore$assigns[[source.id]]
+    origin.leaves <- stateStore$leaf.map[[toString(source.id)]]
 
     changedIDs <- c()
     if (source.id > 0) { changedIDs <- append(changedIDs, source.id) }
@@ -1066,6 +1138,11 @@ function(input, output, session) {
         empty.id <- stateStore$assigns[[source.id]]
 
         newID <- max.id() + 1
+
+        # Add leafmap for new id (this is the only place we add an ID)
+        stateStore$leaf.map[[toString(newID)]] <- c(origin.leaves)
+
+        # Update assignments and child maps
         stateStore$assigns[[newID]] <- target.id
         stateStore$child.map[[toString(target.id)]] <- append(stateStore$child.map[[toString(target.id)]], newID)
         stateStore$child.map[[toString(newID)]] <- c(source.id)
@@ -1113,10 +1190,29 @@ function(input, output, session) {
       }
     }
 
+    # Append to target and ancestors
+    if (target.id > 0) {
+      stateStore$leaf.map[[toString(target.id)]] <- append(stateStore$leaf.map[[toString(target.id)]], origin.leaves)
+      p <- stateStore$assigns[[target.id]]
+
+      while (p > 0) {
+        stateStore$leaf.map[[toString(p)]] <- append(stateStore$leaf.map[[toString(p)]], origin.leaves)
+        p <- stateStore$assigns[[p]]
+      }
+    }
+
+    # Remove leaves from origin's ancestors
+    while (originP > 0) {
+      stateStore$leaf.map[[toString(originP)]] <- stateStore$leaf.map[[toString(originP)]][!(stateStore$leaf.map[[toString(originP)]] %in% origin.leaves)]
+      originP <- stateStore$assigns[[originP]]
+    }
+
     ids.to.clean <- c()
 
     # Clean up if the update emptied a node
-    while(empty.id > 0 && (empty.id > length(leaf.ids()) || is.null(leaf.ids()[[empty.id]]) || length(leaf.ids()[[empty.id]]) <= 0)) {
+    print("AKAKAKAKA")
+    while(empty.id > 0 && (is.null(stateStore$leaf.map[[toString(empty.id)]]) || length(stateStore$leaf.map[[toString(empty.id)]]) <= 0)) {
+      print("eep")
       nid <- stateStore$assigns[[empty.id]]
       ids.to.clean <- append(ids.to.clean, empty.id)
       pstr <- toString(stateStore$assigns[[empty.id]])
@@ -1124,6 +1220,7 @@ function(input, output, session) {
       stateStore$assigns[[empty.id]] <- NA
       empty.id <- nid
     }
+    print("tapapapa")
 
     if (source.id > 0 && !(source.id %in% ids.to.clean)) {
       itr <- stateStore$assigns[[source.id]]
@@ -1157,7 +1254,6 @@ function(input, output, session) {
       changedIDs <- changedIDs[changedIDs != source.id]
     }
 
-    leafIDs <- c()
     clean.aggregate.state(ids.to.clean)
     update.aggregate.state(changedIDs, newIDs)
   })
@@ -1192,6 +1288,25 @@ function(input, output, session) {
       }
     }
 
+    # Create new leafmap
+    newLM <- list()
+
+    for (i in seq(max.id())) {
+      newLM[[toString(i)]] <- c()
+    }
+
+    # TODO(tfs; 2018-08-13): It would be great to find a faster way to do/maintain this
+    # Build up leaf map, using new assignments
+    for (i in seq(K())) {
+      p <- newA[[i]]
+
+      while(p > 0) {
+        newLM[[toString(p)]] <- append(newLM[[toString(p)]], i)
+        p <- newA[[p]]
+      }
+    }
+
+    stateStore$leaf.map <- newLM
     stateStore$child.map <- newCM
     stateStore$assigns <- newA
 
@@ -1457,31 +1572,31 @@ function(input, output, session) {
 
   # TODO(tfs; 2018-08-13): Add to stateStore
   # Mapping of each cluster to all of its descendant leaves (initial topics)
-  leaf.ids <- reactive({
-    if (is.null(stateStore$assigns)) { return() }
-    leafmap <- list()
+  # leaf.ids <- reactive({
+  #   if (is.null(stateStore$assigns)) { return() }
+  #   leafmap <- list()
 
-    # Leaf set = original K() topics
-    for (ch in seq(K())) {
-      itrID <- ch
+  #   # Leaf set = original K() topics
+  #   for (ch in seq(K())) {
+  #     itrID <- ch
 
-      p <- stateStore$assigns[itrID]
-      if (is.na(p) || is.null(p)) { next } # Continue
-      while (p > 0) {
-        if (p <= length(leafmap) && !is.null(leafmap[[p]])) {
-          leafmap[[p]] <- append(leafmap[[p]], ch)
-        } else {
-          leafmap[[p]] <- c(ch)
-        }
+  #     p <- stateStore$assigns[itrID]
+  #     if (is.na(p) || is.null(p)) { next } # Continue
+  #     while (p > 0) {
+  #       if (p <= length(leafmap) && !is.null(leafmap[[p]])) {
+  #         leafmap[[p]] <- append(leafmap[[p]], ch)
+  #       } else {
+  #         leafmap[[p]] <- c(ch)
+  #       }
 
-        itrID <- p
+  #       itrID <- p
 
-        p <- stateStore$assigns[itrID]
-      }
-    }
+  #       p <- stateStore$assigns[itrID]
+  #     }
+  #   }
 
-    return(leafmap)
-  })
+  #   return(leafmap)
+  # })
 
 
   # TODO(tfs): Phase this out in favor of dynamically displaying an increasing number
@@ -1697,7 +1812,7 @@ function(input, output, session) {
           # Aggregate weight on backend for collapsed nodes
           newWgt <- 0
 
-          for (l in leaf.ids()[[i + K()]]) {
+          for (l in stateStore$leaf.map[[toString(i + K())]]) {
             newWgt <- newWgt + cols[[l]]
           }
 
