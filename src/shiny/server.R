@@ -350,6 +350,7 @@ function(input, output, session) {
   }
 
 
+  # TODO(tfs; 2018-08-14): Switch to using children rather than leaves
   update.aggregate.state <- function(changedIDs, newIDs) {
     update.all.beta(changedIDs, newIDs)
     update.all.theta(changedIDs, newIDs)
@@ -1124,6 +1125,36 @@ function(input, output, session) {
     if (source.id > 0) { changedIDs <- append(changedIDs, source.id) }
     if (target.id > 0) { changedIDs <- append(changedIDs, target.id) }
 
+    # Add all ancestors of the original origin parent to changedIDs
+    if (source.id > 0) {
+      itr <- originP
+      if (!itr %in% changedIDs) {
+        changedIDs <- append(changedIDs, itr)
+      }
+
+      while(itr > 0) {
+        itr <- stateStore$assigns[[itr]]
+        if (!itr %in% changedIDs) {
+          changedIDs <- append(changedIDs, itr)
+        }
+      }
+    }
+
+    # Add all ancestors of the target to changedIDs
+    if (target.id > 0) {
+      itr <- stateStore$assigns[[target.id]]
+      if (!(itr %in% changedIDs)) {
+        changedIDs <- append(changedIDs, itr)
+      }
+
+      while(itr > 0) {
+        itr <- stateStore$assigns[[itr]]
+        if (!(itr %in% changedIDs)) {
+          changedIDs <- append(changedIDs, itr)
+        }
+      }
+    }
+
     newIDs <- c()
 
     # TODO(tfs; 2018-08-13): Transition to functions for updating child map
@@ -1165,7 +1196,9 @@ function(input, output, session) {
         empty.id <- stateStore$assigns[[source.id]]
 
         # Remove source from original parent in childmap
-        stateStore$child.map[[toString(stateStore$assigns[[source.id]])]] <- stateStore$child.map[[toString(stateStore$assigns[[source.id]])]][stateStore$child.map[[toString(stateStore$assigns[[source.id]])]] != source.id]
+        # NOTE(tfs): I think this is the place something isn't being reset properly
+        pstr <- toString(stateStore$assigns[[source.id]])
+        stateStore$child.map[[pstr]] <- stateStore$child.map[[pstr]][stateStore$child.map[[pstr]] != source.id]
 
         # Move a single leaf node
         stateStore$assigns[[source.id]] <- target.id
@@ -1173,11 +1206,14 @@ function(input, output, session) {
         # Add source to new parent's childmap
         stateStore$child.map[[toString(target.id)]] <- append(stateStore$child.map[[toString(target.id)]], source.id)
       } else {
+        # NOTE(tfs): This appears to be the only setting where the previous parent is reset correctly?
         # Move all children of the source node
         for (ch in stateStore$child.map[[toString(source.id)]]) {
           stateStore$assigns[[ch]] <- target.id
           stateStore$child.map[[toString(target.id)]] <- append(stateStore$child.map[[toString(target.id)]], ch)
         }
+
+        stateStore$child.map[[toString]]
 
         # Empty source node's childmap
         stateStore$child.map[[toString(source.id)]] <- c()
@@ -1197,10 +1233,12 @@ function(input, output, session) {
       }
     }
 
+    pitr <- originP
+
     # Remove leaves from origin's ancestors
-    while (originP > 0) {
-      stateStore$leaf.map[[toString(originP)]] <- stateStore$leaf.map[[toString(originP)]][!(stateStore$leaf.map[[toString(originP)]] %in% origin.leaves)]
-      originP <- stateStore$assigns[[originP]]
+    while (pitr > 0) {
+      stateStore$leaf.map[[toString(pitr)]] <- stateStore$leaf.map[[toString(pitr)]][!(stateStore$leaf.map[[toString(pitr)]] %in% origin.leaves)]
+      pitr <- stateStore$assigns[[pitr]]
     }
 
     ids.to.clean <- c()
@@ -1215,37 +1253,9 @@ function(input, output, session) {
       empty.id <- nid
     }
 
-    if (source.id > 0 && !(source.id %in% ids.to.clean)) {
-      itr <- stateStore$assigns[[source.id]]
-      if (!itr %in% changedIDs && !(itr %in% ids.to.clean) && itr > 0  && !(itr %in% newIDs)) {
-        changedIDs <- append(changedIDs, itr)
-      }
-
-      while(itr > 0) {
-        itr <- stateStore$assigns[[itr]]
-        if (!(itr %in% changedIDs) && !(itr %in% ids.to.clean) && itr > 0  && !(itr %in% newIDs)) {
-          changedIDs <- append(changedIDs, itr)
-        }
-      }
-    }
-
-    if (target.id > 0 && !(target.id %in% ids.to.clean)) {
-      itr <- stateStore$assigns[[target.id]]
-      if (!(itr %in% changedIDs) && !(itr %in% ids.to.clean) && itr > 0  && !(itr %in% newIDs)) {
-        changedIDs <- append(changedIDs, itr)
-      }
-
-      while(itr > 0) {
-        itr <- stateStore$assigns[[itr]]
-        if (!(itr %in% changedIDs) && !(itr %in% ids.to.clean) && itr > 0  && !(itr %in% newIDs)) {
-          changedIDs <- append(changedIDs, itr)
-        }
-      }
-    }
-
-    if (source.id %in% ids.to.clean) {
-      changedIDs <- changedIDs[changedIDs != source.id]
-    }
+    changedIDs <- changedIDs[!duplicated(changedIDs)]
+    changedIDs <- changedIDs[!changedIDs %in% ids.to.clean]
+    changedIDs <- changedIDs[!changedIDs %in% newIDs]
 
     clean.aggregate.state(ids.to.clean)
     update.aggregate.state(changedIDs, newIDs)
