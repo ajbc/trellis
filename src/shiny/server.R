@@ -777,6 +777,7 @@ function(input, output, session) {
       stateStore$assigns <- initAssigns
     }
 
+    # TODO(tfs; 2018-08-14): Figure out what is taking so long to initialize
     init.all.beta()
     init.all.theta()
     init.top.documents.order()
