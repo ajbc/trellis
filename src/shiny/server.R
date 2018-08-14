@@ -127,48 +127,10 @@ function(input, output, session) {
 
     ab <- matrix(0, nrow=max.id(), ncol=ncol(leaf.beta))
 
-    # for (l in seq(K())) {
-    #   ab[l,] <- leaf.beta[l,]
-    # }
-
     ab[seq(K()),] <- leaf.beta[seq(K()),]
 
     # Use beta values of leaves (intial topics) to calculate aggregate beta values for meta topics/clusters
     if (max.id() > K()) {
-    #   for (clusterID in append(changedIDs, newIDs)) {
-    #     if (clusterID <= K()) { next } # We never need to update leaf values
-    #     if (is.na(stateStore$assigns[[clusterID]])) { next }
-
-    #     # vals <- 0
-    #     # stateStore$all.beta[clusterID,] <- 0
-
-    #     # TODO(tfs; 2018-08-13): Move to stateStore
-    #     leaves <- stateStore$leaf.map[[toString(clusterID)]]
-
-    #     # vals <- colSums(leaf.beta[leaves,] * weights[leaves])
-    #     vals <- leaf.beta[leaves,] * weights[leaves]
-
-    #     if (!is.null(dim(vals)) && dim(vals) > 1) {
-    #       vals <- colSums(vals)
-    #     }
-
-    #     vals <- vals / sum(vals)
-
-
-    #     # for (leafid in leaves) {
-    #     #   vals <- vals + (leaf.beta[leafid,] * weights[leafid])
-    #     #   # stateStore$all.beta[clusterID,] <- stateStore$all.beta[clusterID,] + vals
-    #     # }
-
-    #     # stateStore$all.beta[clusterID,] <- vals
-
-    #     # Normalize the new distribution
-    #     # TODO(tfs; 2018-08-14): Switched to storing weighted betas? Could allow for more specific updates/higher efficiency
-    #     # stateStore$all.beta[clusterID,] <- stateStore$all.beta[clusterID,] / sum(stateStore$all.beta[clusterID,])
-    #     stateStore$all.beta[clusterID,] <- vals
-    #   }
-    # }
-
       for (clusterID in seq(K()+1, max.id())) {
         if (is.na(stateStore$assigns[[clusterID]])) { next }
 
@@ -184,11 +146,6 @@ function(input, output, session) {
 
         vals <- vals / sum(vals)
 
-        # for (leafid in leaves) {
-        #   val <- leaf.beta[leafid,] * weights[leafid]
-        #   ab[clusterID,] <- ab[clusterID,] + val
-        # }
-
         # Normalize the new distribution
         ab[clusterID,] <- vals / sum(vals)
       }
@@ -203,29 +160,6 @@ function(input, output, session) {
 
     at <- matrix(0, nrow=nrow(theta), ncol=max.id())
 
-    # if (i <= K()) { next } # We never need to update leaf values
-    #   # stateStore$all.theta[,i] <- 0
-
-    #   if (is.null(stateStore$leaf.map[[toString(i)]])) { next }
-
-    #   # vals <- 0
-
-    #   leaves <- stateStore$leaf.map[[toString(i)]]
-
-    #   # for (leafID in leaves) {
-    #   #   # stateStore$all.theta[,i] <- stateStore$all.theta[,i] + theta[,leafID]
-    #   #   vals <- vals + theta[,leafID]
-    #   # }
-
-    #   vals <- theta[,leaves]
-
-    #   if (length(leaves) > 1) {
-    #     vals <- rowSums(vals)
-    #   }
-
-    #   stateStore$all.theta[,i] <- vals
-    # }
-
     for (i in seq(max.id())) {
       if (i <= K()) {
         at[,i] <- theta[,i]
@@ -233,10 +167,6 @@ function(input, output, session) {
         if (is.null(stateStore$leaf.map[[toString(i)]])) { next }
 
         leaves <- stateStore$leaf.map[[toString(i)]]
-
-        # for (leafID in leaves) {
-        #   at[,i] <- at[,i] + theta[,leafID]
-        # }
 
         vals <- theta[,leaves]
 
@@ -458,9 +388,6 @@ function(input, output, session) {
         if (clusterID <= K()) { next } # We never need to update leaf values
         if (is.na(stateStore$assigns[[clusterID]])) { next }
 
-        # vals <- 0
-        # stateStore$all.beta[clusterID,] <- 0
-
         # TODO(tfs; 2018-08-13): Move to stateStore
         leaves <- stateStore$leaf.map[[toString(clusterID)]]
 
@@ -471,19 +398,10 @@ function(input, output, session) {
           vals <- colSums(vals)
         }
 
+        # Normalize the new distribution
         vals <- vals / sum(vals)
 
-
-        # for (leafid in leaves) {
-        #   vals <- vals + (leaf.beta[leafid,] * weights[leafid])
-        #   # stateStore$all.beta[clusterID,] <- stateStore$all.beta[clusterID,] + vals
-        # }
-
-        # stateStore$all.beta[clusterID,] <- vals
-
-        # Normalize the new distribution
-        # TODO(tfs; 2018-08-14): Switched to storing weighted betas? Could allow for more specific updates/higher efficiency
-        # stateStore$all.beta[clusterID,] <- stateStore$all.beta[clusterID,] / sum(stateStore$all.beta[clusterID,])
+        # TODO(tfs; 2018-08-14): Switch to storing weighted betas? Could allow for more specific updates/higher efficiency
         stateStore$all.beta[clusterID,] <- vals
       }
     }
@@ -506,18 +424,9 @@ function(input, output, session) {
     # TODO(tfs; 2018-08-13): Switch this to build from leaves up, then normalize after the fact
     for (i in append(changedIDs, newIDs)) {
       if (i <= K()) { next } # We never need to update leaf values
-      # stateStore$all.theta[,i] <- 0
-
       if (is.null(stateStore$leaf.map[[toString(i)]])) { next }
 
-      # vals <- 0
-
       leaves <- stateStore$leaf.map[[toString(i)]]
-
-      # for (leafID in leaves) {
-      #   # stateStore$all.theta[,i] <- stateStore$all.theta[,i] + theta[,leafID]
-      #   vals <- vals + theta[,leafID]
-      # }
 
       vals <- theta[,leaves]
 
@@ -630,16 +539,12 @@ function(input, output, session) {
     # Loads `beta`, `theta`, `filenames`, `titles`, and `vocab`
     load(as.character(path$datapath))
 
-    # print("----file loaded")
-
     # Optionally load pre-saved data
     vals <- ls()
 
     if ("dataName" %in% vals) {
       stateStore$dataname <- dataName
     }
-
-    # print("----dataname loaded (or not)")
 
     if ("aString" %in% vals) {
       newA <- c() # Set up new assignments vector
@@ -683,32 +588,19 @@ function(input, output, session) {
       stateStore$assigns <- newA
     }
 
-    # print("---- astring processed, or not")
-
     if ("mantitles" %in% vals) {
       stateStore$manual.titles <- mantitles
     }
-
-    # print("---- mantitles processed, or not")
 
     if ("collapsed.flags" %in% vals) {
       stateStore$collapsed.nodes <- collapsed.flags
     }
 
-    # print("---- collapsed flags processed")
-
     # Parse path to text file directory
     document.location <- NULL
     if (!is.null(isolate(input$textlocation))) {
-      # document.location <- file.home
-
-      # for (part in isolate(input$textlocation$path)) {
-        # document.location <- file.path(document.location, part)
-      # }
       document.location <- as.character(parseDirPath(c(home=file.home), isolate(input$textlocation)))
     }
-
-    # print("---- doc location loaded")
 
     # Tell frontend to initiate clearing of:
     #     * input[["textlocation-modal"]]
@@ -717,8 +609,6 @@ function(input, output, session) {
     #     * input[["modelfile"]]
     # To free up resources (shinyFiles seems to be fairly expensive/have a fairly high performance impact otherwise)
     session$sendCustomMessage(type="clearFileInputs", "")
-
-    # print("---- files cleared")
 
     # Remove the global variables so we don't store all our information twice
     rl <- list("beta"=beta, "theta"=theta, "filenames"=filenames, "doc.titles"=titles, "document.location"=document.location, "vocab"=vocab)
@@ -852,10 +742,7 @@ function(input, output, session) {
 
   # Triggered by topics.js handler for "processingFile", should remove race condition/force sequentiality
   observeEvent(input$start.processing, {
-    # print("loading data")
     req(data()) # Ensures that data() will finish running before displays transition on the frontend
-
-    # print("data loaded")
 
     if (is.null(stateStore$assigns)) {
       initCM <- list()
@@ -904,28 +791,18 @@ function(input, output, session) {
       stateStore$assigns <- initAssigns
     }
 
-    # print("assigns, lm, cm, initialized")
-
     # TODO(tfs; 2018-08-14): Figure out what is taking so long to initialize
-    # print("begin init")
     init.all.beta()
-    # print("all beta done")
     init.all.theta()
-    # print("all theta done")
     init.top.documents.order()
-    # print("top doc order done")
     # init.top.documents()
     init.top.vocab.order()
-    # print("top vocab order done")
     # init.top.vocab()
     init.calculated.titles()
-    # print("calc titles done")
     init.display.titles()
-    # print("display titles done")
-
 
     req(bubbles.data()) # Similarly ensures that bubbles.data() finishes running before displays transition
-    # print("bubbles data calculated")
+
     shinyjs::hide(selector=".initial")
     shinyjs::show(selector=".left-content")
     shinyjs::show(selector=".main-content")
