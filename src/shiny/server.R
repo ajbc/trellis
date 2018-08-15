@@ -432,7 +432,7 @@ function(input, output, session) {
     }
 
 
-    # TODO(tfs; 2018-08-13): Switch this to build from leaves up, then normalize after the fact
+    # TODO(tfs; 2018-08-13): Switch this to build from leaves up, then normalize after the fact?
     for (i in append(changedIDs, newIDs)) {
       if (i <= K()) { next } # We never need to update leaf values
       if (is.null(stateStore$leaf.map[[toString(i)]])) { next }
@@ -761,6 +761,8 @@ function(input, output, session) {
         fit <- initial.kmeansFit()
         initAssigns <- c(fit$cluster + K(), rep(0, input$initial.numClusters))
 
+        print(fit$cluster + K())
+
         initCM[[toString(0)]] <- c(K() + seq(input$initial.numClusters))
 
         for (i in seq(input$numNewClusters)) {
@@ -768,7 +770,7 @@ function(input, output, session) {
         }
 
         for (i in seq(K())) {
-          initCM[[toString(fit$cluster[[i]] + K())]] <- append(initCM[[toString(fit$cluster[[i]] + K())]], i)
+          initCM[[toString(initAssigns[[i]])]] <- append(initCM[[toString(initAssigns[[i]])]], i)
         }
       } else {
         initAssigns <- c(rep(0, K()))
@@ -954,9 +956,22 @@ function(input, output, session) {
   # Given that a hierarchy already exists (the widgets are already rendered),
   #       initiate a new clustering that operates on the direct descendants of the selected node (if able).
   #       Can also operate on direct descendants of the root.
+  # TODO(tfs): There seems to be some confusion where new clusters' beta/theta can be linked
+  #            to another new cluster's children instead of its own
   observeEvent(input$runtimeCluster, {
     # Check that all conditions are met before performing clustering
     req(data())
+    print("GO TIME")
+
+    print(paste("begin", toString(stateStore$assigns), sep=": "))
+
+    print("BEGIN LEAFMAPS")
+
+    for (i in seq(max.id())) {
+      print(paste("ID", i, sep=": "))
+      print(stateStore$leaf.map[[i]])
+      print("---------------")
+    }
 
     if (is.null(input$topic.selected)) {
       session$sendCustomMessage(type="runtimeClusterError", "No topic selected")
@@ -976,11 +991,14 @@ function(input, output, session) {
     # NOTE(tfs): We probably don't need to isolate here, but I'm not 100% sure how observeEvent works
     session$sendCustomMessage("clusterNotification", "")
     newFit <- kmeans(selected.childBetas(), isolate(input$runtime.numClusters))
+    print(paste("newfit cluster", toString(newFit$cluster), sep=": "))
 
     childIDs <- selected.children()
 
     # NOTE(tfs): Theoretically, we don't need to update the selected topic at all (same leaf set)
-    changedIDs <- childIDs
+    #            Or really the children either?
+    # changedIDs <- childIDs
+    changedIDs <- c()
 
     maxOldID <- max.id()
 
@@ -996,6 +1014,8 @@ function(input, output, session) {
       stateStore$assigns[[i + maxOldID]] <- selectedTopic
       newIDs <- append(newIDs, i + maxOldID)
     }
+
+    print(paste("new ids", toString(newIDs), sep=": "))
 
     # Update assignments to reflect new clustering
     for (i in seq(length(childIDs))) {
@@ -1019,6 +1039,18 @@ function(input, output, session) {
 
     # Relies on child.map, leaf.map, and assigns being already updated
     update.aggregate.state(changedIDs, newIDs)
+
+    print(paste("end assigns", toString(stateStore$assigns), sep=": "))
+
+    print("END LEAFMAPS")
+
+    for (i in newIDs) {
+      print(paste("ID", i, sep=": "))
+      print(stateStore$leaf.map[[i]])
+      print("---------------")
+    }
+
+    print("BYE BYE")
 
     # Notify frontend of completion
     session$sendCustomMessage("runtimeClusterFinished", "SUCCESS")
