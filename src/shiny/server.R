@@ -541,7 +541,7 @@ function(input, output, session) {
 
   # Load data from provided model file and path to directory containing text files (if provided)
   data <- reactive({
-    if ((is.null(isolate(input$modelfile))) && is.null())
+    if (is.null(isolate(input$modelfile)))
       return(NULL)
 
     # Build full file name
@@ -599,9 +599,6 @@ function(input, output, session) {
       stateStore$child.map <- newCM
       stateStore$assigns <- newA
     }
-
-    print(stateStore$leaf.map)
-    print(stateStore$assigns)
 
     if ("mantitles" %in% vals) {
       stateStore$manual.titles <- mantitles
