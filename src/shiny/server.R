@@ -401,6 +401,7 @@ function(input, output, session) {
 
         # TODO(tfs; 2018-08-13): Move to stateStore
         leaves <- stateStore$leaf.map[[toString(clusterID)]]
+        # print(paste("LEAVES: ", toString(leaves), sep=": "))
 
         # vals <- colSums(leaf.beta[leaves,] * weights[leaves])
         vals <- leaf.beta[leaves,] * weights[leaves]
@@ -761,7 +762,7 @@ function(input, output, session) {
         fit <- initial.kmeansFit()
         initAssigns <- c(fit$cluster + K(), rep(0, input$initial.numClusters))
 
-        print(fit$cluster + K())
+        # print(fit$cluster + K())
 
         initCM[[toString(0)]] <- c(K() + seq(input$initial.numClusters))
 
@@ -804,6 +805,14 @@ function(input, output, session) {
       stateStore$assigns <- initAssigns
     }
 
+    # print("BEFORE AGG INIT")
+    # print(stateStore$leaf.map)
+    # print("------")
+    # print(stateStore$child.map)
+    # print("------------")
+    # print(stateStore$assigns)
+    # print("NOW INIT")
+
     # TODO(tfs; 2018-08-14): Figure out what is taking so long to initialize
     init.all.beta()
     init.all.theta()
@@ -813,6 +822,9 @@ function(input, output, session) {
     # init.top.vocab()
     init.calculated.titles()
     init.display.titles()
+
+    # print("AFTER AGG")
+    # print(stateStore$leaf.map)
 
     req(bubbles.data()) # Similarly ensures that bubbles.data() finishes running before displays transition
 
@@ -961,17 +973,17 @@ function(input, output, session) {
   observeEvent(input$runtimeCluster, {
     # Check that all conditions are met before performing clustering
     req(data())
-    print("GO TIME")
+    # print("GO TIME")
 
-    print(paste("begin", toString(stateStore$assigns), sep=": "))
+    # print(paste("begin", toString(stateStore$assigns), sep=": "))
 
-    print("BEGIN LEAFMAPS")
+    # print("BEGIN LEAFMAPS")
 
-    for (i in seq(max.id())) {
-      print(paste("ID", i, sep=": "))
-      print(stateStore$leaf.map[[i]])
-      print("---------------")
-    }
+    # for (i in seq(max.id())) {
+    #   print(paste("ID", i, sep=": "))
+    #   print(stateStore$leaf.map[[toString(i)]])
+    #   print("---------------")
+    # }
 
     if (is.null(input$topic.selected)) {
       session$sendCustomMessage(type="runtimeClusterError", "No topic selected")
@@ -991,7 +1003,7 @@ function(input, output, session) {
     # NOTE(tfs): We probably don't need to isolate here, but I'm not 100% sure how observeEvent works
     session$sendCustomMessage("clusterNotification", "")
     newFit <- kmeans(selected.childBetas(), isolate(input$runtime.numClusters))
-    print(paste("newfit cluster", toString(newFit$cluster), sep=": "))
+    # print(paste("newfit cluster", toString(newFit$cluster), sep=": "))
 
     childIDs <- selected.children()
 
@@ -1015,7 +1027,7 @@ function(input, output, session) {
       newIDs <- append(newIDs, i + maxOldID)
     }
 
-    print(paste("new ids", toString(newIDs), sep=": "))
+    # print(paste("new ids", toString(newIDs), sep=": "))
 
     # Update assignments to reflect new clustering
     for (i in seq(length(childIDs))) {
@@ -1030,9 +1042,18 @@ function(input, output, session) {
     for (i in newIDs) {
       cluster.leaves <- c()
 
+      # print("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
+
+      # print(paste("ID", toString(i), sep=": "))
+      # print(paste("Children", toString(stateStore$child.map[[toString(i)]]), sep=": "))
+
       for (ch in stateStore$child.map[[toString(i)]]) {
-        cluster.leaves <- append(cluster.leaves, stateStore$leaf.map[[ch]])
+        # print(paste("----child", toString(ch), sep=": "))
+        # print(paste("----ch leaves", toString(stateStore$leaf.map[[toString(ch)]])))
+        cluster.leaves <- append(cluster.leaves, stateStore$leaf.map[[toString(ch)]])
       }
+
+      # print("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
 
       stateStore$leaf.map[[toString(i)]] <- cluster.leaves
     }
@@ -1040,17 +1061,17 @@ function(input, output, session) {
     # Relies on child.map, leaf.map, and assigns being already updated
     update.aggregate.state(changedIDs, newIDs)
 
-    print(paste("end assigns", toString(stateStore$assigns), sep=": "))
+    # print(paste("end assigns", toString(stateStore$assigns), sep=": "))
 
-    print("END LEAFMAPS")
+    # print("END LEAFMAPS")
 
-    for (i in newIDs) {
-      print(paste("ID", i, sep=": "))
-      print(stateStore$leaf.map[[i]])
-      print("---------------")
-    }
+    # for (i in newIDs) {
+    #   print(paste("ID", i, sep=": "))
+    #   print(stateStore$leaf.map[[i]])
+    #   print("---------------")
+    # }
 
-    print("BYE BYE")
+    # print("BYE BYE")
 
     # Notify frontend of completion
     session$sendCustomMessage("runtimeClusterFinished", "SUCCESS")
