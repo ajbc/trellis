@@ -7,6 +7,9 @@ library(htmlwidgets)
 library(topicBubbles)
 library(topicTree)
 library(xtable) # Used to sanitize output
+library(Matrix) # Used for sparse beta
+library(irlba)  # Used for fast SVD
+library(rsvd)   # Used for alternate SVD (high dimension compared to number of topics)
 
 
 options(shiny.maxRequestSize=1e4*1024^2)
@@ -17,6 +20,10 @@ options(shiny.maxRequestSize=1e4*1024^2)
 #            more documents on the left panel as the user scrolls
 file.home <- "~"
 num.documents.shown <- 100
+
+beta.threshold <- 0.0001
+beta.svd.dim <- 20
+beta.svd.ratio <- 4
 
 
 # TODO(tfs; 2018-08-14): MINIMIZE USE OF $ ACCESSOR
@@ -907,7 +914,21 @@ function(input, output, session) {
     if (input$initialize.kmeans) {
       session$sendCustomMessage("clusterNotification", "")
 
-      return(kmeans(beta(), input$initial.numClusters))
+      bet <- beta()
+
+      sparse <- Matrix(0, nrow=nrow(bet), ncol=ncol(bet), sparse=TRUE)
+      mask <- (bet > beta.threshold)
+      sparse[mask] <- bet[mask]
+
+      if (nrow(sparse) > beta.svd.dim * beta.svd.ratio) {
+        singular <- ssvd(sparse, k=min(nrow(sparse)-1, beta.svd.dim))$u
+      } else {
+        singular <- rsvd(sparse, k=min(nrow(sparse)-1, beta.svd.dim))$u
+      }
+
+      return(kmeans(singular, input$initial.numClusters)) 
+
+      # return(kmeans(beta(), input$initial.numClusters))
     } else {
       return(NULL)
     }
@@ -983,7 +1004,21 @@ function(input, output, session) {
     # Calculate a new fit for direct descendants of selected topic/cluster
     # NOTE(tfs): We probably don't need to isolate here, but I'm not 100% sure how observeEvent works
     session$sendCustomMessage("clusterNotification", "")
-    newFit <- kmeans(selected.childBetas(), isolate(input$runtime.numClusters))
+    # newFit <- kmeans(selected.childBetas(), isolate(input$runtime.numClusters))
+
+    # Generate a sparse beta matrix and run SVD before running kmeans
+    cb <- selected.childBetas()
+    sparse <- Matrix(0, nrow=nrow(cb), ncol=ncol(cb), sparse=TRUE)
+    mask <- (cb > beta.threshold)
+    sparse[mask] <- cb[mask]
+
+    if (nrow(sparse) > beta.svd.dim * beta.svd.ratio) {
+      singular <- ssvd(sparse, k=min(nrow(sparse)-1, beta.svd.dim))$u
+    } else {
+      singular <- rsvd(sparse, k=min(nrow(sparse)-1, beta.svd.dim))$u
+    }
+
+    newFit <- kmeans(singular, isolate(input$runtime.numClusters))
 
     childIDs <- selected.children()
 
