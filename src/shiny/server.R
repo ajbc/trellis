@@ -586,6 +586,7 @@ function(input, output, session) {
 
       # TODO(tfs; 2018-08-13): It would be great to find a faster way to do/maintain this
       for (i in seq(nrow(beta))) {
+        newLM[[toString(i)]] <- c(i) # All leaves are their own (singleton) leafset
         p <- newA[[i]]
 
         while(p > 0) {
@@ -598,6 +599,9 @@ function(input, output, session) {
       stateStore$child.map <- newCM
       stateStore$assigns <- newA
     }
+
+    print(stateStore$leaf.map)
+    print(stateStore$assigns)
 
     if ("mantitles" %in% vals) {
       stateStore$manual.titles <- mantitles
