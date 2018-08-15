@@ -58,11 +58,10 @@ function(input, output, session) {
 
   # Function used to select nodes for flatten mode
   find.level.children <- function(id, level) {
-    if (id == 0) { id <- "root" }
-
     # Base cases: Reached correct level, reached leaf, or reached collapsed node
     if ((level <= 0) || (length(stateStore$child.map[[toString(id)]]) == 0)
-        || (!is.null(stateStore$collapsed.nodes)
+        || ((id > 0)
+            && !is.null(stateStore$collapsed.nodes)
             && length(stateStore$collapsed.nodes) >= id
             && !is.na(stateStore$collapsed.nodes[[id]])
             && stateStore$collapsed.nodes[[id]])) {
@@ -562,6 +561,8 @@ function(input, output, session) {
       newCM <- list() # Set up new childmap
       newLM <- list() # Set up new leafmap
 
+      newCM[[toString(0)]] <- c()
+
       for (ch in seq(nrow(beta))) {
         newA[[ch]] <- 0 # Will be overwritten, but ensures that at least all assignments to 0 are made
         newCM[[toString(ch)]] <- c()
@@ -581,6 +582,10 @@ function(input, output, session) {
       }
 
       for (i in seq(max(nrow(beta), max(newA[!is.na(newA)])))) {
+        if (!is.na(newA[[i]]) && newA[[i]] == 0) {
+          newCM[[toString(0)]] <- append(newCM[[toString(0)]], i)
+        }
+
         newLM[[toString(i)]] <- c()
       }
 
@@ -688,9 +693,9 @@ function(input, output, session) {
     idlist <- c()
 
     for (i in seq(max.id())) {
-      if (length(stateStore$flat.selection) >= i
-          && !is.na(stateStore$flat.selection[[i]]
-          && stateStore$flat.selection[[i]])) {
+      if ((length(stateStore$flat.selection) >= i)
+          && (!is.na(stateStore$flat.selection[[i]])
+          && (stateStore$flat.selection[[i]]))) {
         idlist <- append(idlist, i)
       }
     }
@@ -1292,6 +1297,8 @@ function(input, output, session) {
     newA <- c() # Set up new assignments vector
     newCM <- list() # Set up new childmap
 
+    newCM[[toString(0)]] <- c()
+
     for (ch in seq(nrow(beta))) {
       newA[[ch]] <- 0 # Will be overwritten, but ensures that at least all assignments to 0 are made
       newCM[[toString(ch)]] <- c()
@@ -1305,15 +1312,21 @@ function(input, output, session) {
 
       newA[[ch]] <- p
 
-      if (!(ch %in% newCM[[p]])) {
+      if (!(ch %in% newCM[[toString(p)]])) {
         newCM[[toString(p)]] <- append(newCM[[toString(p)]], ch)
+      }
+    }
+
+    for (i in seq(max(nrow(beta), max(newA[!is.na(newA)])))) {
+      if (newA[[i]] == 0) {
+        newCM[[toString(0)]] <- append(newCM[[toString(0)]], i)
       }
     }
 
     # Create new leafmap
     newLM <- list()
 
-    for (i in seq(max.id())) {
+    for (i in seq(max(nrow(beta), max(newA[!is.na(newA)])))) {
       newLM[[toString(i)]] <- c()
     }
 
@@ -1439,6 +1452,7 @@ function(input, output, session) {
 
     # Deselect all descendants of original node
     idlist <- all.descendant.ids(nodeID)
+    idlist <- idlist[!duplicated(idlist)]
 
     for (id in idlist) {
       stateStore$flat.selection[[id]] <- FALSE
@@ -1447,7 +1461,7 @@ function(input, output, session) {
 
 
   # Clears selection, used when exiting flat export more
-  observeEvent(input$clear.stateStore$flat.selection, {
+  observeEvent(input$clear.flat.selection, {
     stateStore$flat.selection <- NULL
   })
 
