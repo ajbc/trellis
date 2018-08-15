@@ -26,6 +26,8 @@ install.packages("stm")
 install.packages("V8")
 install.packages("xtable")
 install.packages("shinyFiles")
+install.packages("irlba")
+install.packages("rsvd")
 ```
 
 Install the htmlwidget for local use:
