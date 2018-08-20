@@ -146,6 +146,8 @@ $(document).on("shiny:sessioninitialized", function(event) {
 
 	Shiny.addCustomMessageHandler("cleanTitleInput", cleanTopicInputs);
 
+	Shiny.addCustomMessageHandler("clusterNotification", clusterNotification);
+
 	// Initialize which view is selected (starts on bubble widget)
 	selectors[BUBBLE_LABEL] = BUBBLE_SELECTOR;
 	selectors[TREE_LABEL] = TREE_SELECTOR;
@@ -593,6 +595,12 @@ function cleanTopicInputs(msg) {
 	var defNumClusters = parseInt($("#runtime\\.numClusters").attr("data-shinyjs-resettable-value"))
 	$("#runtime\\.numClusters").val(defNumClusters);
 	Shiny.onInputChange("runtime.numClusters", defNumClusters)
+}
+
+
+// Notify user that clustering is occuring
+function clusterNotification(msg) {
+	console.log("Clustering has begun, better notifications to be implemented");
 }
 
 
