@@ -599,7 +599,7 @@ function(input, output, session) {
 
 
   observeEvent(input$savedata, {
-    if (is.null(input$savedata)) {
+    if (is.null(input$savedata) || nrow(parseSavePath(c(home=file.home), input$savedata)) <= 0) {
       return(NULL)
     }
 
@@ -997,6 +997,8 @@ function(input, output, session) {
     session$sendCustomMessage("runtimeClusterFinished", "SUCCESS")
   })
 
+  # TODO(tfs; 2018-08-20): There are definitely still major issues with the optimization branch.
+  #                        I suspect they have to do with deleting a cluster
   # Handle deletion of the selected cluster, triggered by a button on frontend
   observeEvent(input$deleteCluster, {
     # Check for good input
