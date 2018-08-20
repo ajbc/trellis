@@ -1153,6 +1153,9 @@ function(input, output, session) {
         # Add leafmap for new id (this is the only place we add an ID)
         stateStore$leaf.map[[toString(newID)]] <- c(origin.leaves)
 
+        # Remove source from original parent in childmap
+        stateStore$child.map[[toString(stateStore$assigns[[source.id]])]] <- stateStore$child.map[[toString(stateStore$assigns[[source.id]])]][stateStore$child.map[[toString(stateStore$assigns[[source.id]])]] != source.id]
+
         # Update assignments and child maps
         stateStore$assigns[[newID]] <- target.id
         stateStore$child.map[[toString(newID)]] <- c(source.id)
