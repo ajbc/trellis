@@ -289,6 +289,8 @@ span#kmeans-initialization-row2 .form-group label {
 #left-bar-topic-tab.active-left-bar-tab {
     border-color: #fff;
     background-color: #fff;
+    border-right-color: black;
+    border-right-width: 1px;
 }
 
 
@@ -314,6 +316,8 @@ span#kmeans-initialization-row2 .form-group label {
 #left-bar-vocab-tab.active-left-bar-tab {
     border-color: #fff;
     background-color: #fff;
+    border-left-color: black;
+    border-left-width: 1px;
 }
 
 
@@ -363,6 +367,7 @@ span#kmeans-initialization-row2 .form-group label {
 .document-summary:hover {
     border-bottom: 1px solid black;
     border-top: 0px solid black;
+    background-color: lightgray;
 }
 
 
