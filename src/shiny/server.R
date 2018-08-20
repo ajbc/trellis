@@ -21,6 +21,8 @@ options(shiny.maxRequestSize=1e4*1024^2)
 file.home <- "~"
 num.documents.shown <- 100
 
+
+# Parameters for making beta sparse and performing SVD before performing kmeans clustering
 beta.threshold <- 0.0001
 beta.svd.dim <- 20
 beta.svd.ratio <- 4
@@ -34,15 +36,35 @@ beta.svd.ratio <- 4
 function(input, output, session) {
   # Initialize a single storage of state.
   # This will serve as the ground truth for the logic/data of the tool
+  # manual.titles:
+  #    List of titles set by the user, associated topic IDs
   # assigns:
   #    Structured as a list such that each child is an "index" and the corresponding value is its parent
   #    NOTE: root is represented as "root"
+  # child.map:
+  #    NULL or list, indexed by toString([topic_id_number]). Stores list of all children of each topic
+  # leaf.map:
+  #    Similar to child.map, but stores list of all leaves of a given topic
+  # dataname:
+  #    The name, provided by the user, to be displayed at the top left of Trellis
   # collapsed.nodes:
   #    Similar to assigns in format, list of node ids
   #    with either a boolean value or a missing entry (corresponding to false)
   # flat.selection:
   #    Similar to collapsed.nodes
   #    Boolean flag (denoting whether a node is selected for a flat export) or a missing value (false)
+  # all.theta:
+  #    A matrix storing all theta values for original and aggregate topics
+  # all.beta:
+  #    A matrix storing all beta values for original and aggregate topics
+  # calculated.titles:
+  #    Vector of titles calculated by taking the 5 highets-weighted words from a topic's beta values
+  # display.titles:
+  #    Vector of titles: manual title if provided, else calculated title
+  # top.documents.order:
+  #    List, indexed by topic id, giving the order result of sorting that topic's theta values
+  # top.vocab.order:
+  #    List, indexed by topic id, giving the order result of sorting that topic's beta values
 
   # TODO(tfs; 2018-08-14): For speed, it looks (according to profvis) like we should switch to global variables.
   #                        We could then use reactiveValues as a flag or set of flags to update outputs
@@ -412,8 +434,7 @@ function(input, output, session) {
     for (i in append(changedIDs, newIDs)) {
       if (i <= K()) { next } # We shouldn't need to ever update the calculated title of a leaf
 
-      title <- paste(data()$vocab[order(ab[i,],
-                                        decreasing=TRUE)][seq(5)], collapse=" ")
+      title <- paste(data()$vocab[order(ab[i,], decreasing=TRUE)][seq(5)], collapse=" ")
 
       stateStore$calculated.titles[[i]] <- title
     }
@@ -507,19 +528,22 @@ function(input, output, session) {
         newCM[[toString(ch)]] <- c()
       }
 
+      # Walk through all assignment pairs
       for (pair in strsplit(aString, ",")[[1]]) {
         rel <- strsplit(pair, ":")[[1]] # Relation between two nodes
 
         ch <- as.integer(rel[[1]])
         p <- as.integer(rel[[2]])
 
-        newA[[ch]] <- p
+        newA[[ch]] <- p # Assign parent based on parsed pair
 
+        # Add ch to p's child map
         if (!(ch %in% newCM[[toString(p)]])) {
           newCM[[toString(p)]] <- append(newCM[[toString(p)]], ch)
         }
       }
 
+      # Add root's children to root's child.map
       for (i in seq(max(nrow(beta), max(newA[!is.na(newA)])))) {
         if (!is.na(newA[[i]]) && newA[[i]] == 0) {
           newCM[[toString(0)]] <- append(newCM[[toString(0)]], i)
@@ -844,6 +868,8 @@ function(input, output, session) {
     if (input$initialize.kmeans) {
       session$sendCustomMessage("clusterNotification", "")
 
+      # Create a sparse matrix (shrinking small beta values to 0), then use SVD.
+      #    Use the resulting (much smaller) matrix to run kmeans clustering
       bet <- beta()
 
       sparse <- Matrix(0, nrow=nrow(bet), ncol=ncol(bet), sparse=TRUE)
@@ -857,8 +883,6 @@ function(input, output, session) {
       }
 
       return(kmeans(singular, input$initial.numClusters)) 
-
-      # return(kmeans(beta(), input$initial.numClusters))
     } else {
       return(NULL)
     }
@@ -962,10 +986,10 @@ function(input, output, session) {
     # We always add all children to new clusters, so all old children of selected topic can be removed
     stateStore$child.map[[toString(selectedTopic)]] <- c()
 
-    # Add new clusters into assignments
+    # Add new clusters into assignments and child.map of selected topic
     for (i in seq(numNewClusters)) {
       stateStore$child.map[[toString(selectedTopic)]] <- append(stateStore$child.map[[toString(selectedTopic)]], i + maxOldID)
-      stateStore$child.map[[toString(i + maxOldID)]] <- c()
+      stateStore$child.map[[toString(i + maxOldID)]] <- c() # Initialize empty child.map for new cluster
       stateStore$assigns[[i + maxOldID]] <- selectedTopic
       newIDs <- append(newIDs, i + maxOldID)
     }
