@@ -651,7 +651,7 @@ function(input, output, session) {
 
   observeEvent(input$exportflat, {
     # Do nothing if we have no nodes to export
-    if (is.null(stateStore$flat.selection) || nrow(parseSavePath(c(home=file.home), input$savedata)) <= 0) { return() }
+    if (is.null(stateStore$flat.selection) || nrow(parseSavePath(c(home=file.home), input$exportflat)) <= 0) { return() }
 
     idlist <- c()
 
