@@ -1050,7 +1050,7 @@ function(input, output, session) {
     stateStore$child.map[[toString(topic)]] <- c()
     stateStore$leaf.map[[toString(topic)]] <- c()
 
-    session$sendCustomMessage("nodeDeleted", "SUCCESS")
+    session$sendCustomMessage("nodeDeletionComplete", "SUCCESS")
   })
 
 

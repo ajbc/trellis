@@ -136,7 +136,7 @@ $(document).on("shiny:sessioninitialized", function(event) {
 	Shiny.addCustomMessageHandler("runtimeCluster", handleRuntimeCluster);
 	Shiny.addCustomMessageHandler("runtimeClusterError", handleRuntimeClusterError);
 
-	Shiny.addCustomMessageHandler("nodeDeleted", handleNodeDeletion);
+	Shiny.addCustomMessageHandler("nodeDeletionComplete", handleNodeDeletion);
 
 	Shiny.addCustomMessageHandler("clearFileInputs", clearFileInputs);
 
@@ -619,6 +619,7 @@ function handleRuntimeClusterError(err) {
 
 // Upon node deletion, clear selected topic field
 function handleNodeDeletion(msg) {
+	Shiny.onInputChange("topic.active", "");
 	Shiny.onInputChange("topic.selected", "");
 	cleanTopicInputs();
 }

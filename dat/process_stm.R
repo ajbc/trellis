@@ -20,7 +20,7 @@ vocab <- out$vocab
 trim <- function (x) gsub("^(\\s|\\r|\\n|\\t)+|(\\s|\\n|\\r|\\t)+$", "", x)
 
 # the exact filenames
-filenames <- lapply(titles$title, trim)
+filenames <- lapply(out$meta$title, trim)
 
 maketitle <- function (x) URLdecode(gsub("_", " ", x))
 
