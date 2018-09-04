@@ -114,9 +114,14 @@ HTMLWidgets.widget({
             .range(["hsl(215,100%,80%)", "hsl(215,70%,50%)"])
             .interpolate(d3.interpolateHcl);
 
+        registerBubbleWidget(self);
+
         // Handle Shiny messages
         Shiny.addCustomMessageHandler("nodeDeleted", function(msg) { self.setSource(null); });
         Shiny.addCustomMessageHandler("runtimeClusterFinished", function(msg) { self.setSource(null); })
+        Shiny.addCustomMessageHandler("switchMainViewToBubbles", function(msg) { self.setSourceByID(parseInt(msg)); });
+
+        Shiny.onInputChange("bubble.initialized", true);
     },
 
 
@@ -539,6 +544,17 @@ HTMLWidgets.widget({
             .style("font-size", function () {
                 return (self.FONT_SIZE * (k / 2) + 3) + "px";
             });
+    },
+
+    setSourceByID: function (id) {
+        var self = this;
+
+        if (id === null || isNaN(id)) {
+            self.setSource(null);
+        } else {
+            var newVal = d3.select("#node-"+id).datum();
+            self.setSource(newVal);
+        }
     },
 
     /* Sets `source` with new value, resetting and setting circle and label fill

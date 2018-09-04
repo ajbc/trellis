@@ -106,6 +106,13 @@ HTMLWidgets.widget({
         self.edgeWidthMap = d3.scaleLinear()
                             .domain([0, 1])
                             .range([self.MIN_EDGE_WIDTH, self.MAX_EDGE_WIDTH]);
+
+
+        registerTreeWidget(self);
+
+        Shiny.addCustomMessageHandler("switchMainViewToTree", function(msg) { self.setSourceByID(parseInt(msg)); });
+
+        Shiny.onInputChange("tree.initialized", true);
     },
 
     zoomHandler: function (selfRef) {
@@ -569,24 +576,24 @@ HTMLWidgets.widget({
 
 
     generateNodeClickHandler: function (selfRef) {
-        var treeNodeClickHandler = function (n) {
+        var treeNodeClickHandler = function (d) {
             d3.event.stopPropagation();
 
             // Handle Windows and Mac common behaviors
             if (d3.event.ctrlKey || d3.event.altKey) {
                 // NOTE(tfs): I think this avoids wierdness with javascript nulls
-                if (n.data.collapsed === true) {
+                if (d.data.collapsed === true) {
                     // Timestamp to ensure an actual change is registered
-                    Shiny.onInputChange("expandNode", [n.data.id, Date.now()]);
+                    Shiny.onInputChange("expandNode", [d.data.id, Date.now()]);
                 } else {
                     // Timestamp to ensure an actual change is registered
-                    Shiny.onInputChange("collapseNode", [n.data.id, Date.now()]);
+                    Shiny.onInputChange("collapseNode", [d.data.id, Date.now()]);
                 }
             } else {
                 if (flattenMode) {
-                    Shiny.onInputChange("flat.node.selection", [n.data.id, Date.now()]);
+                    Shiny.onInputChange("flat.node.selection", [d.data.id, Date.now()]);
                 } else {
-                    selfRef.selectNode(n, false);
+                    selfRef.selectNode(d, false);
                 }
             }
         }
@@ -748,10 +755,22 @@ HTMLWidgets.widget({
         }
     },
 
+    setSourceByID: function (id) {
+        var self = this;
+
+        if (id === null || isNaN(id)) {
+            self.setSource(null);
+        } else {
+            var newVal = d3.select("#tree-node-"+id).datum();
+            self.setSource(newVal);
+        }
+    },
+
     setSource: function (newVal) {
         var self = this,
             oldVal = self.sourceD;
         self.sourceD = newVal;
+
         if (oldVal) {
             d3.select("#tree-node-"+oldVal.data.id).classed("selected", false);
         }
