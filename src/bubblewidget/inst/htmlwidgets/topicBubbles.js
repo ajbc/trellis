@@ -56,11 +56,6 @@ HTMLWidgets.widget({
     zoomHandler: null,
     dragHandler: null,
 
-    // Used for things like deciding whether to zoom in or out or whether or not
-    // to show a label.
-    nodeInFocus: null,
-    currCoords: null,
-
     // HTML elements
     el: null,
     svg: null,
@@ -138,15 +133,6 @@ HTMLWidgets.widget({
         return handler;
     },
 
-    /* Removes all svg elements and then re-renders everything from scratch.
-     */
-    reInitialize: function () {
-        var self = this;
-        d3.select(self.el).selectAll("*").remove();
-        self.initialize(self.el, self.DIAMETER, self.DIAMETER);
-        self.updateView(false);
-    },
-
     /* Upon resize event, updates the self.el and self.DIAMETER values.
      * Then selects and modifies the width and height attributes of the
      * existing SVG element, as well as the transform attribute of the
@@ -215,7 +201,6 @@ HTMLWidgets.widget({
             });
 
         nodes = self.pack(root).descendants();
-        self.nodeInFocus = nodes[0];
 
         // Ref: https://stackoverflow.com/questions/38599930/d3-version-4-workaround-for-drag-origin
         var dragHandler = d3.drag()
@@ -230,7 +215,19 @@ HTMLWidgets.widget({
 
         circles.enter()
             .append("circle")
-            .attr("class", "node")
+            .attr("class", function (d) {
+                var classes = ["node"];
+
+                if (d.data.isLeaf) {
+                    classes.push("bubble-leaf-node");
+                } else if (d.data.isCollapsed) {
+                    classes.push("bubble-collapsed-node");
+                } else {
+                    classes.push("bubble-internal-node");
+                }
+
+                return classes.join(" ");
+            })
             .attr("weight", function (d) {
                 return d.data.weight ? d.data.weight : -1;
             })
@@ -246,9 +243,9 @@ HTMLWidgets.widget({
             .on("click", self.generateNodeClickHandler(self))
             .on("mouseover", function (d) {
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id,
-                    isRoot = self.isRootNode(d);
+                       isRoot = self.isRootNode(d);
                 Shiny.onInputChange("topic.active", isRoot ? displayID : d.data.id);
-                if (isRoot || self.isGroupInFocus(d)) {
+                if (isRoot) {
                     return;
                 }
                 self.setLabelVisibility(d, true);
@@ -339,22 +336,6 @@ HTMLWidgets.widget({
         }
 
         return setterCallback;
-    },
-
-
-    // Pass in reference to "self", as the call() method passes a different "this"
-    dragStartHandler: function (selfRef) {
-        var handler = function (d) {
-            if (d3.event.sourceEvent.altKey) {
-                selfRef.dragOffset = {x: 0, y: 0};
-                
-                var scrollStartStrings = selfRef.g.attr("trasnform").split("(")[1].split(")")[0].split(",");
-
-                selfRef.scrollOrigin = { x: parseFloat($.trim(scrollStartStrings[0])), y: parseFloat($.trim(scrollStartStrings[1])) };
-            }
-        }
-
-        return handler;
     },
 
 
@@ -497,7 +478,6 @@ HTMLWidgets.widget({
             k = self.DIAMETER / coords[2],
             circles = self.g.selectAll("circle"),
             text = self.g.selectAll('text');
-        self.currCoords = coords;
 
         if (transition) {
             circles = circles.transition().duration(MOVE_DURATION);
@@ -561,54 +541,6 @@ HTMLWidgets.widget({
             });
     },
 
-    /* Update node's children depending on whether it is the new or old parent.
-     */
-    updateNsToMove: function (selfRef, nsToMove, oldParentD, newParentD) {
-        var newChildren = [];
-
-        // Remove nodes-to-move from old parent.
-        if (nsToMove.length === 1) {
-            oldParentD.data.children.forEach(function (child) {
-                if (child.id !== nsToMove[0].id) {
-                    newChildren.push(child);
-                }
-            });
-            oldParentD.data.children = newChildren;
-        } else {
-            // In this scenario, the user selected a group of topics
-            // (`oldParent`), and we're moving all of that group's children.
-            oldParentD.data.children = [];
-        }
-
-        // Add nodes-to-move to new parent.
-        nsToMove.forEach(function (nToMove) {
-            newParentD.data.children.push(nToMove);
-        });
-    },
-
-    /* Removes child node from its parent.
-     */
-    removeChildDFromParent: function (childD) {
-        var newChildren = [];
-        childD.parent.data.children.forEach(function (n) {
-            if (n.id !== childD.data.id) {
-                newChildren.push(n);
-            }
-        });
-        childD.parent.data.children = newChildren;
-    },
-
-    /* Make new group with `target` if node meets criteria.
-     */
-    createNewGroup: function (newGroupD, childD) {
-        var self = this;
-        newGroupD.data.children.push({
-            id: self.getNewID(),
-            children: [childD.data],
-            terms: childD.data.terms
-        });
-    },
-
     /* Sets `source` with new value, resetting and setting circle and label fill
      * and visibility.
      */
@@ -633,7 +565,6 @@ HTMLWidgets.widget({
     /* Correctly color any node.
      */
     setCircleFill: function (d) {
-        // TODO(tfs; 2018-07-04): May want to overhaul styling to be class/CSS based
         var self = this,
             isfirstSelNode = self.sourceD
                 && self.sourceD.data.id === d.data.id,
@@ -665,21 +596,15 @@ HTMLWidgets.widget({
     /* Correctly label any node.
      */
     setLabelVisibility: function (d, hover) {
-        // TODO(tfs; 2018-07-04): This should probably be cleaned up.
-        //                        Many of these conditions no longer reflect the functionality of Trellis.
-        //                        In fact, we may want to completely overhaul label visibility.
         var self = this,
             dIs = !!d,
             dIsSource = dIs && self.sourceD && d.data.id === self.sourceD.data.id,
-            dInFocus = dIs && d === self.nodeInFocus,
-            parentInFocus = dIs && d.depth === self.nodeInFocus.depth + 1,
+            parentInFocus = dIs && d.depth === 1,  // TODO(tfs; 2018-09-04): Rework label visibility
             isLeaf = dIs && self.isLeafNode(d),
             isCollapsed = d.data.collapsed,
-            isInFocus = dIs && d === self.nodeInFocus,
-            zoomedOnLeaf = isInFocus && isLeaf && !self.isRootNode(d),
             label = d3.select('#label-' + d.data.id);
 
-        if ((dIsSource && !dInFocus) || parentInFocus || hover || zoomedOnLeaf || isCollapsed) {
+        if (dIsSource || parentInFocus || hover || isCollapsed) {
             label.style("display", "inline");
         } else {
             label.style("display", "none");
@@ -753,69 +678,6 @@ HTMLWidgets.widget({
         return data;
     },
 
-    /* Update the string that informs the Shiny server about the hierarchy of
-     * topic assignments
-     */
-    updateTopicAssignments: function (selfRef, callback) {
-        var self = selfRef,
-            assignments = [],
-            EVENT = "topics";
-        self.traverseTree(self.treeData, function (n) {
-            if (!n.children) {
-                return;
-            }
-            if (n.weight <= 0 && n.children.length === 0) {
-                return;
-            }
-            n.children.forEach(function (childN) {
-                assignments.push(childN.id + ":" + n.id);
-            });
-        });
-
-        Shiny.onInputChange(EVENT, assignments.join(","));
-    },
-
-    updateTopicView: function (newTopics) {
-        var self = this;
-        self.traverseTree(self.treeData, function (n) {
-            var terms = newTopics[n.id];
-            if (terms) {
-                n.terms = terms.split(' ');
-            }
-        });
-    },
-
-    /* Helper function to add hierarchical structure to data.
-        TODO(tfs): Make this more efficient, usable for in-order (or any-order) assignments
-     */
-    findParent: function (branch, parentID, nodeID) {
-        var self = this,
-            rv = null;
-        if (branch.id === parentID) {
-            rv = branch;
-        } else if (rv === null && branch.children !== undefined) {
-            branch.children.forEach(function (child) {
-                if (rv === null) {
-                    rv = self.findParent(child, parentID, nodeID);
-                }
-            });
-        }
-        return rv;
-    },
-
-    /* Finds the maximum node ID and returns the next integer.
-     */
-    getNewID: function () {
-        var self = this,
-            maxID = 0;
-        self.traverseTree(self.treeData, function (n) {
-            if (n.id > maxID) {
-                maxID = n.id;
-            }
-        });
-        return maxID + 1;
-    },
-
     /* Returns `true` if the node is the root node, `false` otherwise.
      */
     isRootNode: function (d) {
@@ -840,16 +702,6 @@ HTMLWidgets.widget({
             });
         }
         return result;
-    },
-
-    /* Returns `true` if the node is both in focus and a group rather than a
-     * leaf.
-     */
-    isGroupInFocus: function (d) {
-        var self = this,
-            isInFocus = d === self.nodeInFocus,
-            isGroup = !self.isLeafNode(d);
-        return isInFocus && isGroup;
     },
 
     /* This is a critical function. We need to give D3 permanent IDs for each
@@ -885,22 +737,4 @@ HTMLWidgets.widget({
             }
         });
     },
-
-    /* Walks up the tree and removes empty groups, starting with `oldParentD`.
-     */
-    removeChildlessNodes: function (groupD) {
-        var self = this,
-            removeGroup;
-
-        removeGroup = !groupD.data.children || groupD.data.children.length === 0;
-        if (removeGroup) {
-            self.removeChildDFromParent(groupD);
-        }
-        // Walk up the tree. In principle, `groupD` could be an only child. In
-        // this scenario, we want to remove its parent as well. This recursion
-        // should continue so long as each new group is an only child.
-        if (groupD.parent) {
-            self.removeChildlessNodes(groupD.parent);
-        }
-    }
 });

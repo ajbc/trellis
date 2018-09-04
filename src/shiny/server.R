@@ -359,7 +359,6 @@ function(input, output, session) {
   update.all.beta <- function(changedIDs, newIDs) {
     leaf.beta <- beta()
 
-    # TODO(tfs; 2018-08-13): Store this in stateStore or a separate reactive variable
     weights <- colSums(data()$theta)
 
     if (length(newIDs) > 0) {
@@ -371,14 +370,12 @@ function(input, output, session) {
       }
     }
 
-    # TODO(tfs; 2018-08-13): Switch this to build from leaves up, then normalize after the fact
     # Use beta values of leaves (intial topics) to calculate aggregate beta values for meta topics/clusters
     if (max.id() > K()) {
       for (clusterID in append(changedIDs, newIDs)) {
         if (clusterID <= K()) { next } # We never need to update leaf values
         if (is.na(stateStore$assigns[[clusterID]])) { next }
 
-        # TODO(tfs; 2018-08-13): Move to stateStore
         leaves <- stateStore$leaf.map[[toString(clusterID)]]
 
         vals <- leaf.beta[leaves,] * weights[leaves]
@@ -390,7 +387,6 @@ function(input, output, session) {
         # Normalize the new distribution
         vals <- vals / sum(vals)
 
-        # TODO(tfs; 2018-08-14): Switch to storing weighted betas? Could allow for more specific updates/higher efficiency
         stateStore$all.beta[clusterID,] <- vals
       }
     }
@@ -409,8 +405,6 @@ function(input, output, session) {
       }
     }
 
-
-    # TODO(tfs; 2018-08-13): Switch this to build from leaves up, then normalize after the fact?
     for (i in append(changedIDs, newIDs)) {
       if (i <= K()) { next } # We never need to update leaf values
       if (is.null(stateStore$leaf.map[[toString(i)]])) { next }
@@ -552,7 +546,6 @@ function(input, output, session) {
         newLM[[toString(i)]] <- c()
       }
 
-      # TODO(tfs; 2018-08-13): It would be great to find a faster way to do/maintain this
       for (i in seq(nrow(beta))) {
         newLM[[toString(i)]] <- c(i) # All leaves are their own (singleton) leafset
         p <- newA[[i]]
@@ -754,7 +747,6 @@ function(input, output, session) {
         initLM[[toString(i)]] <- c()
       }
 
-      # TODO(tfs; 2018-08-13): It would be great to find a faster way to do/maintain this
       for (i in seq(K())) {
         initLM[[toString(i)]] <- c(i) # A leaf is the only memeber in it's own leafmap entry
 
@@ -771,7 +763,6 @@ function(input, output, session) {
       stateStore$assigns <- initAssigns
     }
 
-    # TODO(tfs; 2018-08-14): Figure out what is taking so long to initialize
     init.all.beta()
     init.all.theta()
     init.top.documents.order()
@@ -821,7 +812,6 @@ function(input, output, session) {
   })
 
 
-  # TODO(tfs; 2018-08-13): Integrate into stateStore or turn into a function
   # Encodes the assignment/hierarchy structure as a string:
   #      "[child]:[parent],[child]:[parent],..."
   assignString <- reactive({
@@ -935,8 +925,6 @@ function(input, output, session) {
   # Given that a hierarchy already exists (the widgets are already rendered),
   #       initiate a new clustering that operates on the direct descendants of the selected node (if able).
   #       Can also operate on direct descendants of the root.
-  # TODO(tfs): There seems to be some confusion where new clusters' beta/theta can be linked
-  #            to another new cluster's children instead of its own
   observeEvent(input$runtimeCluster, {
     # Check that all conditions are met before performing clustering
     req(data())
@@ -1021,8 +1009,7 @@ function(input, output, session) {
     session$sendCustomMessage("runtimeClusterFinished", "SUCCESS")
   })
 
-  # TODO(tfs; 2018-08-20): There are definitely still major issues with the optimization branch.
-  #                        I suspect they have to do with deleting a cluster
+
   # Handle deletion of the selected cluster, triggered by a button on frontend
   observeEvent(input$deleteCluster, {
     # Check for good input
@@ -1187,7 +1174,6 @@ function(input, output, session) {
         stateStore$assigns[[source.id]] <- newID
         newIDs <- append(newIDs, newID)
       } else {
-        # TODO(tfs; 2018-08-14): See if this is actually intended behavior
         if (originP == target.id) { return() }
 
         # Shift is held, source is an aggregate node
@@ -1237,7 +1223,6 @@ function(input, output, session) {
 
     pitr <- originP
 
-    # TODO(tfs; 2018-08-14): Update to handle where source is ancestor/descendant of target
     # Remove leaves from origin's ancestors
     while (pitr > 0) {
       stateStore$leaf.map[[toString(pitr)]] <- stateStore$leaf.map[[toString(pitr)]][!(stateStore$leaf.map[[toString(pitr)]] %in% origin.leaves)]
@@ -1320,7 +1305,6 @@ function(input, output, session) {
       newLM[[toString(i)]] <- c()
     }
 
-    # TODO(tfs; 2018-08-13): It would be great to find a faster way to do/maintain this
     # Build up leaf map, using new assignments
     for (i in seq(K())) {
       p <- newA[[i]]
@@ -1497,7 +1481,6 @@ function(input, output, session) {
   })
 
 
-  # TODO(tfs; 2018-08-13): Integrate stateStore
   # List of children for selected topic
   selected.children <- reactive({
     parentNode <- as.integer(input$topic.selected)
@@ -1514,17 +1497,6 @@ function(input, output, session) {
     childIDs <- selected.children()
 
     return(stateStore$all.beta[childIDs,])
-  })
-
-
-  # Returns the highest ID of any cluster, offset by the number of leaf nodes (K())
-  # TODO(tfs; 2018-07-07): Rename this, cluster.maxID or something similar
-  node.maxID <- reactive({
-    if (is.null(data())) {
-      return(0)
-    }
-
-    return(max.id() - K())
   })
 
 
@@ -1603,9 +1575,8 @@ function(input, output, session) {
   })
 
 
-  # TODO(tfs; 2018-07-07): Rename to reflect sorted nature
   # SORTED selected betas
-  betas.selected <- reactive({
+  betas.selected.sorted <- reactive({
     topic <- as.integer(input$topic.active)
 
     if (is.na(topic)) { return(list()) }
@@ -1616,9 +1587,8 @@ function(input, output, session) {
   })
 
 
-  # TODO(tfs; 2018-07-07): Rename to reflect sorted nature
   # Returns the SORTED theta values of all documents corresponding to the selected topic
-  thetas.selected <- reactive({
+  thetas.selected.sorted <- reactive({
     topic.theta <- data()$theta
     topic <- as.integer(input$topic.active)
 
@@ -1643,7 +1613,7 @@ function(input, output, session) {
     # TODO(tfs; 2018-08-13): Rework for dynamic loading
     docs <- data()$doc.titles[stateStore$top.documents.order[[topic]][1:last.shown.docidx()]]
 
-    thetas <- thetas.selected() # Used to show relevance to topic
+    thetas <- thetas.selected.sorted() # Used to show relevance to topic
     rv <- ""
 
     for (i in 1:length(docs)) {
@@ -1671,7 +1641,7 @@ function(input, output, session) {
     # TODO(tfs; 2018-08-03): Rework for dynamic loading
     terms <- data()$vocab[stateStore$top.vocab.order[[topic]][1:last.shown.docidx()]]
 
-    betas <- betas.selected()
+    betas <- betas.selected.sorted()
     rv <- ""
 
     for (i in 1:length(terms)) {

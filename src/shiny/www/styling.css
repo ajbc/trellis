@@ -566,6 +566,7 @@ span#kmeans-initialization-row2 .form-group label {
     opacity: 0.60;
 }
 
+
 #export-button-container:hover {
     opacity: 1.0;
 }
@@ -703,7 +704,7 @@ span#kmeans-initialization-row2 .form-group label {
 
 
 .middle-tree-node {
-    fill: lightblue;
+    fill: hsl(215,100%,80%);
 }
 
 
@@ -715,7 +716,9 @@ span#kmeans-initialization-row2 .form-group label {
 
 
 .terminal-tree-node {
-    fill: blue;
+    fill: white;
+    stroke: black;
+    stroke-width: 2;
 }
 
 
@@ -772,8 +775,6 @@ span#kmeans-initialization-row2 .form-group label {
     display: none;
     visibility: hidden;
 }
-
-
 
 
 /**********************************************************
