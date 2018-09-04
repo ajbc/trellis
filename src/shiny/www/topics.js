@@ -1,17 +1,17 @@
-var TOPIC_LABEL = "Topic";
-var DOCUMENT_LABEL = "Document";
-var VOCAB_LABEL = "Vocab";
-var TREE_LABEL = "Tree";
-var BUBBLE_LABEL = "Bubbles";
+var TOPIC_LABEL     = "Topic";
+var DOCUMENT_LABEL  = "Document";
+var VOCAB_LABEL     = "Vocab";
+var TREE_LABEL      = "Tree";
+var BUBBLE_LABEL    = "Bubbles";
 
-var showingHelp = false; // This is probably not needed
-var selectedView = BUBBLE_LABEL;
-var selectedViewTab
+var showingHelp     = false; // This is probably not needed
+var selectedView    = BUBBLE_LABEL;
+var selectedViewTab;
 var selectedLeftTab = DOCUMENT_LABEL;
-var data = null;
-var exportMode = false;
-var flattenMode = false;
-var LEFT_BAR_WIDTH = 300;
+var data            = null;
+var exportMode      = false;
+var flattenMode     = false;
+var LEFT_BAR_WIDTH  = 300;
 var RIGHT_BAR_WIDTH = 300;
 var activeSelector;
 
@@ -19,12 +19,11 @@ var assignments;
 
 // NOTE(tfs): These aren't actually set correctly at all. HTMLWidgets.widgets
 //            does not give the actual instance we care about (with access to data)
-var bubbleWidget;
-var treeWidget;
-var widgets = {};
+var bubbleWidget = null;
+var treeWidget   = null;
 
 var BUBBLE_SELECTOR = "svg#bubbles-svg";
-var TREE_SELECTOR = "svg#tree-svg";
+var TREE_SELECTOR   = "svg#tree-svg";
 
 var selectors = {};
 
@@ -174,6 +173,16 @@ function initializeMainView(msg) {
 };
 
 
+function registerBubbleWidget(widget) {
+	bubbleWidget = widget;
+};
+
+
+function registerTreeWidget(widget) {
+	treeWidget = widget;
+};
+
+
 // Set shinyFiles input fields to null (for performance)
 function clearFileInputs(msg) {
 	Shiny.onInputChange("textlocation-modal", null);
@@ -247,7 +256,7 @@ function selectBubbles() {
 	$("#right-tree-selector").removeAttr("disabled");
 	
 	activeSelector = selectors[BUBBLE_LABEL];
-	Shiny.onInputChange("selectedView", BUBBLE_LABEL);
+	Shiny.onInputChange("selectedView", [BUBBLE_LABEL, Date.now()]);
 };
 
 
@@ -278,7 +287,7 @@ function selectTree() {
 	$("#right-bubbles-selector").removeAttr("disabled");
 	
 	activeSelector = selectors[TREE_LABEL];
-	Shiny.onInputChange("selectedView", TREE_LABEL);
+	Shiny.onInputChange("selectedView", [TREE_LABEL, Date.now()]);
 };
 
 

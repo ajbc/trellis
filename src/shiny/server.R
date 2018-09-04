@@ -781,6 +781,23 @@ function(input, output, session) {
   })
 
 
+  observeEvent(input$selectedView, {
+    messageType <- paste0("switchMainViewTo", input$selectedView[[1]])
+
+    session$sendCustomMessage(messageType, toString(input$topic.selected))
+  })
+
+
+  observeEvent(input$bubble.initialized, {
+    session$sendCustomMessage("switchMainViewToBubbles", toString(input$topic.selected))
+  })
+
+
+  observeEvent(input$tree.initialized, {
+    session$sendCustomMessage("switchMainViewToTree", toString(input$topic.selected))
+  })
+
+
   # Observe that export button has been pressed, pass back to frontend
   observeEvent(input$enterExportMode, {
     session$sendCustomMessage("enterExportMode", "")
