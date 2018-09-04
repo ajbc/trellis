@@ -596,9 +596,6 @@ HTMLWidgets.widget({
     /* Correctly label any node.
      */
     setLabelVisibility: function (d, hover) {
-        // TODO(tfs; 2018-07-04): This should probably be cleaned up.
-        //                        Many of these conditions no longer reflect the functionality of Trellis.
-        //                        In fact, we may want to completely overhaul label visibility.
         var self = this,
             dIs = !!d,
             dIsSource = dIs && self.sourceD && d.data.id === self.sourceD.data.id,
