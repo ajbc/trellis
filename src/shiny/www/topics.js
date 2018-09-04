@@ -493,7 +493,7 @@ function setStyle(elem) {
 }
 
 
-// TODO(tfs): Include styling: https://stackoverflow.com/questions/15181452/how-to-save-export-inline-svg-styled-with-css-from-browser-to-image-file
+// Ref: https://stackoverflow.com/questions/15181452/how-to-save-export-inline-svg-styled-with-css-from-browser-to-image-file
 // Create an svg string for download.
 function downloadActiveWidgetAsSVG() {
 	// NOTE(tfs): Should probably be using 'let', but I don't think it's been fully adopted yet
