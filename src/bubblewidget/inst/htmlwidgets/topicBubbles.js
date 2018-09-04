@@ -230,7 +230,19 @@ HTMLWidgets.widget({
 
         circles.enter()
             .append("circle")
-            .attr("class", "node")
+            .attr("class", function (d) {
+                var classes = ["node"];
+
+                if (d.data.isLeaf) {
+                    classes.push("bubble-leaf-node");
+                } else if (d.data.isCollapsed) {
+                    classes.push("bubble-collapsed-node");
+                } else {
+                    classes.push("bubble-internal-node");
+                }
+
+                return classes.join(" ");
+            })
             .attr("weight", function (d) {
                 return d.data.weight ? d.data.weight : -1;
             })
@@ -246,7 +258,7 @@ HTMLWidgets.widget({
             .on("click", self.generateNodeClickHandler(self))
             .on("mouseover", function (d) {
                 var displayID = !self.sourceD ? "" : self.sourceD.data.id,
-                    isRoot = self.isRootNode(d);
+                       isRoot = self.isRootNode(d);
                 Shiny.onInputChange("topic.active", isRoot ? displayID : d.data.id);
                 if (isRoot || self.isGroupInFocus(d)) {
                     return;
@@ -633,7 +645,6 @@ HTMLWidgets.widget({
     /* Correctly color any node.
      */
     setCircleFill: function (d) {
-        // TODO(tfs; 2018-07-04): May want to overhaul styling to be class/CSS based
         var self = this,
             isfirstSelNode = self.sourceD
                 && self.sourceD.data.id === d.data.id,
@@ -783,24 +794,6 @@ HTMLWidgets.widget({
                 n.terms = terms.split(' ');
             }
         });
-    },
-
-    /* Helper function to add hierarchical structure to data.
-        TODO(tfs): Make this more efficient, usable for in-order (or any-order) assignments
-     */
-    findParent: function (branch, parentID, nodeID) {
-        var self = this,
-            rv = null;
-        if (branch.id === parentID) {
-            rv = branch;
-        } else if (rv === null && branch.children !== undefined) {
-            branch.children.forEach(function (child) {
-                if (rv === null) {
-                    rv = self.findParent(child, parentID, nodeID);
-                }
-            });
-        }
-        return rv;
     },
 
     /* Finds the maximum node ID and returns the next integer.

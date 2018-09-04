@@ -49,7 +49,7 @@ HTMLWidgets.widget({
     TOP_MARGIN: 75,
     BORDER_MARGIN: 10,
     CIRCLE_RADIUS: 7,
-    TERMINAL_NODE_RADIUS: 4,
+    TERMINAL_NODE_RADIUS: 3,
     COLLAPSED_NODE_RADIUS: 10,
     LABEL_FONT_SIZE: 8,
     TEXT_HEIGHT_OFFSET: 2,
@@ -99,7 +99,7 @@ HTMLWidgets.widget({
                 if (left.data.collapsed || right.data.collapsed) {
                     return 3;
                 } else {
-                    return (left.parent.data.id === right.parent.data.id) ? 1 : 4;
+                    return (left.parent.data.id === right.parent.data.id) ? 2 : 4;
                 }
             });
 
@@ -745,24 +745,6 @@ HTMLWidgets.widget({
                 n.terms = terms.split(' ');
             }
         });
-    },
-
-    /* Helper function to add hierarchical structure to data.
-        TODO(tfs): Make this more efficient, usable for in-order (or any-order) assignments
-     */
-    findParent: function (branch, parentID, nodeID) {
-        var self = this,
-            rv = null;
-        if (branch.id === parentID) {
-            rv = branch;
-        } else if (rv === null && branch.children !== undefined) {
-            branch.children.forEach(function (child) {
-                if (rv === null) {
-                    rv = self.findParent(child, parentID, nodeID);
-                }
-            });
-        }
-        return rv;
     },
 
     /* Finds the maximum node ID and returns the next integer.
