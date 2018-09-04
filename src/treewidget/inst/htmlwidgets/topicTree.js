@@ -108,7 +108,6 @@ HTMLWidgets.widget({
                             .range([self.MIN_EDGE_WIDTH, self.MAX_EDGE_WIDTH]);
     },
 
-
     zoomHandler: function (selfRef) {
         var handler = function () {
             selfRef.g.attr("transform", "translate(" + d3.event.transform.x + "," + d3.event.transform.y + ")" + "scale(" + d3.event.transform.k + ")");
@@ -117,7 +116,6 @@ HTMLWidgets.widget({
 
         return handler;
     },
-
 
     resize: function (el, width, height) {
         var self = this;
@@ -305,7 +303,6 @@ HTMLWidgets.widget({
         self.resizeAndReposition(useTransition);
     },
 
-
     // Returns a callback function, setting drag status to ``status``
     dragStatusSetter: function (status) {
         var setterCallback = function (n) {
@@ -325,27 +322,6 @@ HTMLWidgets.widget({
 
         return setterCallback;
     },
-
-
-    // Pass in reference to "self", as the call() method passes a different "this"
-    dragStartHandler: function (selfRef) {
-        var handler = function (d) {
-            d3.event.sourceEvent.stopPropagation();
-
-
-            d3.select(this).data().forEach(selfRef.dragStatusSetter(true));
-
-            selfRef.draggedNode = d.data.id;
-
-            var coords = d3.mouse(this);
-
-            selfRef.dragPointer = selfRef.g.append("circle").attr("id", "drag-pointer").attr("r", 10).raise();
-            d3.select("#drag-pointer").attr("cx", coords[0]).attr("cy", coords[1]);
-        }
-
-        return handler;
-    },
-
 
     // Pass in reference to "self", as the call() method passes a different "this"
     activeDragHandler: function (selfRef) {
@@ -708,58 +684,6 @@ HTMLWidgets.widget({
         }
     },
 
-    /* Update the string that informs the Shiny server about the hierarchy of
-     * topic assignments
-     */
-    updateTopicAssignments: function (selfRef, callback) {
-        var self = selfRef,
-            assignments = [],
-            EVENT = "topics";
-        self.traverseTree(self.treeData, function (n) {
-            if (!n.children) {
-                return;
-            }
-            if (n.weight <= 0 && n.children.length === 0) {
-                return;
-            }
-
-            if (n.children && n.children.length > 0) {
-                n.children.forEach(function (childN) {
-                    assignments.push(childN.id + ":" + n.id);
-                });
-            } else if (n.childStore && n.childStore.length > 0) {
-                n.childStore.forEach(function (childN) {
-                    assignments.push(childN.id + ":" + n.id);
-                });
-            }
-        });
-
-        Shiny.onInputChange(EVENT, assignments.join(","));
-    },
-
-    updateTopicView: function (newTopics) {
-        var self = this;
-        self.traverseTree(self.treeData, function (n) {
-            var terms = newTopics[n.id];
-            if (terms) {
-                n.terms = terms.split(' ');
-            }
-        });
-    },
-
-    /* Finds the maximum node ID and returns the next integer.
-     */
-    getNewID: function () {
-        var self = this,
-            maxID = 0;
-        self.traverseTree(self.treeData, function (n) {
-            if (n.id > maxID) {
-                maxID = n.id;
-            }
-        });
-        return maxID + 1;
-    },
-
     /* Returns `true` if the node is the root node, `false` otherwise.
      */
     isRootNode: function (d) {
@@ -786,16 +710,6 @@ HTMLWidgets.widget({
         return result;
     },
 
-    /* Returns `true` if the node is both in focus and a group rather than a
-     * leaf.
-     */
-    isGroupInFocus: function (d) {
-        var self = this,
-            isInFocus = d === self.nodeInFocus,
-            isGroup = !self.isLeafNode(d);
-        return isInFocus && isGroup;
-    },
-
     /* This is a critical function. We need to give D3 permanent IDs for each
      * node so that it knows which data goes with which bubble. See:
      * https://bost.ocks.org/mike/constancy/
@@ -803,51 +717,6 @@ HTMLWidgets.widget({
     constancy: function (d) {
         return d.data.id;
     },
-
-    /* Walks the tree data and moves each node after its parent.
-     */
-    sortNodesBasedOnTree: function () {
-        var self = this,
-            childNode,
-            parentNode;
-
-        function insertAfter(newNode, referenceNode) {
-            referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
-        }
-
-        self.traverseTree(self.treeData, function (n) {
-            if (n.children) {
-                n.children.forEach(function (child) {
-                    childNode = document.getElementById('node-' + child.id);
-                    parentNode = document.getElementById('node-' + n.id);
-                    insertAfter(childNode, parentNode);
-
-                    childNode = document.getElementById('label-' + child.id);
-                    parentNode = document.getElementById('label-' + n.id);
-                    insertAfter(childNode, parentNode);
-                });
-            }
-        });
-    },
-
-    /* Walks up the tree and removes empty groups, starting with `oldParentD`.
-     */
-    removeChildlessNodes: function (groupD) {
-        var self = this,
-            removeGroup;
-
-        removeGroup = !groupD.data.children || groupD.data.children.length === 0;
-        if (removeGroup) {
-            self.removeChildDFromParent(groupD);
-        }
-        // Walk up the tree. In principle, `groupD` could be an only child. In
-        // this scenario, we want to remove its parent as well. This recursion
-        // should continue so long as each new group is an only child.
-        if (groupD.parent) {
-            self.removeChildlessNodes(groupD.parent);
-        }
-    },
-
 
     selectNode: function (targetD, makeNewGroup) {
         var self = this,
@@ -894,8 +763,6 @@ HTMLWidgets.widget({
             Shiny.onInputChange("topic.selected", "");
         }
     },
-
-
 })
 
 
