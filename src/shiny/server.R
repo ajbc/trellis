@@ -20,6 +20,7 @@ options(shiny.maxRequestSize=1e4*1024^2)
 #            more documents on the left panel as the user scrolls
 file.home <- "~"
 num.documents.shown <- 100
+volumes <- c(Home = file.home, getVolumes()())
 
 
 # Parameters for making beta sparse and performing SVD before performing kmeans clustering
@@ -136,7 +137,7 @@ function(input, output, session) {
   # Display the name of the selected model file
   output$modelfile.name <- renderText({
     if (!is.null(input$modelfile)) {
-      name <- as.character(parseFilePaths(c(home=file.home), input$modelfile)$datapath)
+      name <- as.character(parseFilePaths(volumes, input$modelfile)$datapath)
       return(HTML(sanitize(name)))
     } else {
       return(HTML(""))
@@ -484,7 +485,7 @@ function(input, output, session) {
   # Display the name of the selected text directory
   output$textdirectory.name <- renderText({
     if (!is.null(input$textlocation)) {
-      name <- as.character(parseDirPath(c(home=file.home), isolate(input$textlocation)))
+      name <- as.character(parseDirPath(volumes, isolate(input$textlocation)))
       return(HTML(sanitize(name)))
     } else {
       return(HTML(""))
@@ -498,7 +499,7 @@ function(input, output, session) {
       return(NULL)
 
     # Build full file name
-    path <- parseFilePaths(c(home=file.home), isolate(input$modelfile))
+    path <- parseFilePaths(volumes, isolate(input$modelfile))
 
     # Loads `beta`, `theta`, `filenames`, `titles`, and `vocab`
     load(as.character(path$datapath))
@@ -572,7 +573,7 @@ function(input, output, session) {
     # Parse path to text file directory
     document.location <- NULL
     if (!is.null(isolate(input$textlocation))) {
-      document.location <- as.character(parseDirPath(c(home=file.home), isolate(input$textlocation)))
+      document.location <- as.character(parseDirPath(volumes, isolate(input$textlocation)))
     }
 
     # Tell frontend to initiate clearing of:
@@ -609,21 +610,21 @@ function(input, output, session) {
 
 
   # Setup shinyFiles for model file selection and text file directory selection
-  shinyFileChoose(input, 'modelfile', roots=c(home=file.home), session=session, restrictions=system.file(package='base'))
-  shinyDirChoose(input, 'textlocation', roots=c(home=file.home), session=session, restrictions=system.file(package='base'))
-  shinyFileSave(input, 'savedata', roots=c(home=file.home), session=session, restrictions=system.file(package='base'))
-  shinyFileSave(input, 'exportflat', roots=c(home=file.home), session=session, restrictions=system.file(package='base'))
+  shinyFileChoose(input, 'modelfile', roots=volumes, session=session, restrictions=system.file(package='base'))
+  shinyDirChoose(input, 'textlocation', roots=volumes, session=session, restrictions=system.file(package='base'))
+  shinyFileSave(input, 'savedata', roots=volumes, session=session, restrictions=system.file(package='base'))
+  shinyFileSave(input, 'exportflat', roots=volumes, session=session, restrictions=system.file(package='base'))
 
 
   observeEvent(input$savedata, {
-    if (is.null(input$savedata) || nrow(parseSavePath(c(home=file.home), input$savedata)) <= 0) {
+    if (is.null(input$savedata) || nrow(parseSavePath(volumes, input$savedata)) <= 0) {
       return(NULL)
     }
 
     collapsed.flags <- stateStore$collapsed.nodes # Rename to avoid collision later
 
     # All values to be saved
-    sp <- parseSavePath(c(home=file.home), input$savedata)
+    sp <- parseSavePath(volumes, input$savedata)
     file <- as.character(sp$datapath)
     beta <- data()$beta
     theta <- data()$theta
@@ -644,7 +645,7 @@ function(input, output, session) {
 
   observeEvent(input$exportflat, {
     # Do nothing if we have no nodes to export
-    if (is.null(stateStore$flat.selection) || nrow(parseSavePath(c(home=file.home), input$exportflat)) <= 0) { return() }
+    if (is.null(stateStore$flat.selection) || nrow(parseSavePath(volumes, input$exportflat)) <= 0) { return() }
 
     idlist <- c()
 
@@ -678,7 +679,7 @@ function(input, output, session) {
     newAString <- paste(newAs, collapse=",")
 
     # All values to be saved
-    sp <- parseSavePath(c(home=file.home), input$exportflat)
+    sp <- parseSavePath(volumes, input$exportflat)
     file <- as.character(sp$datapath)
     beta <- flat.beta
     theta <- flat.theta
