@@ -70,27 +70,10 @@ Optionally, specify a directory with the original documents to browse.
 To generate a single text file of all documents given one document per file, use the `dat/collapse_docs.py` script.  To use, specify first a file containing a list of filenames, and then a the directory fo files.  For example: `python collapse_docs.py wiki_titles.dat wiki`.  The resulting file can be used by `dat/process.R`, as shown below.
 
 #### Example
-```
-library(stm)
-library(data.table)
 
-titles <- as.data.frame(fread("wiki_titles.dat", header=FALSE, col.names=c("title")))
-docs <- as.data.frame(fread("wiki_all.dat", sep='\t', header=FALSE, col.names=c("documents")))
-
-processed <- textProcessor(docs$documents, metadata=titles)
-out <- prepDocuments(processed$documents, processed$vocab, processed$meta)
-model <- stm(documents=out$documents, vocab=out$vocab, K=100, init.type="Spectral")
-
-beta <- exp(model$beta$logbeta[[1]])
-theta <- model$theta
-vocab <- out$vocab
-titles <- gsub("_", " ", processed$meta$titles)
-filenames <- processed$meta$titles
-
-save(beta, theta, vocab, titles, filenames, file="wiki.K100.RData")
-```
-
-Both the raw Wikipedia data and `wiki.K100.RData` are incuded as examples.
+See the `dat` folder for a debugging corpus and example processing scripts.
+For more details, see `dat/example_lda.md` for instructions for the `process_lda.r` script.
+The `dat/example_lda_model.rdata` file is a valid example model file (for upload to Trellis), and the `dat/very_small_corpus` directory contains the corresponding original text files.
 
 ### Supported Interactions
 
@@ -101,4 +84,5 @@ Both the raw Wikipedia data and `wiki.K100.RData` are incuded as examples.
 - Dragging and dropping to merge or move nodes within the hierarchy
 - Exporting an SVG image (not currently funcitoning properly for the tree view)
 - Clicking on a document in the lefthand panel to view the full text
-- (Tree view) Collapsing a node and its children
+- Collapsing a node and its children
+- Exporting a cut of the aggregated topic hierarchy as a new, flat model
