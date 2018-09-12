@@ -58,6 +58,11 @@ $(document).ready(function() {
 		toggleHelpButton();
 	});
 
+	$("#help-box-background").click(function(event) {
+		event.preventDefault();
+		toggleHelpButton();
+	});
+
 	$("#bubbles-selector").click(function(event) {
 		event.preventDefault();
 		selectBubbles();
@@ -210,15 +215,20 @@ function clearFlatExportFile(msg) {
 
 // Handle clicking the bottom-right help button (toggling a popup help window)
 function toggleHelpButton() {
+	var helpboxcontainer = $("#help-box-background");
 	var helpbox = $("#help-box");
 	if (helpbox.hasClass("hidden-popup")) {
+		helpboxcontainer.removeClass("hidden-popup");
 		helpbox.removeClass("hidden-popup");
 		showingHelp = true;
 		helpbox.trigger("shown");
+		helpboxcontainer.trigger("shown");
 	} else {
+		helpboxcontainer.addClass("hidden-popup");
 		helpbox.addClass("hidden-popup");
 		showingHelp = false;
 		helpbox.trigger("hidden");
+		helpboxcontainer.trigger("hidden");
 	}
 };
 

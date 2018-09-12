@@ -154,6 +154,7 @@
                 </span>
             </div>
 
+            <div id="help-box-background" class="hidden-popup"></div>
             <div id="help-box" class="hidden-popup">
                 <h2>Instructions</h2>
 
@@ -169,7 +170,11 @@
 
                 You must have a node selected to perform operations in the "topics" tab on the side panel.<br/>
 
-                In the either the tree or bubble visualization, clicking on a node while holding the "alt/option" key will collapse that node.<br/>
+                In either the tree or bubble visualization, clicking on a node while holding the "alt/option" key will collapse that node.<br/>
+
+                Selecting a node will deselect all other nodes.<br/>
+
+                Node selection persists between tree and bubble visualizations.<br/>
 
                 <hr />
 
@@ -195,7 +200,7 @@
 
                 <h3>Controlling Visualization View</h3>
 
-                Scroll to zoom in on the visualizations.<br/>
+                Scroll to zoom in or out on the visualizations.<br/>
 
                 Click and drag while holding the "alt/option" key to pan.<br/>
 
@@ -205,9 +210,9 @@
 
                 The save button in the upper-left corner will output a .rdata file compatible with Trellis. In the future, this file can be loaded as the model file through the initialization panel. All collapsed nodes, assignments, and manual titles will be preserved, as well as the dataset name.<br/>
 
-                The export button in the top-right corner leads to further options. The .SVG button exports an image in SVG format of the current state of the currently active visualization.<br/>
+                The export button in the top-right corner leads to further options. The .SVG button exports an image in SVG format of the current active visualization.<br/>
 
-                The "flattened" button opens a new control panel. Click nodes to select them, forming a cut of the tree. Trellis will ensure that you have a cut selected at all times by automatically selecting siblings at the same level as the node a user selects. Once finished, Trellis outputs a file compatible with Trellis.<br/>
+                The "flattened" button opens a new control panel. Click nodes to select them, forming a cut of the tree. Trellis will ensure that you have a cut selected at all times by automatically selecting siblings at the same level as the node you select. Once finished, Trellis outputs a file compatible with Trellis.<br/>
             </div>
 
             <div id="help-button-container" class="main-control">
