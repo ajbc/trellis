@@ -799,7 +799,7 @@ span#kmeans-initialization-row2 .form-group label {
     top: 10vh;
     left: 10vw;
     width: 80vw;
-    height: 70vh;
+    height: 80vh;
     background-color: lightblue;
     opacity: 1.0;
     text-align: center;
@@ -811,9 +811,29 @@ span#kmeans-initialization-row2 .form-group label {
     z-index: 50;
 
     overflow: scroll;
+
+    padding: 15px;
 }
 
 #help-box.hidden-popup {
+    display: none;
+}
+
+#help-box-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: lightgray;
+    opacity: 0.4;
+    text-align: center;
+    margin: 0px;
+    padding: 0px;
+    z-index: 25;
+}
+
+#help-box-background.hidden-popup {
     display: none;
 }
 
