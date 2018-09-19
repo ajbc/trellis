@@ -12,7 +12,7 @@ Author: Brandon Stewart [aut, cre],
 	Thomas Schaffner [aut, cre]
 Maintainer: Thomas Schaffner <t.f.schaffner@gmail.com>
 Depends: R (>= 3.5.1)
-Imports: Shiny
+Imports: shiny
 Suggests: stm
 LazyData: yes
 Description: Trellis is a visualization tool
@@ -22,3 +22,4 @@ Description: Trellis is a visualization tool
 License: MIT + file LICENSE
 URL: https://github.com/ajbc/trellis
 BugReports: https://github.com/ajbc/trellis/issues
+RoxygenNote: 6.1.0
