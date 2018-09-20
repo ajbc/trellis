@@ -1808,11 +1808,11 @@ function(input, output, session) {
 
 
   # Render bubble widget
-  output$bubbles <- renderTopicBubbles({ topicBubbles(bubbles.data()) })
+  # output$bubbles <- renderTopicBubbles({ topicBubbles(bubbles.data()) })
 
 
   # Render tree widget
-  output$tree <- renderTopicTree({ topicTree(bubbles.data()) })
+  # output$tree <- renderTopicTree({ topicTree(bubbles.data()) })
 }
 
 

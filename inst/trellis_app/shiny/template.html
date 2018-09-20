@@ -222,12 +222,12 @@
             <!-- Main views -->
             <div id="bubbles-view" class="view">
                 <h3>Bubbles View</h3>
-                {{ outputBubbles }}
+                <div id="topic-bubble-container"></div>
             </div>
 
             <div id="tree-view" class="view hidden-view">
                 <h3>Tree View</h3>
-                {{ outputTree }}
+                <div id="topic-tree-container"></div>
             </div>
         </div>
 
@@ -261,5 +261,7 @@
         </div>
 
         <script src="topics.js"></script>
+        <script src="topicBubbles.js"></script>
+        <script src="topicTree.js"></script>
     </body>
 </html>
