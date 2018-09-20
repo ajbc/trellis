@@ -1,12 +1,11 @@
-library(shiny)
-library(shinyjs)
-library(jsonlite)
-# library(stm)
-library(data.table)
-library(xtable) # Used to sanitize output
-library(Matrix) # Used for sparse beta
-library(irlba)  # Used for fast SVD
-library(rsvd)   # Used for alternate SVD (high dimension compared to number of topics)
+# Required package namespaces/methods, loaded through NAMESPACE/DESCRIPTION
+#  shinyjs       - show, hide, toggleState
+#  jsonlite      - toJSON
+#  data.table
+#  xtable        - sanitize
+#  Matrix        - Matrix
+#  irlba         - ssvd
+#  rsvd          - rsvd
 
 
 options(shiny.maxRequestSize=1e4*1024^2)
@@ -148,7 +147,7 @@ function(input, output, session) {
   output$modelfile.name <- renderText({
     if (!is.null(input$modelfile)) {
       name <- as.character(parseFilePaths(volumes, input$modelfile)$datapath)
-      return(HTML(sanitize(name)))
+      return(HTML(xtable::sanitize(name)))
     } else {
       return(HTML(""))
     }
@@ -496,7 +495,7 @@ function(input, output, session) {
   output$textdirectory.name <- renderText({
     if (!is.null(input$textlocation)) {
       name <- as.character(parseDirPath(volumes, isolate(input$textlocation)))
-      return(HTML(sanitize(name)))
+      return(HTML(xtable::sanitize(name)))
     } else {
       return(HTML(""))
     }
@@ -900,14 +899,14 @@ function(input, output, session) {
       #    Use the resulting (much smaller) matrix to run kmeans clustering
       bet <- beta()
 
-      sparse <- Matrix(0, nrow=nrow(bet), ncol=ncol(bet), sparse=TRUE)
+      sparse <- Matrix::Matrix(0, nrow=nrow(bet), ncol=ncol(bet), sparse=TRUE)
       mask <- (bet > beta.threshold)
       sparse[mask] <- bet[mask]
 
       if (nrow(sparse) > beta.svd.dim * beta.svd.ratio) {
-        singular <- ssvd(sparse, k=min(nrow(sparse)-1, beta.svd.dim))$u
+        singular <- irlba::ssvd(sparse, k=min(nrow(sparse)-1, beta.svd.dim))$u
       } else {
-        singular <- rsvd(sparse, k=min(nrow(sparse)-1, beta.svd.dim))$u
+        singular <- rsvd::rsvd(sparse, k=min(nrow(sparse)-1, beta.svd.dim))$u
       }
 
       return(kmeans(singular, input$initial.numClusters)) 
@@ -994,7 +993,7 @@ function(input, output, session) {
 
     # Generate a sparse beta matrix and run SVD before running kmeans
     cb <- selected.childBetas()
-    sparse <- Matrix(0, nrow=nrow(cb), ncol=ncol(cb), sparse=TRUE)
+    sparse <- Matrix::Matrix(0, nrow=nrow(cb), ncol=ncol(cb), sparse=TRUE)
     mask <- (cb > beta.threshold)
     sparse[mask] <- cb[mask]
 
@@ -1099,7 +1098,7 @@ function(input, output, session) {
 
     if (topic == 0) { return("[ROOT]") }
 
-    return(sanitize(stateStore$display.titles[topic], type="html"))
+    return(xtable::sanitize(stateStore$display.titles[topic], type="html"))
   })
 
 
@@ -1114,7 +1113,7 @@ function(input, output, session) {
 
     if (topic == 0) { return("[ROOT]") }
 
-    return(sanitize(stateStore$display.titles[topic], type="html"))
+    return(xtable::sanitize(stateStore$display.titles[topic], type="html"))
   })
 
 
@@ -1127,7 +1126,7 @@ function(input, output, session) {
 
     if (topic == 0) { return("[ROOT]") }
 
-    return(sanitize(stateStore$display.titles[topic], type="html"))
+    return(xtable::sanitize(stateStore$display.titles[topic], type="html"))
   })
 
 
@@ -1605,7 +1604,7 @@ function(input, output, session) {
 
     title <- data()$doc.titles[selected.topic.fileorder()[idx]]
 
-    rv <- paste("<h4 id=\"document-details-title\" class=\"centered\">", sanitize(title, type="html") ,"</h4>")
+    rv <- paste("<h4 id=\"document-details-title\" class=\"centered\">", xtable::sanitize(title, type="html") ,"</h4>")
     return(HTML(rv))
   })
 
@@ -1617,7 +1616,7 @@ function(input, output, session) {
 
     if (is.na(topic) || is.na(idx)) { return() }
 
-    rv <- paste("<p>", sanitize(selected.document(), type="html"), "</p>")
+    rv <- paste("<p>", xtable::sanitize(selected.document(), type="html"), "</p>")
     return(HTML(rv))
   })
 
@@ -1677,7 +1676,7 @@ function(input, output, session) {
                   paste(as.integer(thetas[i] * 100), "%;", sep=""),
                   "\"></div>",
                   "<p class=\"document-summary-contents\">",
-                  sanitize(substr(docs[i], start=1, stop=75), type="html"),
+                  xtable::sanitize(substr(docs[i], start=1, stop=75), type="html"),
                   "</p>",
                   "</div>")
     }
@@ -1704,7 +1703,7 @@ function(input, output, session) {
                   paste(as.integer(betas[i] * 100), "%;", sep=""),
                   "\"></div>",
                   "<p class=\"vocab-summary-contents\">",
-                  sanitize(terms[i]),
+                  xtable::sanitize(terms[i]),
                   "</p>",
                   "</div>")
     }
@@ -1847,7 +1846,7 @@ function(input, output, session) {
 
   formatted.topics.data <- reactive({
     topdat <- topics.data()
-    topjs <- toJSON(topdat)
+    topjs <- jsonlite::toJSON(topdat)
 
     return(topjs)
   })
