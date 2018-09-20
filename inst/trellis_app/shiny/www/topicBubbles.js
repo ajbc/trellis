@@ -71,7 +71,7 @@ var bubbleWidget = {
     /* Creates the `svg` element, a `d3.pack` instance with the correct size
      * parameters, and the depth-to-color mapping function.
      */
-    initialize: function (width, height) {
+    initialize: function (el, width, height) {
         var self = this,
             NODE_PADDING = 20,
             SHORT_EDGE = Math.min(width, height - self.TOP_MARGIN),
@@ -112,7 +112,7 @@ var bubbleWidget = {
             .range(["hsl(215,100%,80%)", "hsl(215,70%,50%)"])
             .interpolate(d3.interpolateHcl);
 
-        registerBubbleWidget(self);
+        // registerBubbleWidget(self);
 
         // Handle Shiny messages
         Shiny.addCustomMessageHandler("nodeDeleted", function(msg) { self.setSource(null); });
@@ -141,7 +141,7 @@ var bubbleWidget = {
      * existing SVG element, as well as the transform attribute of the
      * bubbles-root element.
      */
-    resize: function (width, height) {
+    resize: function (el, width, height) {
         var self = this,
             SHORT_EDGE = Math.min(width, height - self.TOP_MARGIN),
             SVG_R = SHORT_EDGE / 2
@@ -179,7 +179,8 @@ var bubbleWidget = {
 
         var self = this;
 
-        self.treeData = self.getTreeFromRawData(rawData);
+        // self.treeData = self.getTreeFromRawData(rawData);
+        self.treeData = self.getTreeFromJSON(rawData);
 
         self.updateView(true);
     },
@@ -643,6 +644,61 @@ var bubbleWidget = {
         var self = this,
             data = {id: 0, children: [], terms: []},
             srcData = HTMLWidgets.dataframeToD3(x.data);
+
+        // Sort srcData by node ID
+        srcData.sort(function(left, right) {
+            if (left.nodeID < right.nodeID) {
+                return -1;
+            } else if (left.nodeID > right.nodeID) {
+                return 1;
+            }
+
+            return 0;
+        });
+
+        // Assumes no broken connections, but does NOT assume that there are no empty IDs
+        var maxID = srcData[srcData.length-1].nodeID;
+
+        // NOTE(tfs): When assigning to index out of bounds, JS arrays expand and include undefined entries.
+        var nodes = [];
+        nodes[0] = data;
+        for (var i = 0; i < srcData.length; i++) {
+            nodes[srcData[i].nodeID] = { id: srcData[i].nodeID, children: [], terms: [], collapsed: false, isLeaf: false, flatSelected: false };
+        }
+
+        var rawPoint;
+        var cleanPoint;
+        var parent;
+
+        for (var i = 0; i < srcData.length; i++) {
+            rawPoint = srcData[i];
+            cleanPoint = nodes[rawPoint.nodeID];
+            parent = nodes[rawPoint.parentID];
+
+            if (rawPoint.weight === 0) {
+                parent.children.push(cleanPoint);
+                cleanPoint.terms = rawPoint.title.split(" ");
+            } else if (parent !== null && parent.hasOwnProperty("children")) {
+                parent.children.push(cleanPoint);
+                cleanPoint.terms = rawPoint.title.split(" ");
+                cleanPoint.weight = rawPoint.weight;
+            }
+
+            cleanPoint.collapsed = rawPoint.collapsed;
+            cleanPoint.isLeaf = rawPoint.isLeaf;
+            cleanPoint.flatSelected = rawPoint.flatSelected;
+        }
+
+        return data;
+    },
+
+    /* Convert JSON to tree.
+     */
+    getTreeFromJSON: function (x) {
+        var self = this,
+            data = {id: 0, children: [], terms: []},
+            // srcData = HTMLWidgets.dataframeToD3(x.data);
+            srcData = x;
 
         // Sort srcData by node ID
         srcData.sort(function(left, right) {

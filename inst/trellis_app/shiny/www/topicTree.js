@@ -66,7 +66,7 @@ var treeWidget = {
     // Correct for [0, 0] root using nodeSize
     yOffset: 0,
 
-    initialize: function (width, height) {
+    initialize: function (el, width, height) {
         var self = this;
 
         // Ref: https://bl.ocks.org/mbostock/34f08d5e11952a80609169b7917d4172
@@ -119,7 +119,7 @@ var treeWidget = {
         return handler;
     },
 
-    resize: function (width, height) {
+    resize: function (el, width, height) {
         var self = this;
 
         // Update state corresponding to new width
