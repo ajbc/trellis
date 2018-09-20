@@ -30,7 +30,7 @@
 //     - Avoid "node" unless referring to the concept, e.g. `isRootNode(d)`.
 //==============================================================================
 
-var topicBubbles = {
+var bubbleWidget = {
 
 
 // Variables global to the `HTMLWidgets` instance.
@@ -111,6 +111,8 @@ var topicBubbles = {
             .domain([-2, 2])
             .range(["hsl(215,100%,80%)", "hsl(215,70%,50%)"])
             .interpolate(d3.interpolateHcl);
+
+        registerBubbleWidget(self);
 
         // Handle Shiny messages
         Shiny.addCustomMessageHandler("nodeDeleted", function(msg) { self.setSource(null); });
@@ -749,5 +751,3 @@ var topicBubbles = {
         });
     },
 };
-
-registerBubbleWidget(topicBubbles);

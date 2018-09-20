@@ -777,11 +777,24 @@ span#kmeans-initialization-row2 .form-group label {
 }
 
 
+#topic-bubble-container {
+    width: 100%;
+    height: 100%;
+}
+
+
+#topic-tree-container {
+    width: 100%;
+    height: 100%;
+}
+
+
 /**********************************************************
  *                                                        *
  *               Expanded document styling                *
  *                                                        *
  **********************************************************/
+
 
 .document-expanded {
     display: none;

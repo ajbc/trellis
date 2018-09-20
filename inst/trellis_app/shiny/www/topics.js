@@ -174,9 +174,12 @@ function processInputFile(msg) {
 
 // Switch to main view (from initial panel)
 function initializeMainView(msg) {
-	var height = 
-	bubbleWidget.initialize();
-	treeWidget.initialize();
+	var width = $("#topic-bubble-container").width();
+	var height = $("#topic-bubble-container").height();
+	bubbleWidget.initialize(width, height);
+	treeWidget.initialize(width, height);
+	console.log(width);
+	console.log(height);
 	$("#doctab-document-container").css({ "height": ($(window).height() - $("#doctab-document-container").position().top) });
 	$("#vocabtab-vocab-container").css({ "height": ($(window).height() - $("#vocabtab-vocab-container").position().top) });
 	activeWidget = bubbleWidget;

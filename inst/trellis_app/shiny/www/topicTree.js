@@ -35,7 +35,7 @@
 // REF: https://bl.ocks.org/d3noob/b024fcce8b4b9264011a1c3e7c7d70dc
 
 
-var topicTree = {
+var treeWidget = {
 
 
 // Variables global to the `HTMLWidgets` instance.
@@ -777,8 +777,4 @@ var topicTree = {
         }
     },
 };
-
-
-registerTreeWidget(topicTree);
-
 

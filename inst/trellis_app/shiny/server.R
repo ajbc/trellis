@@ -3,9 +3,6 @@ library(shinyjs)
 library(jsonlite)
 library(stm)
 library(data.table)
-library(htmlwidgets)
-library(topicBubbles)
-library(topicTree)
 library(xtable) # Used to sanitize output
 library(Matrix) # Used for sparse beta
 library(irlba)  # Used for fast SVD
@@ -605,7 +602,7 @@ function(input, output, session) {
   # Handle enabling/disabling the "Start" button on the initial panel.
   #        Model file must be provided, but `input$textlocation` is optional
   observe({
-    shinyjs::toggleState("topic.start", !is.null(input$modelfile))
+    shinyjs::toggleState("topic.start", nrow(parseFilePaths(volumes, input$modelfile)) > 0)
   })
 
 
@@ -1808,14 +1805,6 @@ function(input, output, session) {
     rv <- data.frame(parentID=pid, nodeID=nid, weight=wgt, title=ttl, collapsed=clp, isLeaf=ilf, flatSelected=flt)
     return(rv)
   })
-
-
-  # Render bubble widget
-  # output$bubbles <- renderTopicBubbles({ topicBubbles(bubbles.data()) })
-
-
-  # Render tree widget
-  # output$tree <- renderTopicTree({ topicTree(bubbles.data()) })
 }
 
 
