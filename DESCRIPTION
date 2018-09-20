@@ -12,7 +12,7 @@ Author: Brandon Stewart [aut],
 	Thomas Schaffner [aut, cre]
 Maintainer: Thomas Schaffner <t.f.schaffner@gmail.com>
 Depends: R (>= 3.5.0)
-Imports: shiny
+Imports: shiny, shinyjs, data.table, xtable, Matrix, irlba, rsvd
 Suggests: stm
 LazyData: yes
 Description: Trellis is a visualization tool

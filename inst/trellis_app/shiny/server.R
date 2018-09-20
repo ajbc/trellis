@@ -1,7 +1,7 @@
 library(shiny)
 library(shinyjs)
 library(jsonlite)
-library(stm)
+# library(stm)
 library(data.table)
 library(xtable) # Used to sanitize output
 library(Matrix) # Used for sparse beta
