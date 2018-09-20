@@ -7,7 +7,7 @@
 launchTrellis()
 }
 \description{
-TODO(tfs): documentation with in R doc
+TODO(tfs): documentation in R doc
 }
 \examples{
 \dontrun{launchTrellis()}
