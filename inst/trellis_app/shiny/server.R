@@ -782,6 +782,9 @@ function(input, output, session) {
   })
 
 
+  # observeEvent(input$)
+
+
   observeEvent(input$selectedView, {
     messageType <- paste0("switchMainViewTo", input$selectedView[[1]])
 

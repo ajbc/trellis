@@ -30,7 +30,7 @@
 //     - Avoid "node" unless referring to the concept, e.g. `isRootNode(d)`.
 //==============================================================================
 
-HTMLWidgets.widget({
+var topicBubbles = {
 
 
 // Variables global to the `HTMLWidgets` instance.
@@ -57,7 +57,6 @@ HTMLWidgets.widget({
     dragHandler: null,
 
     // HTML elements
-    el: null,
     svg: null,
 
     // The raw tree data and final arbiter of node relationships. It is
@@ -72,14 +71,13 @@ HTMLWidgets.widget({
     /* Creates the `svg` element, a `d3.pack` instance with the correct size
      * parameters, and the depth-to-color mapping function.
      */
-    initialize: function (el, width, height) {
+    initialize: function (width, height) {
         var self = this,
             NODE_PADDING = 20,
             SHORT_EDGE = Math.min(width, height - self.TOP_MARGIN),
             SVG_R = SHORT_EDGE / 2,
             D3PACK_W = SHORT_EDGE - self.PAGE_MARGIN;
 
-        self.el = el;
         self.DIAMETER = SHORT_EDGE;
 
         var zoomHandler = d3.zoom()
@@ -114,8 +112,6 @@ HTMLWidgets.widget({
             .range(["hsl(215,100%,80%)", "hsl(215,70%,50%)"])
             .interpolate(d3.interpolateHcl);
 
-        registerBubbleWidget(self);
-
         // Handle Shiny messages
         Shiny.addCustomMessageHandler("nodeDeleted", function(msg) { self.setSource(null); });
         Shiny.addCustomMessageHandler("runtimeClusterFinished", function(msg) { self.setSource(null); })
@@ -143,7 +139,7 @@ HTMLWidgets.widget({
      * existing SVG element, as well as the transform attribute of the
      * bubbles-root element.
      */
-    resize: function (el, width, height) {
+    resize: function (width, height) {
         var self = this,
             SHORT_EDGE = Math.min(width, height - self.TOP_MARGIN),
             SVG_R = SHORT_EDGE / 2
@@ -151,7 +147,6 @@ HTMLWidgets.widget({
             D3PACK_W = SHORT_EDGE - self.PAGE_MARGIN;
 
         // Update state corresponding to new width
-        self.el = el;
         self.DIAMETER = SHORT_EDGE;
 
         self.pack = d3.pack()
@@ -173,7 +168,7 @@ HTMLWidgets.widget({
         }
     },
 
-    renderValue: function (el, rawData) {
+    renderValue: function (rawData) {
         // Shiny calls this function before the user uploads any data. We want
         // to just early-return in this case.
         if (rawData.data === null) {
@@ -753,4 +748,6 @@ HTMLWidgets.widget({
             }
         });
     },
-});
+};
+
+registerBubbleWidget(topicBubbles);

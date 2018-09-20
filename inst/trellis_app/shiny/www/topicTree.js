@@ -35,7 +35,7 @@
 // REF: https://bl.ocks.org/d3noob/b024fcce8b4b9264011a1c3e7c7d70dc
 
 
-HTMLWidgets.widget({
+var topicTree = {
 
 
 // Variables global to the `HTMLWidgets` instance.
@@ -66,10 +66,8 @@ HTMLWidgets.widget({
     // Correct for [0, 0] root using nodeSize
     yOffset: 0,
 
-    initialize: function (el, width, height) {
+    initialize: function (width, height) {
         var self = this;
-
-        self.el = el;
 
         // Ref: https://bl.ocks.org/mbostock/34f08d5e11952a80609169b7917d4172
         // Ref: https://bl.ocks.org/mbostock/4987520
@@ -107,9 +105,6 @@ HTMLWidgets.widget({
                             .domain([0, 1])
                             .range([self.MIN_EDGE_WIDTH, self.MAX_EDGE_WIDTH]);
 
-
-        registerTreeWidget(self);
-
         Shiny.addCustomMessageHandler("switchMainViewToTree", function(msg) { self.setSourceByID(parseInt(msg)); });
 
         Shiny.onInputChange("tree.initialized", true);
@@ -124,11 +119,10 @@ HTMLWidgets.widget({
         return handler;
     },
 
-    resize: function (el, width, height) {
+    resize: function (width, height) {
         var self = this;
 
         // Update state corresponding to new width
-        self.el = el;
 
         self.tree = d3.tree()
             .nodeSize([self.CIRCLE_RADIUS, self.CIRCLE_RADIUS])
@@ -154,7 +148,7 @@ HTMLWidgets.widget({
         }
     },
 
-    renderValue: function (el, rawData) {
+    renderValue: function (rawData) {
         if (rawData === null) {
             return;
         }
@@ -782,6 +776,9 @@ HTMLWidgets.widget({
             Shiny.onInputChange("topic.selected", "");
         }
     },
-})
+};
+
+
+registerTreeWidget(topicTree);
 
 

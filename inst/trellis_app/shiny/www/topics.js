@@ -14,22 +14,23 @@ var flattenMode     = false;
 var LEFT_BAR_WIDTH  = 300;
 var RIGHT_BAR_WIDTH = 300;
 var activeSelector;
+var activeWidget;
 
 var assignments;
 
 // NOTE(tfs): These aren't actually set correctly at all. HTMLWidgets.widgets
 //            does not give the actual instance we care about (with access to data)
-var bubbleWidget = null;
-var treeWidget   = null;
+// var bubbleWidget    = null;
+// var treeWidget      = null;
 
 var BUBBLE_SELECTOR = "svg#bubbles-svg";
 var TREE_SELECTOR   = "svg#tree-svg";
 
-var selectors = {};
+var selectors       = {};
 
-var selectedNodeID = -1;
+var selectedNodeID  = -1;
 
-var assignments = "";
+var assignments     = "";
 
 
 // Add listeners once document is ready
@@ -173,8 +174,13 @@ function processInputFile(msg) {
 
 // Switch to main view (from initial panel)
 function initializeMainView(msg) {
+	var height = 
+	bubbleWidget.initialize();
+	treeWidget.initialize();
 	$("#doctab-document-container").css({ "height": ($(window).height() - $("#doctab-document-container").position().top) });
 	$("#vocabtab-vocab-container").css({ "height": ($(window).height() - $("#vocabtab-vocab-container").position().top) });
+	activeWidget = bubbleWidget;
+	console.log(bubbleWidget);
 };
 
 
@@ -246,6 +252,7 @@ function selectBubbles() {
 	}
 
 	selectedView = BUBBLE_LABEL;
+	activeWidget = bubbleWidget;
 	
 	$("#bubbles-selector").addClass("selected-view-button");
 	$("#right-bubbles-selector").addClass("selected-view-button");
@@ -277,6 +284,7 @@ function selectTree() {
 	}
 
 	selectedView = TREE_LABEL;
+	activeWidget = treeWidget;
 	
 	$("#tree-selector").addClass("selected-view-button");
 	$("#right-tree-selector").addClass("selected-view-button");
