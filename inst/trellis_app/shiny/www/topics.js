@@ -271,10 +271,6 @@ function selectBubbles() {
 
 	selectedView = BUBBLE_LABEL;
 	activeWidget = bubbleWidget;
-
-	if (lastData !== null) {
-		activeWidget.renderValue(lastData);
-	}
 	
 	$("#bubbles-selector").addClass("selected-view-button");
 	$("#right-bubbles-selector").addClass("selected-view-button");
@@ -295,6 +291,12 @@ function selectBubbles() {
 	$("#right-tree-selector").removeAttr("disabled");
 	
 	activeSelector = selectors[BUBBLE_LABEL];
+
+	// TODO(tfs; 2019-09-20): Only render if it's different
+	if (lastData !== null) {
+		activeWidget.renderValue(lastData);
+	}
+
 	Shiny.onInputChange("selectedView", [BUBBLE_LABEL, Date.now()]);
 };
 
@@ -307,10 +309,6 @@ function selectTree() {
 
 	selectedView = TREE_LABEL;
 	activeWidget = treeWidget;
-
-	if (lastData !== null) {
-		activeWidget.renderValue(lastData);
-	}
 	
 	$("#tree-selector").addClass("selected-view-button");
 	$("#right-tree-selector").addClass("selected-view-button");
@@ -331,6 +329,12 @@ function selectTree() {
 	$("#right-bubbles-selector").removeAttr("disabled");
 	
 	activeSelector = selectors[TREE_LABEL];
+
+	// TODO(tfs; 2019-09-20): Only render if it's different
+	if (lastData !== null) {
+		activeWidget.renderValue(lastData);
+	}
+
 	Shiny.onInputChange("selectedView", [TREE_LABEL, Date.now()]);
 };
 

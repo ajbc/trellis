@@ -777,6 +777,18 @@ span#kmeans-initialization-row2 .form-group label {
 }
 
 
+.label, .tree-label {
+    pointer-events: none;
+    text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 -1px 0 #fff;
+}
+
+
+.label {
+    font: 11px "Helvetica Neue", Helvetica, Arial, sans-serif;
+    text-anchor: middle;
+}
+
+
 #topic-bubble-container {
     width: 100%;
     height: 100%;
