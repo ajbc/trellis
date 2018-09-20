@@ -156,7 +156,8 @@ var treeWidget = {
         var self = this;
 
         // Root of a tree structure
-        self.treeData = self.getTreeFromRawData(rawData);
+        // self.treeData = self.getTreeFromRawData(rawData);
+        self.treeData = self.getTreeFromJSON(rawData);
 
         self.updateTreeView(true);
     },
@@ -668,6 +669,67 @@ var treeWidget = {
         return data;
     },
 
+    /* Convert JSON to tree.
+     */
+    getTreeFromJSON: function (x) {
+        var self = this,
+            data = { id: 0, children: [], terms: [], weight: 0, collapsed: false, isLeaf: false, flatSelected: false },
+            // srcData = HTMLWidgets.dataframeToD3(x.data);
+            srcData = x;
+
+        // Sort srcData by node ID
+        srcData.sort(function(left, right) {
+            if (left.nodeID < right.nodeID) {
+                return -1;
+            } else if (left.nodeID > right.nodeID) {
+                return 1;
+            }
+
+            return 0;
+        });
+
+        // Assumes no broken connections, but does NOT assume that there are no empty IDs
+        var maxID = srcData[srcData.length-1].nodeID;
+
+        // NOTE(tfs): When assigning to index out of bounds, JS arrays expand and include undefined entries.
+        var nodes = [];
+        nodes[0] = data;
+        for (var i = 0; i < srcData.length; i++) {
+            nodes[srcData[i].nodeID] = { id: srcData[i].nodeID, children: [], terms: [], weight: 0, collapsed: false, isLeaf: false, flatSelected: false };
+        }
+
+        var rawPoint;
+        var cleanPoint;
+        var parent;
+        var maxWeight = 0;
+
+        for (var i = 0; i < srcData.length; i++) {
+            rawPoint = srcData[i];
+            cleanPoint = nodes[rawPoint.nodeID];
+            parent = nodes[rawPoint.parentID];
+
+            if (rawPoint.weight === 0) {
+                parent.children.push(cleanPoint);
+                cleanPoint.terms = rawPoint.title.split(" ");
+            } else if (parent !== null && parent.hasOwnProperty("children")) {
+                parent.children.push(cleanPoint);
+                cleanPoint.terms = rawPoint.title.split(" ");
+                cleanPoint.weight = rawPoint.weight;
+            }
+
+            cleanPoint.collapsed = rawPoint.collapsed;
+            cleanPoint.isLeaf = rawPoint.isLeaf;
+            cleanPoint.flatSelected = rawPoint.flatSelected;
+        }
+
+        // Updates weight properties of nodes
+        self.maxNodeWeight = self.findAndSetWeightRecursive(self, data);
+        self.edgeWidthMap = d3.scaleLinear()
+                                .domain([0, self.maxNodeWeight])
+                                .range([self.MIN_EDGE_WIDTH, self.MAX_EDGE_WIDTH]);
+
+        return data;
+    },
 
     // Updates weight properties of nodes in addition to returning weight values
     findAndSetWeightRecursive: function (selfRef, treeNode) {
