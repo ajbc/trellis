@@ -13,5 +13,5 @@
 #' \dontrun{launchTrellis()}
 #' @export
 launchTrellis <- function() {
-	shiny::runApp(system.file('trellis_app/shiny', package='trellis'))
+	shiny::runApp(system.file('trellis_app/shiny', package='trellis'), launch.browser = TRUE)
 }
