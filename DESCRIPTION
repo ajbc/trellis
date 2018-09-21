@@ -13,7 +13,7 @@ Author: Brandon Stewart [aut],
 Maintainer: Thomas Schaffner <t.f.schaffner@gmail.com>
 Depends: R (>= 3.5.0)
 Imports: shiny, shinyjs, data.table, xtable, Matrix, irlba, rsvd
-Suggests: stm, LDAvis, tm, topicmodels
+Suggests: stm, LDAvis, tm, topicmodels, servr
 LazyData: yes
 Description: Trellis is a visualization tool
 	to help researchers form aggregate topic models

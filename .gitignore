@@ -5,4 +5,5 @@ rsconnect/
 wiki_data/
 *.tar.gz
 *.Rcheck
+dev_dat/
 
