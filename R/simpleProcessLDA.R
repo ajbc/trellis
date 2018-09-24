@@ -14,8 +14,6 @@
 #' \dontrun{# TODO}
 #' @export
 simpleProcessLDA <- function(corpus.path, k, out.path = NULL, ldavis.data.path = NULL) {
-	# TODO(tfs): Add option for saving extra ldavis data
-
 	# Check for appropriate packages
 	tmcheck <- requireNamespace("tm")
 	topicmodelscheck <- requireNamespace("topicmodels")

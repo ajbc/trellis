@@ -2,6 +2,7 @@
 
 export(launchTrellis)
 export(simpleProcessLDA)
+export(simpleProcessSTM)
 export(toLDAvis)
 import(data.table)
 importFrom(Matrix,Matrix)
