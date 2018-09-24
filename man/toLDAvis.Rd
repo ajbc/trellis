@@ -4,14 +4,17 @@
 \alias{toLDAvis}
 \title{Convert flat Trellis model to LDAvis format}
 \usage{
-toLDAvis(model.file, doc.length, term.frequency, launch = FALSE)
+toLDAvis(model.file, frequency.file = NULL, doc.length = NULL,
+  term.frequency = NULL, launch = FALSE)
 }
 \arguments{
 \item{model.file}{.RData file containing Trellis model. Must include beta, theta, vocab. Leaves treated as flat model.}
 
-\item{doc.length}{Number of tokens per document, as a vector.}
+\item{frequency.file}{.RData file containing term.frequency and doc.length. Must provide either frequency.file or both doc.length and term.frequency.}
 
-\item{term.frequency}{Term frequencies. Format TBD}
+\item{doc.length}{Number of tokens per document, as a vector of integers}
+
+\item{term.frequency}{Term frequencies, as a vector of integers.}
 
 \item{launch}{Logical flag. If FALSE, toLDAvis returns the JSON created. Else, launches LDAvis}
 }
@@ -22,7 +25,13 @@ TODO(tfs): documentation in R doc
 # TBD (how to deal with example data files?)
 }
 \seealso{
+\pkg{\link{simpleProcessLDA}}
+
+\pkg{\link{simpleProcessSTM}}
+
 \pkg{\link{LDAvis}}
 
 \pkg{\link{servr}}
+
+\pkg{\link{tsne}}
 }

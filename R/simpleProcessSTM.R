@@ -31,7 +31,7 @@ simpleProcessSTM <- function(corpus.path, k, out.path = NULL, ldavis.data.path =
 	theta <- model$theta
 	vocab <- prepped$vocab
 
-	filenames <- lapply(prepped$meta$title, function (x) { gsub("^(\\s|\\r|\\n|\\t)+|(\\s|\\n|\\r|\\t)+$", "", x) })
+	filenames <- lapply(prepped$meta$filenames, function (x) { gsub("^(\\s|\\r|\\n|\\t)+|(\\s|\\n|\\r|\\t)+$", "", x) })
 	titles <- lapply(filenames, function (x) { URLdecode(gsub("_", " ", x)) })
 
 	if (!is.null(out.path)) {
@@ -50,6 +50,6 @@ simpleProcessSTM <- function(corpus.path, k, out.path = NULL, ldavis.data.path =
 			}
 		}
 
-		save(term.frequency, doc.length, file=ldavis.data.path)
+		save(unlist(term.frequency), unlist(doc.length), file=ldavis.data.path)
 	}
 }
