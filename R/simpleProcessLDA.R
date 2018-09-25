@@ -51,7 +51,7 @@ simpleProcessLDA <- function(corpus.path, k, out.path = NULL, ldavis.data.path =
 	}
 
 	if (!is.null(ldavis.data.path)) {
-		term.frequency <- col_sums(dtm)
+		term.frequency <- slam::col_sums(dtm)
 		doc.length <- c()
 
 		for (i in seq(nrow(dtm))) {
