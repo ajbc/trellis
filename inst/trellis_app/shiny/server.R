@@ -893,6 +893,10 @@ function(input, output, session) {
     }
 
     if (input$initialize.kmeans) {
+      if (input$initial.numClusters > K()) {
+        return(NULL)
+      }
+
       session$sendCustomMessage("clusterNotification", "")
 
       # Create a sparse matrix (shrinking small beta values to 0), then use SVD.

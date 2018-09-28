@@ -206,6 +206,12 @@ span#kmeans-initialization-row2 .form-group label {
 }
 
 
+/* TODO(tfs; 2018-09-28): Update when shinyFiles update goes through */
+.form-control.sF-breadcrumps {
+    width: calc(100% - 255px);
+}
+
+
 /**********************************************************
  *                                                        *
  *               Left column content styling              *
