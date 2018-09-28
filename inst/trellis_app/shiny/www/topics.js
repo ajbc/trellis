@@ -191,6 +191,12 @@ function initializeMainView(msg) {
 	$("#doctab-document-container").css({ "height": ($(window).height() - $("#doctab-document-container").position().top) });
 	$("#vocabtab-vocab-container").css({ "height": ($(window).height() - $("#vocabtab-vocab-container").position().top) });
 	activeWidget = bubbleWidget;
+
+	// Prevent accidental refresh/back/etc.
+	window.onbeforeunload = function() {
+		return "All unsaved work will be lost. Are you sure you want to leave the page?";
+	}
+
 	Shiny.onInputChange("start.render", "");
 };
 
