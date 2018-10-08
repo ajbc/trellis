@@ -4,7 +4,8 @@
 \alias{toLDAvis}
 \title{Convert flat Trellis model to LDAvis format}
 \usage{
-toLDAvis(model.file, frequency.file = NULL, doc.length = NULL,
+toLDAvis(model.file = NULL, frequency.file = NULL, beta = NULL,
+  theta = NULL, vocab = NULL, doc.length = NULL,
   term.frequency = NULL, launch = FALSE)
 }
 \arguments{
@@ -22,7 +23,46 @@ toLDAvis(model.file, frequency.file = NULL, doc.length = NULL,
 TODO(tfs): documentation in R doc
 }
 \examples{
-# TBD (how to deal with example data files?)
+# Values from "sample_documents.RData":
+# "filenames" and "filecontents"
+if (!requireNamespace(stm)) { stop("Package 'stm' is required for this example") }
+if (!requireNamespace(LDAvis)) { stop("Package 'LDAvis' is required for this example") }
+
+out.path <- "example_model.RData"
+ldavis.data.path <- "example_model_ldavis_data.RData"
+
+processed <- stm::textProcessor(filecontents, metadata=as.data.frame(filenames))
+prepped <- stm::prepDocuments(processed$documents, processed$vocab, processed$meta)
+model <- stm::stm(documents=prepped$documents, vocab=prepped$vocab, K=k, init.type="Spectral")
+
+# Format for Trellis
+beta <- exp(model$beta$logbeta[[1]])
+theta <- model$theta
+vocab <- prepped$vocab
+
+filenames <- lapply(prepped$meta$filenames, function (x) { gsub("^(\\\\s|\\\\r|\\\\n|\\\\t)+|(\\\\s|\\\\n|\\\\r|\\\\t)+$", "", x) })
+titles <- lapply(filenames, function (x) { URLdecode(gsub("_", " ", x)) })
+
+save(beta, theta, vocab, titles, filenames, file=out.path)
+
+# Calculate/save document lengths and corpus-wide term frequencies
+doc.length <- lapply(prepped$documents, function (x) { sum(x[2,]) })
+term.frequency <- rep(0, length(prepped$vocab))
+
+for (doc in prepped$documents) {
+		for (i in seq(dim(doc)[2])) {
+			oldval <- term.frequency[[doc[1,i]]]
+			term.frequency[[doc[1,i]]] <- oldval + doc[2,i]
+		}
+}
+
+term.frequency <- unlist(term.frequency)
+doc.length <- unlist(doc.length)
+
+save(term.frequency, doc.length, file=ldavis.data.path)
+
+# Use the saved model and ldavis data files to launch LDAvis
+toLDAvis(model.file = out.path, frequency.file = ldavis.data.path, lauch=TRUE)
 }
 \seealso{
 \pkg{\link{simpleProcessLDA}}

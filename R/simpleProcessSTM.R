@@ -50,6 +50,9 @@ simpleProcessSTM <- function(corpus.path, k, out.path = NULL, ldavis.data.path =
 			}
 		}
 
-		save(unlist(term.frequency), unlist(doc.length), file=ldavis.data.path)
+		term.frequency <- unlist(term.frequency)
+		doc.length <- unlist(doc.length)
+
+		save(term.frequency, doc.length, file=ldavis.data.path)
 	}
 }

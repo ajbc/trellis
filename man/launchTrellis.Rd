@@ -6,9 +6,29 @@
 \usage{
 launchTrellis()
 }
+\arguments{
+\item{corpus.path}{Path to directory containing separate text files.}
+
+\item{k}{Number of topics to train}
+
+\item{out.path}{Path to output location for the Trellis model. If NULL, ignored.}
+
+\item{ldavis.data.path}{Path to output location for term.frequency and doc.length. If NULL, ignored. See \code{trellis::toLDAvis}.}
+}
 \description{
 TODO(tfs): documentation in R doc
 }
 \examples{
-\dontrun{launchTrellis()}
+A simple script to train a STM base model and format for Trellis
+
+TODO(tfs): Documentation. Is this even useful/good here?
+
+\dontrun{
+    TODO
+}
+}
+\seealso{
+\pkg{\link{stm}}
+
+\link[dest=https://ldavis.cpsievert.me/reviews/reviews.html]{ldavis}
 }
