@@ -16,11 +16,12 @@
 #' @examples
 #' # Values from "sample_documents.RData":
 #' # "filenames" and "filecontents"
-#' if (!requireNamespace(stm)) { stop("Package 'stm' is required for this example") }
-#' if (!requireNamespace(LDAvis)) { stop("Package 'LDAvis' is required for this example") }
+#' if (!requireNamespace('stm')) { stop("Package 'stm' is required for this example") }
+#' if (!requireNamespace('LDAvis')) { stop("Package 'LDAvis' is required for this example") }
 #' 
 #' out.path <- "example_model.RData"
 #' ldavis.data.path <- "example_model_ldavis_data.RData"
+#' k <- 15
 #' 
 #' processed <- stm::textProcessor(filecontents, metadata=as.data.frame(filenames))
 #' prepped <- stm::prepDocuments(processed$documents, processed$vocab, processed$meta)
@@ -53,7 +54,7 @@
 #' save(term.frequency, doc.length, file=ldavis.data.path)
 #' 
 #' # Use the saved model and ldavis data files to launch LDAvis
-#' toLDAvis(model.file = out.path, frequency.file = ldavis.data.path, lauch=TRUE)
+#' json <- toLDAvis(model.file = out.path, frequency.file = ldavis.data.path, launch=TRUE)
 #' @export
 toLDAvis <- function(model.file = NULL,
 					 frequency.file = NULL,

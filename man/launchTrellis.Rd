@@ -19,10 +19,6 @@ launchTrellis()
 TODO(tfs): documentation in R doc
 }
 \examples{
-A simple script to train a STM base model and format for Trellis
-
-TODO(tfs): Documentation. Is this even useful/good here?
-
 \dontrun{
     TODO
 }

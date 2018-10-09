@@ -9,11 +9,6 @@
 #' @importFrom irlba ssvd
 #' @importFrom rsvd rsvd
 #' @importFrom Matrix Matrix
-#' @examples
-#' A simple script to train a STM base model and format for Trellis
-#' 
-#' TODO(tfs): Documentation. Is this even useful/good here?
-#' 
 #' @aliases simpleProcessLDA
 #' @param corpus.path Path to directory containing separate text files.
 #' @param k Number of topics to train
