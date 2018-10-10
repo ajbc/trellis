@@ -63,7 +63,7 @@ doc.length <- unlist(doc.length)
 save(term.frequency, doc.length, file=ldavis.data.path)
 
 # Use the saved model and ldavis data files to launch LDAvis
-toLDAvis(model.file = out.path, frequency.file = ldavis.data.path, launch=TRUE)
+json <- toLDAvis(model.file = out.path, frequency.file = ldavis.data.path, launch=TRUE)
 }
 \seealso{
 \pkg{\link{simpleProcessLDA}}

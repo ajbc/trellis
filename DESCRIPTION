@@ -2,14 +2,14 @@ Package: trellis
 Version: 0.1.0
 Date: 2018-09-19
 Title: Trellis - Aggregation and Visualization Tool for Topic Models
-Authors@R: c(person("Brandon", "Stewart", role = c("aut"), email = "bms4@princeton.edu"),
-				person("Allison", "Chaney", role = c("aut"), email = "achaney@cs.princeton.edu"),
-				person("Gregory", "Gundersen", role = c("aut")),
-				person("Thomas", "Schaffner", role = c("aut", "cre"), email = "t.f.schaffner@gmail.com"))
-Author: Brandon Stewart [aut],
+Authors@R: c(person("Thomas", "Schaffner", role = c("aut", "cre"), email = "t.f.schaffner@gmail.com",
+				person("Allison", "Chaney", role = c("aut")),
+				person("Gregory", "Gundersen", role = c("ctb")),
+				person("Brandon", "Stewart", role = c("aut"))
+Author: Thomas Schaffner [aut, cre],
 	Allison Chaney [aut],
-	Gregory Gundersen [aut],
-	Thomas Schaffner [aut, cre]
+	Gregory Gundersen [ctb],
+	Brandon Stewart [aut]
 Maintainer: Thomas Schaffner <t.f.schaffner@gmail.com>
 Depends: R (>= 3.5.0)
 Imports: shiny, shinyjs, data.table, xtable, Matrix, irlba, rsvd

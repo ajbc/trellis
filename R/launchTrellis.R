@@ -1,6 +1,9 @@
 #' Launch the Trellis shiny app
 #'
-#' TODO(tfs): documentation in R doc
+#' TODO(tfs): documentation in R doc. DOCUMENT what the package is meant to do
+#'            Point to instructional materials for curation of text corpus. See ajbc slides
+#' 			  BUild function to separate out file contents into individual text files.
+#'            Add little badges to github
 #'
 #' @aliases launchTrellis
 #' @importFrom shinyjs show hide toggleState
@@ -9,7 +12,6 @@
 #' @importFrom irlba ssvd
 #' @importFrom rsvd rsvd
 #' @importFrom Matrix Matrix
-#' @aliases simpleProcessLDA
 #' @param corpus.path Path to directory containing separate text files.
 #' @param k Number of topics to train
 #' @param out.path Path to output location for the Trellis model. If NULL, ignored.

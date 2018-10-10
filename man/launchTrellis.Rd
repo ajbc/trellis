@@ -16,7 +16,10 @@ launchTrellis()
 \item{ldavis.data.path}{Path to output location for term.frequency and doc.length. If NULL, ignored. See \code{trellis::toLDAvis}.}
 }
 \description{
-TODO(tfs): documentation in R doc
+TODO(tfs): documentation in R doc. DOCUMENT what the package is meant to do
+           Point to instructional materials for curation of text corpus. See ajbc slides
+			  BUild function to separate out file contents into individual text files.
+           Add little badges to github
 }
 \examples{
 \dontrun{
