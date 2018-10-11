@@ -13,7 +13,6 @@
 #' and vocab can be provided individually or in a model file (as exported by
 #' Trellis). Similarly, doc.length and term.frequency can be provided individually
 #' or in a separate .RData file.
-#' 
 #'
 #' @aliases toLDAvis
 #' @param model.file .RData file containing Trellis model. Must include beta, theta, vocab. Leaves treated as flat model. If NULL, user must provide beta, theta, and vocab separately.

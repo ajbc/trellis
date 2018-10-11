@@ -2,6 +2,7 @@
 
 export(launchTrellis)
 export(toLDAvis)
+export(writeCorpusFiles)
 import(data.table)
 importFrom(Matrix,Matrix)
 importFrom(irlba,ssvd)
