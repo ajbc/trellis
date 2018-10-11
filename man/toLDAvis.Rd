@@ -9,9 +9,15 @@ toLDAvis(model.file = NULL, frequency.file = NULL, beta = NULL,
   term.frequency = NULL, launch = FALSE)
 }
 \arguments{
-\item{model.file}{.RData file containing Trellis model. Must include beta, theta, vocab. Leaves treated as flat model.}
+\item{model.file}{.RData file containing Trellis model. Must include beta, theta, vocab. Leaves treated as flat model. If NULL, user must provide beta, theta, and vocab separately.}
 
 \item{frequency.file}{.RData file containing term.frequency and doc.length. Must provide either frequency.file or both doc.length and term.frequency.}
+
+\item{beta}{K x V matrix of vocabulary weights for each topic.}
+
+\item{theta}{D x K matrix of topic weights for each document}
+
+\item{vocab}{Character vector of vocabulary terms}
 
 \item{doc.length}{Number of tokens per document, as a vector of integers}
 
@@ -20,7 +26,20 @@ toLDAvis(model.file = NULL, frequency.file = NULL, beta = NULL,
 \item{launch}{Logical flag. If FALSE, toLDAvis returns the JSON created. Else, launches LDAvis}
 }
 \description{
-TODO(tfs): documentation in R doc
+The .RData files used by Trellis do not correspond to a standard format.
+Because Trellis can be used as a single component in a longer pipeline
+of text corpus analysis, we provide a method to reformat a Trellis model
+for use with the LDAvis R package. Users can aggregate a topic model in
+in Trellis, then export the aggregate topics within the tool. This exported
+model can then be transformed and visualized with LDAvis.
+}
+\details{
+Because Trellis does not store term frequencies or document lengths, the
+provided example calculates these separately. The toLDAvis method requires
+the fields: beta, theta, vocab, doc.length, and term.frequency. beta, theta,
+and vocab can be provided individually or in a model file (as exported by
+Trellis). Similarly, doc.length and term.frequency can be provided individually
+or in a separate .RData file.
 }
 \examples{
 # Values from "sample_documents.RData":
@@ -66,10 +85,6 @@ save(term.frequency, doc.length, file=ldavis.data.path)
 json <- toLDAvis(model.file = out.path, frequency.file = ldavis.data.path, launch=TRUE)
 }
 \seealso{
-\pkg{\link{simpleProcessLDA}}
-
-\pkg{\link{simpleProcessSTM}}
-
 \pkg{\link{LDAvis}}
 
 \pkg{\link{servr}}

@@ -2,10 +2,10 @@ Package: trellis
 Version: 0.1.0
 Date: 2018-09-19
 Title: trellis: Topic Model Aggregation and Visualization
-Authors@R: c(person("Thomas", "Schaffner", role = c("aut", "cre"), email = "t.f.schaffner@gmail.com",
+Authors@R: c(person("Thomas", "Schaffner", role = c("aut", "cre"), email = "t.f.schaffner@gmail.com"),
 				person("Allison", "Chaney", role = c("aut")),
 				person("Gregory", "Gundersen", role = c("ctb")),
-				person("Brandon", "Stewart", role = c("aut"))
+				person("Brandon", "Stewart", role = c("aut")))
 Author: Thomas Schaffner [aut, cre],
 	Allison Chaney [aut],
 	Gregory Gundersen [ctb],

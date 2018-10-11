@@ -1,15 +1,29 @@
 #' Convert flat Trellis model to LDAvis format
 #'
-#' TODO(tfs): documentation in R doc
+#' The .RData files used by Trellis do not correspond to a standard format.
+#' Because Trellis can be used as a single component in a longer pipeline
+#' of text corpus analysis, we provide a method to reformat a Trellis model
+#' for use with the LDAvis R package. Users can aggregate a topic model in
+#' in Trellis, then export the aggregate topics within the tool. This exported
+#' model can then be transformed and visualized with LDAvis.
+#' 
+#' Because Trellis does not store term frequencies or document lengths, the
+#' provided example calculates these separately. The toLDAvis method requires
+#' the fields: beta, theta, vocab, doc.length, and term.frequency. beta, theta,
+#' and vocab can be provided individually or in a model file (as exported by
+#' Trellis). Similarly, doc.length and term.frequency can be provided individually
+#' or in a separate .RData file.
+#' 
 #'
 #' @aliases toLDAvis
-#' @param model.file .RData file containing Trellis model. Must include beta, theta, vocab. Leaves treated as flat model.
+#' @param model.file .RData file containing Trellis model. Must include beta, theta, vocab. Leaves treated as flat model. If NULL, user must provide beta, theta, and vocab separately.
 #' @param frequency.file .RData file containing term.frequency and doc.length. Must provide either frequency.file or both doc.length and term.frequency.
+#' @param beta K x V matrix of vocabulary weights for each topic.
+#' @param theta D x K matrix of topic weights for each document
+#' @param vocab Character vector of vocabulary terms
 #' @param doc.length Number of tokens per document, as a vector of integers
 #' @param term.frequency Term frequencies, as a vector of integers.
 #' @param launch Logical flag. If FALSE, toLDAvis returns the JSON created. Else, launches LDAvis
-#' @seealso \pkg{\link{simpleProcessLDA}}
-#' @seealso \pkg{\link{simpleProcessSTM}}
 #' @seealso \pkg{\link{LDAvis}}
 #' @seealso \pkg{\link{servr}}
 #' @seealso \pkg{\link{tsne}}
