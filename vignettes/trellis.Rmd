@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
 
 # Trellis: Topic Model Aggregation and Visualization
 
-Trellis aims facilitate text corpus exploration and provide an interactive approach to refining a topic model.
+Trellis aims to facilitate text corpus exploration and provide an interactive approach to refining a topic model.
 The Trellis application allows users to take topic models with large numbers of topics and form hierarchies from these topics.
 This hierarchy can be used to organize and sort the underlying text corpus, allowing users to find or read documents related to a topic.
 
