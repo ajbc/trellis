@@ -1,0 +1,197 @@
+---
+title: "Trellis"
+author: "Thomas Schaffner"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Trellis: Topic Model Aggregation and Visualization
+
+Trellis aims facilitate text corpus exploration and provide an interactive approach to refining a topic model.
+The Trellis application allows users to take topic models with large numbers of topics and form hierarchies from these topics.
+This hierarchy can be used to organize and sort the underlying text corpus, allowing users to find or read documents related to a topic.
+
+## Input Topic Model
+
+Once launched, the Trellis application requires a fitted topic model (using a specific format).
+Trellis is agnostic to the specific model used, as long as the following fields are present in the final `.RData` file:
+
+* `beta`: `K` x `V` matrix of vocabulary weights for each topic
+* `theta`: `D` x `K` matrix of topic weights for each document
+* `vocab`: List of `V` vocabulary terms
+* `titles`: List of `D` document titles, for display within the Trellis application
+* `filenames`: List of `D` document filenames, used to locate full text files within the corpus directory (if provided)
+
+Where
+
+* `K` = Number of topics in the topic model
+* `V` = Number of vocabulary terms (after curation)
+* `D` = Number of documents
+
+Using a character vector `filenames` of file names and a list of file texts `filecontents` (provided through `data(sample_documents)`), the following example demonstrates a rudimentary fitting and reformatting of an [STM model](https://cran.r-project.org/package=stm "STM package for R").
+
+Note that this example is extremely simple. Topic models depend heavily on selection, curation, and processing of the underlying text corpus.
+When training your own models, it may be beneficial to think more deeply about this process.
+For tips and more information about corpus curation, check out [these slides by Allison Chaney](http://ajbc.io/resources/data_preprocesing.pdf "Introduction to text processing").
+
+```r
+  # Load filenames and filecontents
+  requireNamespace("trellis")
+  requireNamespace("stm")
+  data(sample_documents)
+
+  K <- 15 # Train a sample model of 15 topics
+
+  # Build STM
+  processed <- stm::textProcessor(filecontents, metadata=as.data.frame(filenames))
+  prepped <- stm::prepDocuments(processed$documents, processed$vocab, processed$meta)
+  model <- stm::stm(documents=prepped$documents, vocab=prepped$vocab, K=K, init.type="Spectral", verbose=FALSE)
+
+  # Reformat for Trellis
+  beta <- exp(model$beta$logbeta[[1]])
+  theta <- model$theta
+  vocab <- prepped$vocab
+
+  # Clean filenames and generate display titles
+  filenames <- lapply(prepped$meta$filenames, function (x) { gsub("^(\\s|\\r|\\n|\\t)+|(\\s|\\n|\\r|\\t)+$", "", x) })
+  titles <- lapply(filenames, function (x) { URLdecode(gsub("_", " ", x)) })
+
+  # To save the appropriately formatted data:
+  save(beta, theta, vocab, titles, filenames, file="example_model.RData")
+```
+
+## Input Text Files
+
+While many packages and examples in R operate on `.CSV` files or `.RData` files containing many documents' texts, Trellis is most useful when each document is stored in a separate text file.
+This is primarily for optimization, allowing users to read document text within the Trellis interface without needing to load the entire corpus into memory at once.
+Consequently, at startup, users may optionally provide a directory containing text files of their corpus documents (in addition to the `.RData` model file).
+If this directory is not provided, Trellis will still function for aggregation but will not be able to display document text.
+
+To ease any transitions from pre-aggregated text corpora to directories of individual text files, Trellis provides an auxiliary method `writeCorpusFiles`.
+The example below demonstrates how generate text files for the sample documents provided with the `trellis`.
+This simple example creates the directory `example_corpus` and writes individual `.txt` files for every document stored in the `sample_documents` dataset.
+The `example_corpus` directory could then be selected after launching Trellis
+
+```r
+  # Load filenames and filecontents
+  requireNamespace("trellis")
+  data(sample_documents)
+
+  writeCorpusFiles(filecontents, filenames, "./example_corpus", forceDirectory = TRUE)
+```
+
+## Running The Trellis Application
+
+The Trellis application is based on a [`shiny`](https://shiny.rstudio.com/ "R Shiny") application.
+All input is provided after launching the application.
+To launch, use:
+
+```r
+  trellis::launchTrellis()
+```
+
+After launching you will see a landing page (shown below).
+The "Topic Model" input is required, while the "Text Files" input is optional (as discussed above).
+Additionally, there are options for naming your dataset or initializing Trellis with a clustering of your original topics (into a depth-3 hierarchy, including a default root node).
+
+![Trellis landing page](trellis_landing_pane.png)
+
+
+## Working With the Trellis Application
+
+The help panel within the Trellis application (accessed by clicking the "?" button) details the specific interactions and interface tools of Trellis.
+Primarily, Trellis consists of a sidebar containing details and controls, and a main view visualizing and allowing interaction with a hierarchy of topics.
+Drag and drop interactions (in addition to functionality in the sidebar) control and update the topic hierarchy.
+The sidebar can be used to explore vocabulary or documents, organized and sorted by topics at any level in the hierarchy.
+
+
+## Saving and Exporting
+
+### Saving Trellis Hierarchies
+
+Creating a hierarchy from a large number of topics can take a long time.
+Trellis allows users to save their work (with the "save" button).
+The resulting file is of a similar format to the Trellis `.RData` files discussed above, but containing several extra fields.
+Primarily, the saved file contains the hierarchy assignments of all topics so aggregation work is not lost.
+It additionally contains metadata about the interface, e.g. which nodes are currently collapsed.
+
+At the Trellis landing page, users can select one of these saved files as the topic model `.RData` file.
+The saved hierarchy and interface state (e.g. collapsed nodes) will be restored.
+However, the dataset naming and initial clustering options will be ignored.
+
+### Exporting Images
+
+Clicking the "Export" button in the main Trellis interface opens up new options.
+The ".SVG" button will save an SVG image of whatever is currently displayed.
+Trellis does not currently support any other image file formats.
+
+### Exporting a Flat Model
+
+After working with a topic model for a while, a user may decide they have reached an appropriate level of aggregation.
+After clicking the "Flattened" export option, Trellis will provide an interface for selecting a cut of the topic hierarchy to export as a single non-hierarchical topic model.
+Trellis aggregates the `beta` and `theta` values for the selected cut nodes, and exports a Trellis-formatted file containing only those nodes (and a flat hierarchy).
+
+# Interfacing With Other Tools
+
+The ecosystem of topic modeling packages and related tools is quite large.
+Trellis aims to provide value in any topic modeling pipeline.
+Any original topic model (with `beta` and `theta` values or equivalent) can be reformatted and used with the Trellis application, although the `trellis` package does not yet provide native reformatting methods.
+
+Additionally, many users are familiar with other tools.
+The [LDAvis](https://cran.r-project.org/package=LDAvis "LDAvis R Package") R package is quite popular.
+The `trellis` package includes an auxiliary method, `toLDAvis`, which can transform a Trellis-formatted `.RData` file into JSON for LDAvis.
+One potential workflow could go as follows:
+
+* Train a topic model with large K
+* Aggregate to a smaller K' using Trellis
+* Export a flattened model through the Trellis interface
+* Transform the flattened model to workable JSON for LDAvis using `toLDAvis`
+* Explore the original corpus using LDAvis
+
+The following example shows how one could make use of `toLDAvis`.
+Note that LDAvis requires some information not stored by Trellis by default.
+
+```r
+  # Load filenames and filecontents
+  requireNamespace("trellis")
+  data(sample_documents)
+
+  # Assuming a user has done some aggregation with Trellis and exported a flattened model
+  trellis_model_path <- "path_to_exported_flat_model.RData"
+
+  # Calculate/save document lengths and corpus-wide term frequencies
+  doc.length <- lapply(prepped$documents, function (x) { sum(x[2,]) })
+  term.frequency <- rep(0, length(prepped$vocab))
+
+  for (doc in prepped$documents) {
+    for (i in seq(dim(doc)[2])) {
+      oldval <- term.frequency[[doc[1,i]]]
+      term.frequency[[doc[1,i]]] <- oldval + doc[2,i]
+    }
+  }
+
+  term.frequency <- unlist(term.frequency)
+  doc.length <- unlist(doc.length)
+
+  # Generate the LDAvis JSON data and launch LDAvis
+  json <- trellis::toLDAvis(model.file = trellis_model_path,
+                            doc.length = doc.length,
+                            term.frequency = term.frequency,
+                            launch = TRUE)
+```
+
+# More Information
+
+For more details, see the [Trellis GitHub page](https://github.com/ajbc/trellis).
+To report bugs, see the [GitHub Issues page for Trellis](https://github.com/ajbc/trellis/issues)

@@ -13,7 +13,9 @@ Author: Thomas Schaffner [aut, cre],
 Maintainer: Thomas Schaffner <t.f.schaffner@gmail.com>
 Depends: R (>= 3.5.0)
 Imports: shiny, shinyjs, data.table, xtable, Matrix, irlba, rsvd
-Suggests: stm, LDAvis, tm, topicmodels, servr, tsne
+Suggests: stm, LDAvis, tm, topicmodels, servr, tsne,
+    knitr,
+    rmarkdown
 LazyData: yes
 Description: Trellis is a visualization tool
 	to help researchers form aggregate topic models
@@ -24,3 +26,4 @@ URL: https://github.com/ajbc/trellis
 BugReports: https://github.com/ajbc/trellis/issues
 Encoding: UTF-8
 RoxygenNote: 6.1.0
+VignetteBuilder: knitr
