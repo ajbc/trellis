@@ -23,12 +23,11 @@
 #' @param doc.length Number of tokens per document, as a vector of integers
 #' @param term.frequency Term frequencies, as a vector of integers.
 #' @param launch Logical flag. If FALSE, toLDAvis returns the JSON created. Else, launches LDAvis
-#' @seealso \pkg{\link{LDAvis}}
-#' @seealso \pkg{\link{servr}}
-#' @seealso \pkg{\link{tsne}}
+#' @seealso \pkg{\link[LDAvis]{createJSON}}
+#' @seealso \pkg{\link[tsne]{tsne}}
 #' @examples
-#' # Values from "sample_documents.RData":
-#' # "filenames" and "filecontents"
+#' # Values from "academic_articles.RData":
+#' # "academic_articles$titles" and "academic_articles$filecontents"
 #' if (!requireNamespace('stm')) { stop("Package 'stm' is required for this example") }
 #' if (!requireNamespace('LDAvis')) { stop("Package 'LDAvis' is required for this example") }
 #' 
@@ -36,7 +35,7 @@
 #' ldavis.data.path <- "example_model_ldavis_data.RData"
 #' k <- 15
 #' 
-#' processed <- stm::textProcessor(filecontents, metadata=as.data.frame(filenames))
+#' processed <- stm::textProcessor(academic_articles$filecontents, metadata=as.data.frame(academic_articles$titles))
 #' prepped <- stm::prepDocuments(processed$documents, processed$vocab, processed$meta)
 #' model <- stm::stm(documents=prepped$documents, vocab=prepped$vocab, K=k, init.type="Spectral")
 #' 
@@ -45,7 +44,7 @@
 #' theta <- model$theta
 #' vocab <- prepped$vocab
 #' 
-#' filenames <- lapply(prepped$meta$filenames, function (x) { gsub("^(\\s|\\r|\\n|\\t)+|(\\s|\\n|\\r|\\t)+$", "", x) })
+#' filenames <- lapply(prepped$meta$titles, function (x) { gsub("^(\\s|\\r|\\n|\\t)+|(\\s|\\n|\\r|\\t)+$", "", x) })
 #' titles <- lapply(filenames, function (x) { URLdecode(gsub("_", " ", x)) })
 #' 
 #' save(beta, theta, vocab, titles, filenames, file=out.path)

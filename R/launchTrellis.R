@@ -43,12 +43,8 @@
 #' @importFrom irlba ssvd
 #' @importFrom rsvd rsvd
 #' @importFrom Matrix Matrix
-#' @param corpus.path Path to directory containing separate text files.
-#' @param k Number of topics to train
-#' @param out.path Path to output location for the Trellis model. If NULL, ignored.
-#' @param ldavis.data.path Path to output location for term.frequency and doc.length. If NULL, ignored. See \code{trellis::toLDAvis}.
-#' @seealso \pkg{\link{stm}}
-#' @seealso \link[dest=https://ldavis.cpsievert.me/reviews/reviews.html]{ldavis}
+#' @seealso \pkg{\link[stm]{stm}}
+#' @seealso \href{https://ldavis.cpsievert.me/reviews/reviews.html}{ldavis}
 #' @export
 launchTrellis <- function() {
 	shiny::runApp(system.file('trellis_app/shiny', package='trellis'), launch.browser = TRUE)

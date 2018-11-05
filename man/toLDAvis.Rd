@@ -42,8 +42,8 @@ Trellis). Similarly, doc.length and term.frequency can be provided individually
 or in a separate .RData file.
 }
 \examples{
-# Values from "sample_documents.RData":
-# "filenames" and "filecontents"
+# Values from "academic_articles.RData":
+# "academic_articles$titles" and "academic_articles$filecontents"
 if (!requireNamespace('stm')) { stop("Package 'stm' is required for this example") }
 if (!requireNamespace('LDAvis')) { stop("Package 'LDAvis' is required for this example") }
 
@@ -51,7 +51,7 @@ out.path <- "example_model.RData"
 ldavis.data.path <- "example_model_ldavis_data.RData"
 k <- 15
 
-processed <- stm::textProcessor(filecontents, metadata=as.data.frame(filenames))
+processed <- stm::textProcessor(academic_articles$filecontents, metadata=as.data.frame(academic_articles$titles))
 prepped <- stm::prepDocuments(processed$documents, processed$vocab, processed$meta)
 model <- stm::stm(documents=prepped$documents, vocab=prepped$vocab, K=k, init.type="Spectral")
 
@@ -60,7 +60,7 @@ beta <- exp(model$beta$logbeta[[1]])
 theta <- model$theta
 vocab <- prepped$vocab
 
-filenames <- lapply(prepped$meta$filenames, function (x) { gsub("^(\\\\s|\\\\r|\\\\n|\\\\t)+|(\\\\s|\\\\n|\\\\r|\\\\t)+$", "", x) })
+filenames <- lapply(prepped$meta$titles, function (x) { gsub("^(\\\\s|\\\\r|\\\\n|\\\\t)+|(\\\\s|\\\\n|\\\\r|\\\\t)+$", "", x) })
 titles <- lapply(filenames, function (x) { URLdecode(gsub("_", " ", x)) })
 
 save(beta, theta, vocab, titles, filenames, file=out.path)
@@ -85,9 +85,7 @@ save(term.frequency, doc.length, file=ldavis.data.path)
 json <- toLDAvis(model.file = out.path, frequency.file = ldavis.data.path, launch=TRUE)
 }
 \seealso{
-\pkg{\link{LDAvis}}
+\pkg{\link[LDAvis]{createJSON}}
 
-\pkg{\link{servr}}
-
-\pkg{\link{tsne}}
+\pkg{\link[tsne]{tsne}}
 }

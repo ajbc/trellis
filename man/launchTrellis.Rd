@@ -6,15 +6,6 @@
 \usage{
 launchTrellis()
 }
-\arguments{
-\item{corpus.path}{Path to directory containing separate text files.}
-
-\item{k}{Number of topics to train}
-
-\item{out.path}{Path to output location for the Trellis model. If NULL, ignored.}
-
-\item{ldavis.data.path}{Path to output location for term.frequency and doc.length. If NULL, ignored. See \code{trellis::toLDAvis}.}
-}
 \description{
 The Trellis application is a shiny app built to visualize and aggregate
 text corpus topic models. Trellis operates on pre-fitted topic model.
@@ -54,7 +45,7 @@ See https://github.com/ajbc/trellis for details on the package,
 development, issues/bugs, and installation options.
 }
 \seealso{
-\pkg{\link{stm}}
+\pkg{\link[stm]{stm}}
 
-\link[dest=https://ldavis.cpsievert.me/reviews/reviews.html]{ldavis}
+\href{https://ldavis.cpsievert.me/reviews/reviews.html}{ldavis}
 }
