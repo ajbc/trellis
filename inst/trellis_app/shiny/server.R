@@ -1396,12 +1396,14 @@ function(input, output, session) {
     # (A one-node topic model isn't very interesting)
     if (nodeID == 0) {
       stateStore$flat.selection <- NULL
+      session$sendCustomMessage("renderTopicData", formatted.topics.data())
       return()
     }
 
     # Error case. Shouldn't happen.
     if (length(stateStore$assigns) < nodeID) {
       stateStore$flat.selection <- NULL
+      session$sendCustomMessage("renderTopicData", formatted.topics.data())
       return()
     }
 
@@ -1422,6 +1424,7 @@ function(input, output, session) {
         stateStore$flat.selection[[id]] <- TRUE
       }
 
+      session$sendCustomMessage("renderTopicData", formatted.topics.data())
       return()
     }
 
@@ -1430,6 +1433,7 @@ function(input, output, session) {
         && length(stateStore$flat.selection) >= nodeID
         && !is.na(stateStore$flat.selection[[nodeID]])
         && stateStore$flat.selection[[nodeID]]) {
+      session$sendCustomMessage("renderTopicData", formatted.topics.data())
       return()
     }
 
@@ -1472,6 +1476,7 @@ function(input, output, session) {
         stateStore$flat.selection[[id]] <- TRUE
       }
 
+      session$sendCustomMessage("renderTopicData", formatted.topics.data())
       return()
     }
 
