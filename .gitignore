@@ -3,3 +3,8 @@ rsconnect/
 .DS_Store
 .RData
 wiki_data/
+*.tar.gz
+*.Rcheck
+dev_dat/
+
+inst/doc

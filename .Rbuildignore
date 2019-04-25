@@ -1,0 +1,6 @@
+^README\.md$
+^\.git$
+^\.\.Rcheck$
+\.tar.gz$
+^dev_dat$
+

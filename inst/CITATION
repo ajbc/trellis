@@ -1,0 +1,21 @@
+citHeader("To cite package 'trellis' in publications please use the following.")
+
+## R >= 2.8.0 passes package metadata to citation().
+if(!exists("meta") || is.null(meta)) meta <- packageDescription("trellis")
+year <- sub("-.*", "", meta$Date)
+note <- sprintf("R package version %s", meta$Version)
+
+citEntry(entry = "Manual",
+         title = "trellis: Topic Model Aggregation and Visualization",
+         author = personList(as.person("Thomas F. Schaffner"),
+                             as.person("Allison J. B. Chaney"),
+                             as.person("Brandon M. Stewart")),
+         year = year,
+         note = note,
+         url = "https://github.com/ajbc/trellis",
+
+         textVersion = 
+         sprintf("Thomas F. Schaffner, Allison J. B. Chaney, and Brandon M. Stewart
+                  (%s). trellis: Topic Model Aggregation and Visualization.
+                  URL https://github.com/ajbc/trellis.", year)
+)

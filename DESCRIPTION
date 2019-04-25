@@ -1,0 +1,29 @@
+Package: trellis
+Version: 0.1.0
+Date: 2018-09-19
+Title: Trellis: Topic Model Aggregation and Visualization
+Authors@R: c(person("Thomas", "Schaffner", role = c("aut", "cre"), email = "t.f.schaffner@gmail.com"),
+				person("Allison", "Chaney", role = c("aut")),
+				person("Gregory", "Gundersen", role = c("ctb")),
+				person("Brandon", "Stewart", role = c("aut")))
+Author: Thomas Schaffner [aut, cre],
+	Allison Chaney [aut],
+	Gregory Gundersen [ctb],
+	Brandon Stewart [aut]
+Maintainer: Thomas Schaffner <t.f.schaffner@gmail.com>
+Depends: R (>= 3.5.0)
+Imports: shiny, shinyjs, data.table, xtable, Matrix, irlba, rsvd
+Suggests: stm, LDAvis, tm, topicmodels, servr, tsne,
+    knitr,
+    rmarkdown
+LazyData: yes
+Description: Trellis is a visualization tool
+	to help researchers form aggregate topic models
+	and use these models to explore
+	their text corpora.
+License: MIT + file LICENSE
+URL: https://github.com/ajbc/trellis
+BugReports: https://github.com/ajbc/trellis/issues
+Encoding: UTF-8
+RoxygenNote: 6.1.0
+VignetteBuilder: knitr

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<!-- template.html -->
+<html>
+    <head>
+        <!-- Loads Shiny's defaults -->
+        {{ headContent() }}
+        {{ useShinyjs() }}
+
+        <!-- Load custom styling last, enforcing our rules over shiny's -->
+        <link rel="stylesheet" href="shared/bootstrap/css/bootstrap.min.css"/>
+        <link rel="stylesheet" href="styling.css"/>
+        <link rel="icon" type="image/png" href="favicon.png"/>
+    </head>
+
+    <body>
+        <!-- Initial content (landing page) -->
+        <h1 class="initial" id="initial-title">Trellis</h1>
+        <div class="initial center-float" id="initial-panel">
+            {{ outputTitleName }}
+            <br />
+            <div id="initialization-instructions">
+                Select a model file (.rdata) to begin or continue aggregation. If you wish to view text documents within Trellis, additionally select the directory containing all text files in the corpus corresponding to the model file selected.
+            </div>
+            <br />
+            <span id="dataset-upload-inputs">
+                {{ inputDataName }}
+                <br/>
+                {{ inputFileUpload }}
+                {{ inputFileLocation }}
+
+                <div id="file-locations-container">
+                    <br />
+                    Model File: {{ outputModelFileName }}
+                    <br />
+                    Text Directory: {{ outputTextDirName }}
+                </div>
+            </span>
+
+            <br />
+
+            <span id="kmeans-initialization-inputs">
+                {{ inputInitialKmeans }}
+                <span id="kmeans-initialization-row2">
+                    {{ inputNumStartClusters }}
+                    {{ inputStartButton }}
+                </span>
+            </span>
+
+
+            <br />
+
+            <div id="init-message" class="centered inplace-hidden-message">
+            <!-- <div id="init-message" class="centered"> -->
+                Parsing data file, this may take a few moments.
+            </div>
+        </div>
+
+        <div id="left-bar" class="left-content initial-hidden shinyjs-hide">
+            <div id="left-bar-controls">
+                <h3 id="chosen-dataset-name">
+                    {{ outputDataName }}
+                </h3>
+
+                <div id="view-selection-container">
+                    <button id="bubbles-selector" class="btn view-select-button selected-view-button" disabled="enabled">Bubbles</button>
+                    <button id="tree-selector" class="btn view-select-button">Tree</button>
+                </div>
+            </div>
+
+            <div id="left-bar-tabs">
+                <!-- These three are connected without whitespace intentionally -->
+                <div id="left-bar-topic-tab" class="left-bar-tab left-bar-end-tab non-selectable"><h4>Topics</h4></div><div id="left-bar-document-tab" class="left-bar-tab left-bar-middle-tab active-left-bar-tab non-selectable"><h4>Documents</h4></div><div id="left-bar-vocab-tab" class="left-bar-tab left-bar-end-tab non-selectable"><h4>Vocabulary</h4></div>
+            </div>
+
+            <div id="left-bar-content-container">
+                <div id="left-bar-topic-content" class="left-bar-content hidden-left-bar-content">
+                    <div id="topic-controls-container">
+                        {{ outputTopicTabTitle }}
+
+                        <div id="topic-controls-inputs-container" class="hidden">
+                            <div id="title-update-control" class="input-group">
+                                {{ inputTitleUpdateText }}
+                                {{ inputTitleUpdateButton }}
+                            </div>
+
+                            <br />
+
+                            <div id="runtime-kmeans-control" class="input-group">
+                                {{ inputNumNewClusters }}
+                                {{ inputClusterButton }}
+                                {{ inputDeleteCluster }}
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div id="left-bar-document-content" class="left-bar-content">
+                    <!-- <h3>Documents</h3> -->
+
+                    <h4 id="left-document-tab-cluster-title">
+                        {{ outputDocumentTitle }}
+                    </h4>
+
+                    <div id="doctab-document-container" class="topic-bar document-container">
+                        {{ outputDocuments }}
+                    </div>
+
+                </div>
+
+                <div id="left-bar-vocab-content" class="left-bar-content hidden-left-bar-content">
+                    <h4 id="left-vocab-tab-cluster-title">
+                        {{ outputVocabTitle }}
+                    </h4>
+
+                    <div id="vocabtab-vocab-container" class="vocab-bar vocab-container">
+                        {{ outputVocab }}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div id="main-panel" class="main-content initial-hidden shinyjs-hide">
+            <!-- Controls -->
+            <div id="download-button-container" class="main-control">
+                {{ inputSaveButton }}
+            </div>
+
+            <div id="export-buttons">
+                <div id="export-button-container" class="main-control export-control">
+                    {{ inputEnterExportButton }}
+                </div>
+
+                <span id="export-mode-control-container" class="export-mode-control hidden">
+                    <span id="export-svg-container" class="main-control export-control">
+                        <button id="export-svg-button" class="btn btn-primary">.SVG</button>
+                    </span>
+
+                    <!-- <span id="export-pdf-container" class="main-control export-control">
+                        <button id="export-pdf-button" class="btn btn-primary" disabled="true">.PDF</button>
+                    </span> -->
+
+                    <span id="export-flattened-container" class="main-control export-control">
+                        <button id="export-flattened-button" class="btn btn-primary">Flattened</button>
+                    </span>
+
+                    <span id="export-cancel-container" class="main-control export-control">
+                        {{ inputExitExportButton }}
+                    </span>
+                </span>
+            </div>
+
+            <div id="help-box-background" class="hidden-popup"></div>
+            <div id="help-box" class="hidden-popup">
+                <h2>Instructions</h2>
+
+                For questions or to report issues, see the <a href="https://github.com/ajbc/trellis">GitHub repository</a>.
+
+                <hr />
+
+                <h3>Node Interactions</h3>
+
+                Click on a node to select it.<br/>
+
+                Click on a selected node again to deselect it.<br/>
+
+                You must have a node selected to perform operations in the "topics" tab on the side panel.<br/>
+
+                In either the tree or bubble visualization, clicking on a node while holding the "alt/option" key will collapse that node.<br/>
+
+                Selecting a node will deselect all other nodes.<br/>
+
+                Node selection persists between tree and bubble visualizations.<br/>
+
+                <hr />
+
+                <h3>View Documents</h3>
+
+                With a node selected, click on a document in the "documents" tab on the side panel to view the full text. Note that this only works if a directory of the relevant text files was provided through the initialization panel.<br/>
+
+                While viewing a document, click outside the document pop-up to close the document.<br/>
+
+                <hr />
+
+                <h3>Topic Aggregation Interactions</h3>
+
+                Drag and drop nodes to move or merge them. Any node dragged onto a leaf node will attempt to merge/move to the target leaf's parent node.<br/>
+
+                Dragging a cluster (non-leaf) will merge the dragged cluster with the target cluster.<br/>
+
+                Dragging a leaf node will move that node into the target cluster.<br/>
+
+                Hold shift while dragging a node to create a new node at the target location. Holding shift while dragging a cluster will preserve the cluster (as a child of the target node) rather than merging the cluster with the target. Holding shift while dragging a leaf node will create an intermediate node between the target and the leaf node.<br/>
+
+                <hr />
+
+                <h3>Controlling Visualization View</h3>
+
+                Scroll to zoom in or out on the visualizations.<br/>
+
+                Click and drag while holding the "alt/option" key to pan.<br/>
+
+                <hr />
+
+                <h3>Saving and Exporting</h3>
+
+                The save button in the upper-left corner will output a .rdata file compatible with Trellis. In the future, this file can be loaded as the model file through the initialization panel. All collapsed nodes, assignments, and manual titles will be preserved, as well as the dataset name.<br/>
+
+                The export button in the top-right corner leads to further options. The .SVG button exports an image in SVG format of the current active visualization.<br/>
+
+                The "flattened" button opens a new control panel. Click nodes to select them, forming a cut of the tree. Trellis will ensure that you have a cut selected at all times by automatically selecting siblings at the same level as the node you select. Once finished, Trellis outputs a file compatible with Trellis.<br/>
+            </div>
+
+            <div id="help-button-container" class="main-control">
+                <button id="help-button">?</button>
+            </div>
+
+            <!-- Main views -->
+            <div id="bubbles-view" class="view">
+                <h3>Bubbles View</h3>
+                <div id="topic-bubble-container"></div>
+            </div>
+
+            <div id="tree-view" class="view hidden-view">
+                <h3>Tree View</h3>
+                <div id="topic-tree-container"></div>
+            </div>
+        </div>
+
+        <div id="right-bar" class="right-content initial-hidden shinyjs-hide centered">
+            <div id="right-bar-header-content">
+                <h3 id="right-bar-title">Export Flat Model</h3>
+
+                <div id="right-view-selection-container">
+                    <button id="right-bubbles-selector" class="btn view-select-button selected-view-button" disabled="enabled">Bubbles</button>
+                    <button id="right-tree-selector" class="btn view-select-button">Tree</button>
+                </div>
+            </div>
+
+            <div id="right-bar-controls" class="centered">
+                <button id="exit-flatten-button" class="btn btn-danger flatten-button">Cancel</button>
+
+                {{ outputExportFlat }}
+            </div>
+        </div>
+
+        <div id="document-details-container" class="document-expanded initial-hidden shinyjs-hide hidden">
+            <div id="document-details-offset"></div>
+
+            <div id="document-details-content">
+                {{ outputDocumentDetailsTitle }}
+
+                <div id="document-details-text">
+                    {{ outputDocumentDetails }}
+                </div>
+            </div>
+        </div>
+
+        <script src="https://d3js.org/d3.v5.min.js"></script>
+
+        <script src="topicBubbles.js"></script>
+        <script src="topicTree.js"></script>
+        <script src="topics.js"></script>    </body>
+</html>
