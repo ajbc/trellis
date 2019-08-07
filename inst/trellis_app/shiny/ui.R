@@ -1,8 +1,5 @@
 library(shiny)
 library(shinyjs)
-library(htmlwidgets)
-library(topicBubbles)
-library(topicTree)
 library(shinyFiles)
 
 htmlTemplate("template.html",
